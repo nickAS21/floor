@@ -20,8 +20,8 @@ public class SmartSolarmanTuyaApplication  implements CommandLineRunner {
      * connector.sk=
      * connector.region=
      */
-    private  String accessId = "3h8kqjefdt9saxksq8ak";
-    private String accessKey = "8c095043fb1a4d8c9c642d63732a8cc6";
+    private  String accessId = "";
+    private String accessKey = "";
     private TuyaRegion region = EU;
 
     @Autowired
