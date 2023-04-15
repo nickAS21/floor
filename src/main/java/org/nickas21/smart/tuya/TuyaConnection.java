@@ -7,13 +7,23 @@ import org.nickas21.smart.tuya.mq.MqPulsarConsumer;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaMessageUtil;
 import org.nickas21.smart.tuya.mq.TuyaToken;
+import org.nickas21.smart.tuya.util.TuyaRegion;
 import org.nickas21.smart.util.ConnectThreadFactory;
 import org.nickas21.smart.util.JacksonUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static org.nickas21.smart.tuya.mq.TuyaHandler.CONNECTOR_AK;
+import static org.nickas21.smart.tuya.mq.TuyaHandler.CONNECTOR_RE;
+import static org.nickas21.smart.tuya.mq.TuyaHandler.CONNECTOR_SK;
+import static org.nickas21.smart.tuya.mq.TuyaHandler.envSystem;
 
 @Slf4j
 @Service
@@ -23,6 +33,12 @@ public class TuyaConnection implements TuyaConnectionIn {
     private MqPulsarConsumer mqPulsarConsumer;
     private TuyaConnectionConfiguration connectionConfiguration;
 
+    /**
+     * application.properties
+     * connector.ak=
+     * connector.sk=
+     * connector.region=
+     */
     @Value("${connector.region:}")
     public String region;
 
@@ -32,20 +48,25 @@ public class TuyaConnection implements TuyaConnectionIn {
     @Value("${connector.sk:}")
     public String sk;
 
-    @Override
-    public void init(TuyaConnectionConfiguration conf) throws Exception {
+    @PostConstruct
+    public void init() throws Exception {
         accessToken = null;
         executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-loop"));
-        connectionConfiguration = new TuyaConnectionConfiguration (conf.getAccessId(), conf.getAccessKey(), conf.getRegion());
-        mqPulsarConsumer = createMqConsumer(conf.getAccessId(), conf.getAccessKey());
-        mqPulsarConsumer.connect(false);
-        this.executor.submit(() -> {
-            try {
-                mqPulsarConsumer.start();
-            } catch (Exception e) {
-                log.warn("During processing Tuya connection error caught!", e);
-            }
-        });
+        TuyaConnectionConfiguration conf = getTuyaConnectionConfiguration();
+        if (conf != null) {
+            connectionConfiguration = new TuyaConnectionConfiguration(conf.getAccessId(), conf.getAccessKey(), conf.getRegion());
+            mqPulsarConsumer = createMqConsumer(conf.getAccessId(), conf.getAccessKey());
+            mqPulsarConsumer.connect(false);
+            this.executor.submit(() -> {
+                try {
+                    mqPulsarConsumer.start();
+                } catch (Exception e) {
+                    log.warn("During processing Tuya connection error caught!", e);
+                }
+            });
+        } else {
+            log.error("Input parameters error: \n- TuyaConnectionConfiguration: [null]. \n- ak: [{}] \n- sk: [{}] \n- region: [{}]", this.ak, this.sk, this.region);
+        }
     }
 
     @Override
@@ -106,6 +127,30 @@ public class TuyaConnection implements TuyaConnectionIn {
                 })
                 .resultHandler((this::resultHandler))
                 .build();
+    }
+
+    private TuyaConnectionConfiguration getTuyaConnectionConfiguration() {
+        try {
+            String akConf = envSystem.get(CONNECTOR_AK);
+            String skConf = envSystem.get(CONNECTOR_SK);
+            String reConf = envSystem.get(CONNECTOR_RE);
+            TuyaRegion region = (reConf != null && reConf.isBlank()) ? TuyaRegion.valueOf(reConf) : null;
+            if (akConf == null || akConf.isEmpty()
+                    || skConf == null || skConf.isEmpty() || region == null) {
+                akConf = this.ak;
+                skConf = this.sk;
+                reConf = this.region;
+                region = (reConf != null && !reConf.isEmpty()) ? TuyaRegion.valueOf(reConf) : null;
+            }
+            if (akConf != null && !akConf.isEmpty() && skConf != null && !skConf.isEmpty() && region != null) {
+                return new TuyaConnectionConfiguration(akConf, skConf, region);
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("During processing Tuya connection error.[{}]", e.getMessage());
+            return null;
+        }
     }
 
 }
