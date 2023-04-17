@@ -118,7 +118,7 @@ public class JacksonUtil {
     public static <T> T fromBytes(byte[] bytes, Class<T> clazz) {
         try {
             return bytes != null ? OBJECT_MAPPER.readValue(bytes, clazz) : null;
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new IllegalArgumentException("The given string value: "
                     + Arrays.toString(bytes) + " cannot be transformed to Json object", e);
         }

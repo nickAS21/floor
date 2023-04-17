@@ -1,16 +1,8 @@
-package org.nickas21.smart.tuya.mq;
+package org.nickas21.smart.tuya.constant;
 
-import org.nickas21.smart.tuya.TuyaConnection;
-import org.nickas21.smart.tuya.TuyaConnectionConfiguration;
-import org.nickas21.smart.tuya.util.TuyaRegion;
-import org.springframework.boot.web.reactive.context.StandardReactiveWebEnvironment;
-import org.springframework.core.env.Environment;
-
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 
-public class TuyaHandler {
+public class TuyaApi {
 
     public  final static int TOKEN_GRANT_TYPE = 1;
     public  final static String GET_TOKEN_URL_PATH = "/v1.0/token";
@@ -22,9 +14,5 @@ public class TuyaHandler {
     public  final static String GET_REPORT_LOGS_URL_PATH = "/v1.0/iot-03/devices/%s/report-logs";
     public  final static String GET_SPECIFICATION_URL_PATH = "/v1.0/iot-03/devices/%s/specification";
     public  final static String GET_FUNCTIONS_URL_PATH = "/v1.0/iot-03/devices/%s/functions";
-    public  final static String CONNECTOR_AK = "connector.ak";
-    public  final static String CONNECTOR_SK = "connector.sk";
-    public  final static String CONNECTOR_RE = "connector.region";
     public final static Map<String, String> envSystem = System.getenv();
-
 }

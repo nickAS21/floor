@@ -1,4 +1,4 @@
-package org.nickas21.smart.tuya.util;
+package org.nickas21.smart.tuya.constant;
 
 public enum TuyaRegion {
 

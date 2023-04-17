@@ -30,19 +30,17 @@
  */
 package org.nickas21.smart.tuya;
 
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.AllArgsConstructor;
+import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Data;
-import org.nickas21.smart.tuya.util.TuyaRegion;
+import lombok.experimental.FieldDefaults;
 
 @Data
-@AllArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class TuyaConnectionConfiguration {
-
-    private String accessId;
-    private String accessKey;
-    private TuyaRegion region;
+@FieldDefaults(level = AccessLevel.PRIVATE)
+@Builder
+public class TuyaMessageDataSource {
+    String url;
+    String ak;
+    String sk;
 }
 
