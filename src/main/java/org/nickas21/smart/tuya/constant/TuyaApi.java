@@ -4,6 +4,7 @@ import java.util.Map;
 
 public class TuyaApi {
 
+    public static final String EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     public  final static int TOKEN_GRANT_TYPE = 1;
     public  final static String GET_TOKEN_URL_PATH = "/v1.0/token";
     public  final static String GET_REFRESH_TOKEN_URL_PATH = "/v1.0/token/%s";

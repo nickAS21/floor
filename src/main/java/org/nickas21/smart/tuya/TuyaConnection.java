@@ -1,21 +1,17 @@
 package org.nickas21.smart.tuya;
 
-import com.alibaba.fastjson.JSON;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.tuya.event.BaseTuyaMessage;
-import org.nickas21.smart.tuya.event.SourceMessage;
-import org.nickas21.smart.tuya.mq.MessageFactory;
 import org.nickas21.smart.tuya.mq.MessageVO;
 import org.nickas21.smart.tuya.mq.MqPulsarConsumer;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaMessageUtil;
-import org.nickas21.smart.tuya.mq.TuyaToken;
-import org.nickas21.smart.tuya.constant.TuyaRegion;
+import org.nickas21.smart.tuya.service.TuDeviceService;
+import org.nickas21.smart.tuya.sourece.ApiDataSource;
 import org.nickas21.smart.util.ConnectThreadFactory;
 import org.nickas21.smart.util.JacksonUtil;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
@@ -25,42 +21,29 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.nickas21.smart.tuya.constant.EnvConstant.ENV_AK;
-import static org.nickas21.smart.tuya.constant.EnvConstant.ENV_REGION;
-import static org.nickas21.smart.tuya.constant.EnvConstant.ENV_SK;
-import static org.nickas21.smart.tuya.constant.TuyaApi.envSystem;
 import static org.nickas21.smart.util.JacksonUtil.OBJECT_MAPPER;
 
 @Slf4j
 @Service
 public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware {
-    private TuyaToken accessToken;
     private ExecutorService executor;
     private MqPulsarConsumer mqPulsarConsumer;
     private TuyaMessageDataSource connectionConfiguration;
     private static ApplicationContext ctx;
 
-    /**
-     * application.properties
-     * connector.ak=
-     * connector.sk=
-     * connector.region=
-     */
-    @Value("${connector.region:}")
-    public String region;
+    @Autowired
+    private ApiDataSource dataSource;
 
-    @Value("${connector.ak:}")
-    public String ak;
-
-    @Value("${connector.sk:}")
-    public String sk;
+    @Autowired(required=true)
+    private TuDeviceService deviceService;
 
     @PostConstruct
     public void init() throws Exception {
-        accessToken = null;
         executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-loop"));
-        this.connectionConfiguration = getTuyaConnectionConfiguration();
+        deviceService.setExecutorService(executor);
+        this.connectionConfiguration = dataSource.getTuyaConnectionConfiguration();
         if (this.connectionConfiguration != null) {
+            deviceService.setConnectionConfiguration(this.connectionConfiguration);
             mqPulsarConsumer = createMqConsumer(this.connectionConfiguration.getAk(), this.connectionConfiguration.getSk());
             mqPulsarConsumer.connect(false);
             this.executor.submit(() -> {
@@ -71,7 +54,7 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
                 }
             });
         } else {
-            log.error("Input parameters error: \n- TuyaConnectionConfiguration: [null]. \n- ak: [{}] \n- sk: [{}] \n- region: [{}]", this.ak, this.sk, this.region);
+            log.error("Input parameters error: \n- TuyaConnectionConfiguration: [null]. \n- ak: [{}] \n- sk: [{}] \n- region: [{}]", dataSource.ak, dataSource.sk, dataSource.region);
         }
     }
 
@@ -99,7 +82,8 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
     public void process(TuyaConnectionMsg msg) {
         try {
             byte[] data = OBJECT_MAPPER.writeValueAsBytes(msg.getJson());
-            ctx.publishEvent(msg);
+            log.info("devId: [{}], status: [{}] -> [{}]", msg.getJson().get("devId").asText(), msg.getJson().get("status").get(0).get("code"), msg.getJson().get("status").get(0).get("value"));
+//            ctx.publishEvent(msg);
         } catch (Exception e) {
             log.debug("Failed to apply data converter function: {}", e.getMessage(), e);
         }
@@ -135,10 +119,6 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
                 .messageListener((incomingData) -> {
                     String decryptedData = "";
                     try {
-                        SourceMessage sourceMessage = JSON.parseObject(new String(incomingData.getData()), SourceMessage.class);
-
-
-                        BaseTuyaMessage msg1 = MessageFactory.extract(sourceMessage, sk);
                         MessageVO vo = JacksonUtil.fromBytes(incomingData.getData(), MessageVO.class);
                         if (vo != null) {
 
@@ -155,37 +135,6 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
                 })
                 .resultHandler((this::resultHandler))
                 .build();
-    }
-
-    private TuyaMessageDataSource getTuyaConnectionConfiguration() {
-
-        try {
-            String akConf = envSystem.get(ENV_AK);
-            String skConf = envSystem.get(ENV_SK);
-            String reConf = envSystem.get(ENV_REGION);
-
-            TuyaRegion region = (reConf != null && reConf.isBlank()) ? TuyaRegion.valueOf(reConf) : null;
-                        if (akConf == null || akConf.isEmpty()
-                    || skConf == null || skConf.isEmpty() || region == null) {
-                akConf = this.ak;
-                skConf = this.sk;
-                reConf = this.region;
-                region = (reConf != null && !reConf.isEmpty()) ? TuyaRegion.valueOf(reConf) : null;
-            }
-            if (akConf != null && !akConf.isEmpty() && skConf != null && !skConf.isEmpty() && region != null) {
-                String url = region.getMsgUrl();
-                return TuyaMessageDataSource.builder()
-                        .url(url)
-                        .ak(akConf)
-                        .sk(skConf)
-                        .build();
-            } else {
-                return null;
-            }
-        } catch (Exception e) {
-            log.error("During processing Tuya connection error.[{}]", e.getMessage());
-            return null;
-        }
     }
 
     @Override
