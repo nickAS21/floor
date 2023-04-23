@@ -1,4 +1,5 @@
 org/nickas21/smart/tuya/event/MessageConfig$MessageConfigEvent.class
+org/nickas21/smart/tuya/response/Devices.class
 org/nickas21/smart/tuya/mq/MessageVO.class
 org/nickas21/smart/tuya/mq/MqPulsarConsumer$MqPulsarConsumerBuilder.class
 org/nickas21/smart/tuya/event/MessageConfig.class
@@ -21,7 +22,9 @@ org/nickas21/smart/tuya/TuyaMessageDataSource.class
 org/nickas21/smart/tuya/constant/TuyaRegion.class
 org/nickas21/smart/tuya/constant/TuyaApi.class
 org/nickas21/smart/tuya/mq/TuyaToken.class
+org/nickas21/smart/tuya/response/Device.class
 org/nickas21/smart/tuya/event/EventType.class
+org/nickas21/smart/tuya/response/DeviceStatus.class
 org/nickas21/smart/util/RegexUtils.class
 org/nickas21/smart/tuya/TuyaConnectionIn.class
 org/nickas21/smart/util/StringUtils.class

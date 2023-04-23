@@ -6,8 +6,12 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
 import org.nickas21.smart.tuya.TuyaMessageDataSource;
+import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaToken;
+import org.nickas21.smart.tuya.response.Device;
+import org.nickas21.smart.tuya.response.Devices;
 import org.nickas21.smart.tuya.sourece.ApiDataSource;
+import org.nickas21.smart.util.ConnectThreadFactory;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +24,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.PostConstruct;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -30,19 +33,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
+import static org.nickas21.smart.tuya.constant.TuyaApi.GET_DEVICES_ID_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_REFRESH_TOKEN_URL_PATH;
+import static org.nickas21.smart.tuya.constant.TuyaApi.GET_STATUS_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TOKEN_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.TOKEN_GRANT_TYPE;
+import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 
 @Service
 @Slf4j
-public class DefaultTuDeviceService implements TuDeviceService{
+public class DefaultTuDeviceService implements TuDeviceService {
 
     private TuyaToken accessToken;
+    private Devices devices;
 
     private final RestTemplate httpClient = new RestTemplate();
     private ExecutorService executor;
@@ -56,13 +64,49 @@ public class DefaultTuDeviceService implements TuDeviceService{
         this.dataSource = dataSource;
     }
 
-    @PostConstruct
-    public void init() throws Exception {
-        accessToken = null;
-
+    @Override
+    public void init() {
+        executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-service"));
+        accessToken = getToken();
+        devices = new Devices();
+        if (accessToken != null) {
+            sendInitRequest();
+        }
+        log.info("init successful: [{}] devices", devices.getDevIds().size());
     }
 
-    private TuyaToken createToken() throws Exception {
+    public void setConnectionConfiguration(TuyaMessageDataSource connectionConfiguration) {
+        this.connectionConfiguration = connectionConfiguration;
+    }
+
+    @SneakyThrows
+    public void devicesUpDateStatusValue (TuyaConnectionMsg msg) {
+        String deviceId = msg.getJson().get("devId").asText();
+        JsonNode deviceStatus = msg.getJson().get("status");
+        Device device = this.devices.getDevIds().get(deviceId);
+        device.setStatus(deviceStatus);
+    }
+
+    @SneakyThrows
+    private TuyaToken createToken() {
+        Future<TuyaToken> future = executor.submit(() -> {
+            try {
+                return createGetToken();
+            } catch (Exception e) {
+                log.error("create token error", e);
+                return null;
+            } finally {
+            }
+        });
+        TuyaToken createToken = future.get();
+        if (Objects.isNull(createToken)) {
+            log.error("Create token required, not null.");
+        }
+        return createToken;
+    }
+
+    @SneakyThrows
+    private TuyaToken createGetToken() {
         Map<String, Object> queries = new HashMap<>();
         queries.put("grant_type", TOKEN_GRANT_TYPE);
         String path = creatPathWithQueries(GET_TOKEN_URL_PATH, queries);
@@ -89,11 +133,12 @@ public class DefaultTuDeviceService implements TuDeviceService{
             } catch (Exception e) {
                 log.error("refresh token error", e);
                 return null;
-            } finally {}
+            } finally {
+            }
         });
         TuyaToken refreshedToken = future.get();
         if (Objects.isNull(refreshedToken)) {
-            log.error("refreshed token required not null.");
+            log.error("Refreshed token required, not null.");
         }
         return refreshedToken;
     }
@@ -105,18 +150,30 @@ public class DefaultTuDeviceService implements TuDeviceService{
         return pathWithQueries;
     }
 
-
-    private RequestEntity<Object> createGetRequest(String path, boolean getToken) throws Exception {
+    private RequestEntity<Object> createGetRequest(String path, boolean isGetToken) throws Exception {
         HttpMethod httpMethod = HttpMethod.GET;
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createHeaders(ts);
-        if (!getToken) httpHeaders.add("access_token", accessToken.getAccessToken());
-        String strToSign = getToken ? this.connectionConfiguration.getAk() + ts + stringToSign(path, getBodyHash(null), httpMethod) :
+        if (!isGetToken) httpHeaders.add("access_token", accessToken.getAccessToken());
+        String strToSign = isGetToken ? this.connectionConfiguration.getAk() + ts + stringToSign(path, getBodyHash(null), httpMethod) :
                 this.connectionConfiguration.getAk() + accessToken.getAccessToken() + ts + stringToSign(path, getBodyHash(null), httpMethod);
+        String signedStr = sign(strToSign, this.connectionConfiguration.getSk());
+        httpHeaders.add("sign", signedStr);
+        URI uri = URI.create(this.connectionConfiguration.getRegion().getApiUrl() + path);
+        return new RequestEntity<>(httpHeaders, httpMethod, uri);
+    }
+
+    private RequestEntity<Object> createPostRequest(String path, ObjectNode body) throws Exception {
+        HttpMethod httpMethod = HttpMethod.POST;
+        String ts = String.valueOf(System.currentTimeMillis());
+        MultiValueMap<String, String> httpHeaders = createHeaders(ts);
+        httpHeaders.add("access_token", accessToken.getAccessToken());
+        String strToSign = this.connectionConfiguration.getAk() + accessToken.getAccessToken() +
+                ts + stringToSign(path, getBodyHash(body.toString()), httpMethod);
         String signedStr = sign(strToSign, this.connectionConfiguration.getAk());
         httpHeaders.add("sign", signedStr);
-        URI uri = URI.create(this.connectionConfiguration.getUrl() + path);
-        return new RequestEntity<>(httpHeaders, httpMethod, uri);
+        URI uri = URI.create(this.connectionConfiguration.getRegion().getApiUrl() + path);
+        return new RequestEntity<>(body.toString(), httpHeaders, httpMethod, uri);
     }
 
     private HttpHeaders createHeaders(String ts) {
@@ -129,7 +186,7 @@ public class DefaultTuDeviceService implements TuDeviceService{
         return httpHeaders;
     }
 
-    private TuyaToken getToken() throws Exception {
+    private TuyaToken getToken() {
         if (accessToken != null) {
             if (!hasValidAccessToken()) {
                 accessToken = refreshToken();
@@ -145,29 +202,20 @@ public class DefaultTuDeviceService implements TuDeviceService{
         return accessToken.getExpireAt() + 20_000 > System.currentTimeMillis();
     }
 
-
     private ResponseEntity<ObjectNode> sendRequest(RequestEntity<Object> requestEntity, HttpMethod httpMethod) {
         ResponseEntity<ObjectNode> responseEntity = httpClient.exchange(requestEntity.getUrl(), httpMethod, requestEntity, ObjectNode.class);
         if (!HttpStatus.OK.equals(responseEntity.getStatusCode())) {
             throw new RuntimeException(String.format("No response for device command request! Reason code from Tuya Cloud: %s", responseEntity.getStatusCode().toString()));
         } else {
             if (Objects.requireNonNull(responseEntity.getBody()).get("success").asBoolean()) {
-                JsonNode result = responseEntity.getBody().get("result");
-                log.info("result: [{}]", result);
+//                JsonNode result = responseEntity.getBody().get("result");
+//                log.info("result: [{}]", result);
                 return responseEntity;
             } else {
                 log.error("cod: [{}], msg: [{}]", responseEntity.getBody().get("code").asInt(), responseEntity.getBody().get("msg").asText());
                 return null;
             }
         }
-    }
-
-    public void setExecutorService (ExecutorService executor) {
-        this.executor = executor;
-    }
-
-    public void setConnectionConfiguration (TuyaMessageDataSource connectionConfiguration){
-        this.connectionConfiguration = connectionConfiguration;
     }
 
     private String stringToSign(String path, String bodyHash, HttpMethod httpMethod) throws Exception {
@@ -210,5 +258,51 @@ public class DefaultTuDeviceService implements TuDeviceService{
         }
         return null;
     }
+
+
+    private void sendPostRequest(String path, ObjectNode commandsNode) throws Exception {
+        RequestEntity<Object> requestEntity = createPostRequest(path, commandsNode);
+        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity, HttpMethod.POST);
+        if (responseEntity != null) {
+            JsonNode result = responseEntity.getBody().get("result");
+            log.info("result: [{}]", result);
+        }
+    }
+
+    private void sendInitRequest() {
+        for (String deviceId : this.connectionConfiguration.getDeviceIds()) {
+            try {
+                String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
+                RequestEntity<Object> requestEntity = createGetRequest(path, false);
+                ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity, HttpMethod.GET);
+                if (responseEntity != null) {
+                    JsonNode result = responseEntity.getBody().get("result");
+                    Device device = treeToValue(result, Device.class);
+                    devices.getDevIds().put(deviceId, device);
+                    path = String.format(GET_STATUS_URL_PATH, deviceId);
+                    requestEntity = createGetRequest(path, false);
+                    responseEntity = sendRequest(requestEntity, HttpMethod.GET);
+                    if (responseEntity != null) {
+                        result = responseEntity.getBody().get("result");
+                        devices.getDevIds().get(deviceId).setStatus(result);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Failed init device with id [{}] [{}]", deviceId, e.getMessage());
+            }
+        }
+    }
+
+
+    @SneakyThrows
+    private void sendGetRequest(String path) {
+        RequestEntity<Object> requestEntity = createGetRequest(path, false);
+        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity, HttpMethod.GET);
+        if (responseEntity != null) {
+            JsonNode result = responseEntity.getBody().get("result");
+            log.warn("result: [{}]", result);
+        }
+    }
+
 
 }

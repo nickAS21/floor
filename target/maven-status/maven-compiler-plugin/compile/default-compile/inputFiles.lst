@@ -8,6 +8,7 @@
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/SmartSolarmanTuyaApplication.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/event/EventType.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/constant/TuyaApi.java
+/home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/response/DeviceStatus.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/mq/MqAuthenticationDataProvider.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/util/ConnectThreadFactory.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/util/HmacSHA256Util.java
@@ -19,7 +20,9 @@
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/controller/BaseController.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/mq/MessageVO.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/mq/MqPulsarConsumer.java
+/home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/response/Device.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/mq/TuyaMessageUtil.java
+/home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/response/Devices.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/mq/MqAuthentication.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/service/DefaultTuDeviceService.java
 /home/nick/Igor_project/tyua_floor/floor/src/main/java/org/nickas21/smart/tuya/TuyaMessageDataSource.java

@@ -8,8 +8,17 @@ public class TuyaApi {
     public  final static int TOKEN_GRANT_TYPE = 1;
     public  final static String GET_TOKEN_URL_PATH = "/v1.0/token";
     public  final static String GET_REFRESH_TOKEN_URL_PATH = "/v1.0/token/%s";
-    public  final static String POST_COMMANDS_URL_PATH = "/v1.0/iot-03/devices/%s/commands";
+    public  final static String GET_DEVICES_ID_URL_PATH = "/v1.1/iot-03/devices/%s";
     public  final static String GET_STATUS_URL_PATH = "/v1.0/iot-03/devices/%s/status";
+//    public  final static String GET_ALL_DEVICE_IDS = "/v1.0/users/%s/devices";
+//    public  final static String GET_ALL_DEVICE_IDS = "/v1.0/iot-03/devices";
+    public  final static String QUERY_DEVICE_IDS = "device_ids";
+//    public  final static String GET_ALL_DEVICES_IDS = "/v1.3/iot-03/devices";
+//    public  final static String GET_ALL_DEVICES_IDS = "/v1.0/iot-03/devices/status";
+//    public  final static String GET_ALL_DEVICES_IDS = "/v1.0/iot-03/device-groups";
+//    public  final static String GET_ALL_DEVICES_IDS = "/v2.0/devices";
+    public  final static String POST_COMMANDS_URL_PATH = "/v1.0/iot-03/devices/%s/commands";
+
     public  final static String GET_CATEGORY_URL_PATH = "/v1.0/iot-03/categories/%s/status";
     public  final static String GET_LOGS_URL_PATH = "/v1.0/iot-03/devices/%s/logs";
     public  final static String GET_REPORT_LOGS_URL_PATH = "/v1.0/iot-03/devices/%s/report-logs";

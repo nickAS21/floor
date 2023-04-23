@@ -53,6 +53,13 @@ public class StringUtils {
         return source == null || source.isEmpty() || source.trim().isEmpty();
     }
 
+    public static boolean isArrayBlank(String[] source) {
+        return source == null || source.length == 0;
+    }
+    public static boolean isArrayNoneBlank(String[] source) {
+        return source != null && source.length > 0;
+    }
+
     public static boolean isNotEmpty(String source) {
         return source != null && !source.isEmpty();
     }
@@ -118,16 +125,16 @@ public class StringUtils {
         return src != null ? src : "";
     }
 
-    public static Iterable<String> split(String value, int maxPartSize) {
-        return Splitter.fixedLength(maxPartSize).split(value);
+    public static String [] split(String value, String separatorChars) {
+        return org.apache.commons.lang3.StringUtils.split(value, separatorChars);
     }
 
     public static boolean equalsIgnoreCase(String str1, String str2) {
         return str1 == null ? str2 == null : str1.equalsIgnoreCase(str2);
     }
 
-    public static String join(String[] keyArray, String lwm2mSeparatorPath) {
-        return org.apache.commons.lang3.StringUtils.join(keyArray, lwm2mSeparatorPath);
+    public static String join(String[] keyArray, String separatorPath) {
+        return org.apache.commons.lang3.StringUtils.join(keyArray, separatorPath);
     }
 
     public static String trimToNull(String toString) {

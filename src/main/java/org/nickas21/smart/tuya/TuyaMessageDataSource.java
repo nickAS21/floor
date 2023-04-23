@@ -34,13 +34,16 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
+import org.nickas21.smart.tuya.constant.TuyaRegion;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Builder
 public class TuyaMessageDataSource {
-    String url;
+    TuyaRegion region;
     String ak;
     String sk;
+    String[] deviceIds;
+    String userUid;
 }
 

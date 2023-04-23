@@ -34,13 +34,13 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
     @Autowired
     private ApiDataSource dataSource;
 
-    @Autowired(required=true)
+    @Autowired()
     private TuDeviceService deviceService;
 
     @PostConstruct
     public void init() throws Exception {
         executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-loop"));
-        deviceService.setExecutorService(executor);
+//        deviceService.setExecutorService(executor);
         this.connectionConfiguration = dataSource.getTuyaConnectionConfiguration();
         if (this.connectionConfiguration != null) {
             deviceService.setConnectionConfiguration(this.connectionConfiguration);
@@ -81,16 +81,15 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
     @Override
     public void process(TuyaConnectionMsg msg) {
         try {
-            byte[] data = OBJECT_MAPPER.writeValueAsBytes(msg.getJson());
-            log.info("devId: [{}], status: [{}] -> [{}]", msg.getJson().get("devId").asText(), msg.getJson().get("status").get(0).get("code"), msg.getJson().get("status").get(0).get("value"));
-//            ctx.publishEvent(msg);
-        } catch (Exception e) {
+            deviceService.devicesUpDateStatusValue(msg);
+         } catch (Exception e) {
             log.debug("Failed to apply data converter function: {}", e.getMessage(), e);
         }
     }
 
     private void resultHandler(String type, String msg, Exception exception) {
         if ("CONNECT".equals(type) && exception != null) {
+            // Reconnect
             try {
                 mqPulsarConsumer.stop();
             } catch (Exception ignored) {
@@ -105,7 +104,10 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
 
         }
         if (exception == null) {
+            // Ok connect
             log.debug("Type: [{}], Status: [SUCCESS], msg: [{}]", type, msg);
+            // Init devices and accessToken
+            deviceService.init();
         } else {
             log.error("Type: [{}], Status: [FAILURE], msg: [{}]", type, msg, exception);
         }
@@ -113,7 +115,7 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
 
     private MqPulsarConsumer createMqConsumer(String accessId, String accessKey) {
         return MqPulsarConsumer.builder()
-                .serviceUrl(connectionConfiguration.getUrl())
+                .serviceUrl(connectionConfiguration.getRegion().getMsgUrl())
                 .accessId(accessId)
                 .accessKey(accessKey)
                 .messageListener((incomingData) -> {
