@@ -54,6 +54,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 
+import com.fasterxml.jackson.databind.node.BinaryNode;
+import com.fasterxml.jackson.databind.node.BooleanNode;
+import com.fasterxml.jackson.databind.node.DoubleNode;
+import com.fasterxml.jackson.databind.node.IntNode;
+import com.fasterxml.jackson.databind.node.LongNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.TextNode;
+
 /**
  * Created by Valerii Sosliuk on 5/12/2017.
  */
@@ -301,6 +309,33 @@ public class JacksonUtil {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Judge Java objects and create JsonNode.
+     */
+    public static JsonNode objectToJsonNode( final Object obj ) throws IOException {
+        if ( obj instanceof String ) {
+            return new TextNode( (String)obj );
+        } else if ( obj instanceof Boolean ) {
+            return BooleanNode.valueOf( (Boolean)obj );
+        } else if ( obj instanceof Short ) {
+            return IntNode.valueOf( ( (Short)obj ).intValue() );
+        } else if ( obj instanceof Integer ) {
+            return IntNode.valueOf( (Integer)obj );
+        } else if ( obj instanceof Long ) {
+            return new LongNode( (Long)obj );
+        } else if ( obj instanceof Float ) {
+            return new DoubleNode( ( (Float)obj ).doubleValue() );
+        } else if ( obj instanceof Double ) {
+            return new DoubleNode( (Double)obj );
+        } else if ( obj instanceof byte[] ) {
+            return new BinaryNode( (byte[])obj );
+        } else if ( obj == null ) {
+            return NullNode.getInstance();
+        } else {
+            return new TextNode( obj.toString() );
         }
     }
 

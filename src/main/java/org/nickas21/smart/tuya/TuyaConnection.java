@@ -6,14 +6,12 @@ import org.nickas21.smart.tuya.mq.MessageVO;
 import org.nickas21.smart.tuya.mq.MqPulsarConsumer;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaMessageUtil;
-import org.nickas21.smart.tuya.service.TuDeviceService;
-import org.nickas21.smart.tuya.sourece.ApiDataSource;
+import org.nickas21.smart.tuya.service.TuyaDeviceService;
+import org.nickas21.smart.tuya.source.ApiTuyaDataSource;
+import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.util.ConnectThreadFactory;
 import org.nickas21.smart.util.JacksonUtil;
-import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -21,30 +19,29 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.nickas21.smart.util.JacksonUtil.OBJECT_MAPPER;
-
 @Slf4j
 @Service
-public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware {
+//public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware {
+public class TuyaConnection implements TuyaConnectionIn {
     private ExecutorService executor;
     private MqPulsarConsumer mqPulsarConsumer;
-    private TuyaMessageDataSource connectionConfiguration;
-    private static ApplicationContext ctx;
+    private TuyaMessageDataSource tuyaConnectionConfiguration;
+//    private static ApplicationContext ctx;
 
     @Autowired
-    private ApiDataSource dataSource;
+    private ApiTuyaDataSource tuyaDataSource;
 
     @Autowired()
-    private TuDeviceService deviceService;
+    private TuyaDeviceService deviceService;
 
     @PostConstruct
     public void init() throws Exception {
-        executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-loop"));
-//        deviceService.setExecutorService(executor);
-        this.connectionConfiguration = dataSource.getTuyaConnectionConfiguration();
-        if (this.connectionConfiguration != null) {
-            deviceService.setConnectionConfiguration(this.connectionConfiguration);
-            mqPulsarConsumer = createMqConsumer(this.connectionConfiguration.getAk(), this.connectionConfiguration.getSk());
+        executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-tuya"));
+        deviceService.setExecutorService(executor);
+        this.tuyaConnectionConfiguration = tuyaDataSource.getTuyaConnectionConfiguration();
+        if (this.tuyaConnectionConfiguration != null) {
+            deviceService.setConnectionConfiguration(this.tuyaConnectionConfiguration);
+            mqPulsarConsumer = createMqConsumer(this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk());
             mqPulsarConsumer.connect(false);
             this.executor.submit(() -> {
                 try {
@@ -54,14 +51,15 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
                 }
             });
         } else {
-            log.error("Input parameters error: \n- TuyaConnectionConfiguration: [null]. \n- ak: [{}] \n- sk: [{}] \n- region: [{}]", dataSource.ak, dataSource.sk, dataSource.region);
+            log.error("Input parameters error: \n- TuyaConnectionConfiguration: [null]. \n- ak: [{}] \n- sk: [{}] \n- region: [{}]", tuyaDataSource.tuyaAk, tuyaDataSource.tuyaSk, tuyaDataSource.tuyaRegion);
+            this.destroy();
         }
     }
 
-    @Override
-    public void update(String accessId, String accessKey) throws Exception {
-
-    }
+//    @Override
+//    public void update(String accessId, String accessKey) throws Exception {
+//
+//    }
 
     @Override
     public void destroy() {
@@ -81,7 +79,7 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
     @Override
     public void process(TuyaConnectionMsg msg) {
         try {
-            deviceService.devicesUpDateStatusValue(msg);
+            deviceService.devicesFromUpDateStatusValue(msg);
          } catch (Exception e) {
             log.debug("Failed to apply data converter function: {}", e.getMessage(), e);
         }
@@ -115,7 +113,7 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
 
     private MqPulsarConsumer createMqConsumer(String accessId, String accessKey) {
         return MqPulsarConsumer.builder()
-                .serviceUrl(connectionConfiguration.getRegion().getMsgUrl())
+                .serviceUrl(tuyaConnectionConfiguration.getRegion().getMsgUrl())
                 .accessId(accessId)
                 .accessKey(accessKey)
                 .messageListener((incomingData) -> {
@@ -138,9 +136,9 @@ public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware
                 .resultHandler((this::resultHandler))
                 .build();
     }
-
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.ctx = applicationContext;
-    }
+//
+//    @Override
+//    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+//        this.ctx = applicationContext;
+//    }
 }

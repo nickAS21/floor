@@ -11,6 +11,6 @@ import java.io.Serializable;
 public class DeviceStatus implements Serializable {
     private Object value;
     private Object valueOld;
-    private Long t;
+    private Long eventTime;
     private String name;
 }

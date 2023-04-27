@@ -57,8 +57,8 @@ public class Device {
                             statusNew.setValueOld(statusOld.getValue());
                         }
                         setStatus(code, statusNew);
-                        log.info("Update: devId [{}] devName [{}], status: [{}] -> old=[{}], new=[{}]",
-                                this.id, this.name, code, statusNew.getValueOld(), statusNew.getValue());
+//                        log.trace("Init: devId [{}] devName [{}], status: [{}] -> old=[{}], new=[{}]",
+//                                this.id, this.name, code, statusNew.getValueOld(), statusNew.getValue());
                     }
                 }
             }

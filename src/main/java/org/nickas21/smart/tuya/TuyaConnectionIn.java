@@ -4,7 +4,7 @@ import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 
 public interface TuyaConnectionIn {
 
-    void update(String accessId, String accessKey) throws Exception;
+//    void update(String accessId, String accessKey) throws Exception;
 
     void destroy();
 
