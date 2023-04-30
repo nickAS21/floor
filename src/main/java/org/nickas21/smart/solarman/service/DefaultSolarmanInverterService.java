@@ -1,10 +1,12 @@
 package org.nickas21.smart.solarman.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.mq.SolarmanToken;
+import org.nickas21.smart.solarman.mq.Station;
 import org.nickas21.smart.solarman.source.SolarmanMqttDataSource;
 import org.nickas21.smart.tuya.mq.TuyaToken;
 import org.nickas21.smart.util.JacksonUtil;
@@ -19,15 +21,18 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static org.nickas21.smart.solarman.constant.SolarmanApi.GET_SOLARMAN_OBTAIN_STATION_LIST_PATH;
 import static org.nickas21.smart.solarman.constant.SolarmanApi.GET_SOLARMAN_TOKEN_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_REFRESH_TOKEN_URL_PATH;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 import static org.nickas21.smart.util.HttpUtil.sendRequest;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
+import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 
 @Slf4j
 @Service
@@ -35,6 +40,7 @@ public class DefaultSolarmanInverterService implements SolarmanInverterService {
     private ExecutorService executor;
     private SolarmanMqttDataSource solarmanMqttDataConnection;
     private SolarmanToken accessSolarmanToken;
+    private Map<Long, Station> stations;
 
     @Override
     public void setExecutorService(ExecutorService executor) {
@@ -49,6 +55,10 @@ public class DefaultSolarmanInverterService implements SolarmanInverterService {
     @Override
     public void init() {
         accessSolarmanToken = getSolarmanToken();
+        if (accessSolarmanToken != null) {
+            stations = new ConcurrentHashMap<>();
+            getStaionList();
+        }
     }
 
     private SolarmanToken getSolarmanToken() {
@@ -85,6 +95,31 @@ public class DefaultSolarmanInverterService implements SolarmanInverterService {
     }
 
     @SneakyThrows
+    private void getStaionList() {
+        Future<JsonNode> future = executor.submit(() -> {
+            try {
+                return createGetStationList();
+            } catch (Exception e) {
+                log.error("Create solarman token error", e);
+                return null;
+            } finally {
+            }
+        });
+        JsonNode result = future.get();
+        if (Objects.isNull(result) || result.get("stationList") == null) {
+            log.error("Create solarman station list required, not null.");
+        } else {
+            ArrayNode staionList = (ArrayNode) result.get("stationList");
+            for (JsonNode stationNode : staionList) {
+                Station station = treeToValue(stationNode, Station.class);
+                stations.put(station.getId(), station);
+            }
+
+        }
+
+    }
+
+    @SneakyThrows
     private SolarmanToken refreshSolarmanToken() {
         Future<SolarmanToken> future = executor.submit(() -> {
             try {
@@ -114,7 +149,7 @@ public class DefaultSolarmanInverterService implements SolarmanInverterService {
         data.set("email", objectToJsonNode(this.solarmanMqttDataConnection.getUserName()));
         String passHash = this.solarmanMqttDataConnection.getPassHash();
         data.set("password", objectToJsonNode(passHash));
-        RequestEntity<Object> requestEntity = createRequestWithBody(path, data, HttpMethod.POST);
+        RequestEntity<Object> requestEntity = createRequestWithBody(path, data, HttpMethod.POST, false);
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
         if (responseEntity != null && responseEntity.getBody().get("success").asBoolean()) {
             JsonNode result = responseEntity.getBody();
@@ -124,6 +159,22 @@ public class DefaultSolarmanInverterService implements SolarmanInverterService {
                     .expiresIn(result.get("expires_in").asText())
                     .uid(result.get("uid").asText())
                     .build();
+        }
+        return null;
+    }
+
+    @SneakyThrows
+    private JsonNode createGetStationList() {
+        Map<String, Object> queries = new HashMap<>();
+        queries.put("language", "en");
+        String path = creatHttpPathWithQueries(GET_SOLARMAN_OBTAIN_STATION_LIST_PATH, queries);
+        ObjectNode data = JacksonUtil.newObjectNode();
+        data.set("page", objectToJsonNode(1));
+        data.set("size", objectToJsonNode(10));
+        RequestEntity<Object> requestEntity = createRequestWithBody(path, data, HttpMethod.POST, true);
+        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
+        if (responseEntity != null && responseEntity.getBody().get("success").asBoolean()) {
+            return responseEntity.getBody();
         }
         return null;
     }
@@ -146,17 +197,20 @@ public class DefaultSolarmanInverterService implements SolarmanInverterService {
         return null;
     }
 
-    private RequestEntity<Object> createRequestWithBody(String path, ObjectNode body, HttpMethod httpMethod) throws Exception {
+    private RequestEntity<Object> createRequestWithBody(String path, ObjectNode body, HttpMethod httpMethod,  boolean withToken) throws Exception {
         String ts = String.valueOf(System.currentTimeMillis());
-        MultiValueMap<String, String> httpHeaders = createSolarmanHeaders(ts);
+        MultiValueMap<String, String> httpHeaders = createSolarmanHeaders(ts, withToken);
         URI uri = URI.create(this.solarmanMqttDataConnection.getRegion().getApiUrl() + path);
         return new RequestEntity<>(body.toString(), httpHeaders, httpMethod, uri);
     }
 
-    private HttpHeaders createSolarmanHeaders(String ts) {
+    private HttpHeaders createSolarmanHeaders(String ts, boolean withToken) {
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.add("t", ts);
         httpHeaders.add("Content-Type", "application/json");
+        if (withToken) {
+            httpHeaders.set("Authorization", "bearer " + accessSolarmanToken.getAccessToken());
+        }
         return httpHeaders;
     }
 }
