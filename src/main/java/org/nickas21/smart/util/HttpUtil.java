@@ -25,8 +25,10 @@ public class HttpUtil {
 
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;
-        pathWithQueries += "?" + queries.entrySet().stream().map(it -> it.getKey() + "=" + it.getValue())
-                .collect(Collectors.joining("&"));
+        if ( queries != null) {
+            pathWithQueries += "?" + queries.entrySet().stream().map(it -> it.getKey() + "=" + it.getValue())
+                    .collect(Collectors.joining("&"));
+        }
         return pathWithQueries;
     }
 

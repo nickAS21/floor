@@ -5,27 +5,20 @@ public enum SolarmanRegion {
     /**
      * China
      */
-    CN("https://api.solarmanpv.com", "pulsar+ssl://mqe.tuyacn.com:7285/"),
+    CN("https://api.solarmanpv.com"),
     /**
      * International
      */
-    IN("https://globalapi.solarmanpv.com", "pulsar+ssl://mqe.tuyain.com:7285/");
+    IN("https://globalapi.solarmanpv.com");
 
     private final String apiUrl;
 
-    private final String msgUrl;
-
-    SolarmanRegion(String apiUrl, String msgUrl) {
+    SolarmanRegion(String apiUrl) {
         this.apiUrl = apiUrl;
-        this.msgUrl = msgUrl;
     }
 
     public String getApiUrl() {
         return apiUrl;
-    }
-
-    public String getMsgUrl() {
-        return msgUrl;
     }
 }
 

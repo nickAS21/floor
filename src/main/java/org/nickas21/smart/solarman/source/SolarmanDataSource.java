@@ -10,19 +10,18 @@ import org.nickas21.smart.solarman.constant.SolarmanRegion;
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Builder
-public class SolarmanMqttDataSource {
+public class SolarmanDataSource {
     String name;
     SolarmanRegion region;
     String appId;
     String secret;
     String userName;
     String passHash;
-    String stationId;
-    String inverterId;
-    String loggerId;
-    int mqttPort;
-    String topic;
-    String mqttUsername;
+    Long stationId;
+    String inverterSn;
+    Long inverterId;
+    String loggerSn;
+    Long loggerId;
     String passWord;
 }
 

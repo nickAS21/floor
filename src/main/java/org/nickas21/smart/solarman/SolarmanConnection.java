@@ -5,9 +5,9 @@ import org.eclipse.paho.mqttv5.client.MqttAsyncClient;
 import org.eclipse.paho.mqttv5.client.MqttConnectionOptions;
 import org.eclipse.paho.mqttv5.client.persist.MemoryPersistence;
 import org.eclipse.paho.mqttv5.common.MqttException;
-import org.nickas21.smart.solarman.service.DefaultSolarmanInverterService;
+import org.nickas21.smart.solarman.service.DefaultSolarmanStationsService;
 import org.nickas21.smart.solarman.source.ApiSolarmanDataSource;
-import org.nickas21.smart.solarman.source.SolarmanMqttDataSource;
+import org.nickas21.smart.solarman.source.SolarmanDataSource;
 import org.nickas21.smart.util.ConnectThreadFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,9 +19,9 @@ import java.util.concurrent.Executors;
 
 @Slf4j
 @Service
-public class SolarmanMqttConnection {
+public class SolarmanConnection {
     private ExecutorService executor;
-    private SolarmanMqttDataSource solarmanMqttDataConnection;
+    private SolarmanDataSource solarmanMqttDataConnection;
     public MqttAsyncClient client;
 
     /**
@@ -47,12 +47,12 @@ public class SolarmanMqttConnection {
     private ApiSolarmanDataSource solarmanDataSource;
 
     @Autowired
-    private DefaultSolarmanInverterService solarmanInverterService;
+    private DefaultSolarmanStationsService solarmanInverterService;
 
     @PostConstruct
     public void init() throws Exception {
         this.executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-solarman"));
-        this.solarmanMqttDataConnection = solarmanDataSource.getSolarmanMqttDataSource();
+        this.solarmanMqttDataConnection = solarmanDataSource.getSolarmanDataSource();
         this.solarmanInverterService.setExecutorService(this.executor);
         this.solarmanInverterService.setSolarmanMqttDataSource(this.solarmanMqttDataConnection);
         this.solarmanInverterService.init();
@@ -62,7 +62,7 @@ public class SolarmanMqttConnection {
 
 
     private void createClient() throws MqttException {
-        this.client = new MqttAsyncClient("tcp://" + this.solarmanMqttDataConnection.getRegion() + ":1883", this.solarmanMqttDataConnection.getLoggerId(), new MemoryPersistence());
+        this.client = new MqttAsyncClient("tcp://" + this.solarmanMqttDataConnection.getRegion() + ":1883", this.solarmanMqttDataConnection.getLoggerSn(), new MemoryPersistence());
         this.client.setCallback(new SolarmanMqttCallback());
         MqttConnectionOptions options = new MqttConnectionOptions();
         options.setUserName(this.solarmanMqttDataConnection.getUserName());
