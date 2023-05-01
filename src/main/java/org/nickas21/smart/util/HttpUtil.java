@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.text.SimpleDateFormat;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -22,6 +23,8 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 @Slf4j
 public class HttpUtil {
     private static final RestTemplate httpClient = new RestTemplate();
+    public static final SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+    public static final String bmsSoc = "BMS_SOC";
 
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;

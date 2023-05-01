@@ -23,5 +23,8 @@ public class SolarmanDataSource {
     String loggerSn;
     Long loggerId;
     String passWord;
+    Long timeOutSec;
+    double bmsSocMin;
+    double bmsSocMax;
 }
 

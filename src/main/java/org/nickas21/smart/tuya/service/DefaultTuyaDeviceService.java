@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
+import org.nickas21.smart.solarman.service.SolarmanStationsService;
 import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaToken;
@@ -60,6 +61,9 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     @Autowired
     private ApiTuyaDataSource dataSource;
 
+    @Autowired
+    private SolarmanStationsService solarmanStationsService;
+
 
     public DefaultTuyaDeviceService(ApiTuyaDataSource dataSource) {
         this.dataSource = dataSource;
@@ -67,11 +71,12 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
 
     @Override
     public void init() {
-//        executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-service"));
+        double bmsSoc = 0;
         accessTuyaToken = getTuyaToken();
         devices = new Devices();
         if (accessTuyaToken != null) {
             sendInitRequest();
+            bmsSoc = solarmanStationsService.getRealTimeDataStart();
         }
         log.info("init successful: [{}] devices", devices.getDevIds().size());
         // Test Sun Uzel
@@ -348,6 +353,8 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                         result = responseEntity.getBody().get("result");
                         devices.getDevIds().get(deviceId).setStatus(result);
                     }
+                } else {
+                    log.error("Failed init device with id [{}]", deviceId);
                 }
             } catch (Exception e) {
                 log.error("Failed init device with id [{}] [{}]", deviceId, e.getMessage());

@@ -32,15 +32,15 @@ public class TuyaConnection implements TuyaConnectionIn {
     private ApiTuyaDataSource tuyaDataSource;
 
     @Autowired()
-    private TuyaDeviceService deviceService;
+    private TuyaDeviceService tuyaDeviceService;
 
     @PostConstruct
     public void init() throws Exception {
         executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-tuya"));
-        deviceService.setExecutorService(executor);
+        tuyaDeviceService.setExecutorService(executor);
         this.tuyaConnectionConfiguration = tuyaDataSource.getTuyaConnectionConfiguration();
         if (this.tuyaConnectionConfiguration != null) {
-            deviceService.setConnectionConfiguration(this.tuyaConnectionConfiguration);
+            tuyaDeviceService.setConnectionConfiguration(this.tuyaConnectionConfiguration);
             mqPulsarConsumer = createMqConsumer(this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk());
             mqPulsarConsumer.connect(false);
             this.executor.submit(() -> {
@@ -79,14 +79,14 @@ public class TuyaConnection implements TuyaConnectionIn {
     @Override
     public void process(TuyaConnectionMsg msg) {
         try {
-            deviceService.devicesFromUpDateStatusValue(msg);
+            tuyaDeviceService.devicesFromUpDateStatusValue(msg);
          } catch (Exception e) {
             log.debug("Failed to apply data converter function: {}", e.getMessage(), e);
         }
     }
 
     private void resultHandler(String type, String msg, Exception exception) {
-        if ("CONNECT".equals(type) && exception != null) {
+        if ("Tuya CONNECT".equals(type) && exception != null) {
             // Reconnect
             try {
                 mqPulsarConsumer.stop();
@@ -103,11 +103,11 @@ public class TuyaConnection implements TuyaConnectionIn {
         }
         if (exception == null) {
             // Ok connect
-            log.debug("Type: [{}], Status: [SUCCESS], msg: [{}]", type, msg);
+            log.debug("Tuya Type: [{}], Status: [SUCCESS], msg: [{}]", type, msg);
             // Init devices and accessToken
-            deviceService.init();
+            tuyaDeviceService.init();
         } else {
-            log.error("Type: [{}], Status: [FAILURE], msg: [{}]", type, msg, exception);
+            log.error("Tuya Type: [{}], Status: [FAILURE], msg: [{}]", type, msg, exception);
         }
     }
 
@@ -136,9 +136,5 @@ public class TuyaConnection implements TuyaConnectionIn {
                 .resultHandler((this::resultHandler))
                 .build();
     }
-//
-//    @Override
-//    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-//        this.ctx = applicationContext;
-//    }
 }
+

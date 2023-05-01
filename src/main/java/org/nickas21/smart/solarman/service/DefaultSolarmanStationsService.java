@@ -5,12 +5,15 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.SmartSolarmanTuyaService;
 import org.nickas21.smart.solarman.mq.Communication;
+import org.nickas21.smart.solarman.mq.RealTimeData;
 import org.nickas21.smart.solarman.mq.SolarmanToken;
 import org.nickas21.smart.solarman.mq.Station;
 import org.nickas21.smart.solarman.source.SolarmanDataSource;
 import org.nickas21.smart.util.JacksonUtil;
 import org.nickas21.smart.util.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
@@ -19,18 +22,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 
 import java.net.URI;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_DEVICE_COMMUNICATION_PATH;
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_OBTAIN_PLANT_LIST_PATH;
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_OBTAIN_TOKEN_C_PATH;
+import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_REALTIME_DATA_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_REFRESH_TOKEN_URL_PATH;
+import static org.nickas21.smart.util.HttpUtil.bmsSoc;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
+import static org.nickas21.smart.util.HttpUtil.formatter;
 import static org.nickas21.smart.util.HttpUtil.sendRequest;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
@@ -43,6 +51,12 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private SolarmanToken accessSolarmanToken;
     private Map<Long, Station> stations;
     private Map<String, Communication> communications;
+    private Map<Long, RealTimeData> realTimeDatas;
+    private Long bmsSocTimeCurrent;
+    private Long bmsSocTimePrevious;
+
+    @Autowired
+    SmartSolarmanTuyaService smartSolarmanTuyaService;
 
     @Override
     public void setExecutorService(ExecutorService executor) {
@@ -64,13 +78,21 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
                 String stationName = stations.get(stationId).getName();
                 solarmanDataSource.setStationId(stationId);
                 solarmanDataSource.setName(stationName);
-                log.info ("First station id: [{}], name [{}]", stationId, stationName);
+                log.info("First station id: [{}], name [{}]", stationId, stationName);
                 String loggerSn = this.solarmanDataSource.getLoggerSn();
                 getDeviceCommunication(loggerSn);
+                realTimeDatas = new ConcurrentHashMap<>();
+                this.bmsSocTimePrevious = this.bmsSocTimeCurrent = 0L;
+                smartSolarmanTuyaService.solarmanRealTimeDataStart();
             } else {
                 log.error("Station size is 0");
             }
         }
+    }
+
+    @Override
+    public SolarmanDataSource getSolarmanDataSource() {
+        return this.solarmanDataSource;
     }
 
     @SneakyThrows
@@ -88,7 +110,8 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
             body.set("appSecret", objectToJsonNode(this.solarmanDataSource.getSecret()));
             body.set("email", objectToJsonNode(this.solarmanDataSource.getUserName()));
             body.set("password", objectToJsonNode(this.solarmanDataSource.getPassHash()));
-            JsonNode result = requestFuture(POST_SOLARMAN_OBTAIN_TOKEN_C_PATH, httpHeaders, HttpMethod.POST, queries, body);
+            RequestEntity<Object> requestEntity = createSolarmanRequest(POST_SOLARMAN_OBTAIN_TOKEN_C_PATH, httpHeaders, HttpMethod.POST, queries, body);
+            JsonNode result = requestFutureSend(requestEntity);
             if (Objects.isNull(result)) {
                 log.error("Create solarman token required, not null.");
             } else {
@@ -102,36 +125,18 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         }
         return accessSolarmanToken;
     }
-//
-//    private boolean hasValidAccessToken() {
-//        return accessSolarmanToken.getExpireAt() + 20_000 > System.currentTimeMillis();
-//    }
-
-    @SneakyThrows
-    private JsonNode requestFuture(String pathRequest, MultiValueMap<String, String> httpHeaders,
-                                   HttpMethod httpMethod, Map<String, Object> queries, ObjectNode body) {
-        Future<JsonNode> future = executor.submit(() -> {
-            try {
-                return createSolarmanRequest(pathRequest, httpHeaders, httpMethod, queries, body);
-            } catch (Exception e) {
-                log.error("Create solarman token error", e);
-                return null;
-            } finally {
-            }
-        });
-        return future.get();
-    }
 
     @SneakyThrows
     private void getStaionList() {
         stations = new ConcurrentHashMap<>();
         String ts = String.valueOf(System.currentTimeMillis());
-        MultiValueMap<String, String> httpHeaders =  createSolarmanHeadersWithToken(ts);
+        MultiValueMap<String, String> httpHeaders = createSolarmanHeadersWithToken(ts);
         Map<String, Object> queries = createQueries();
         ObjectNode body = JacksonUtil.newObjectNode();
         body.set("page", objectToJsonNode(1));
         body.set("size", objectToJsonNode(10));
-        JsonNode result = requestFuture(POST_SOLARMAN_OBTAIN_PLANT_LIST_PATH, httpHeaders, HttpMethod.POST, queries, body);
+        RequestEntity<Object> requestEntity = createSolarmanRequest(POST_SOLARMAN_OBTAIN_PLANT_LIST_PATH, httpHeaders, HttpMethod.POST, queries, body);
+        JsonNode result = requestFutureSend(requestEntity);
         if (Objects.isNull(result)) {
             log.error("Create solarman station list required, not null.");
         } else {
@@ -147,11 +152,12 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private void getDeviceCommunication(String loggerSn) {
         communications = new ConcurrentHashMap<>();
         String ts = String.valueOf(System.currentTimeMillis());
-        MultiValueMap<String, String> httpHeaders =  createSolarmanHeadersWithToken(ts);
+        MultiValueMap<String, String> httpHeaders = createSolarmanHeadersWithToken(ts);
         Map<String, Object> queries = createQueries();
         ObjectNode body = JacksonUtil.newObjectNode();
         body.set("deviceSn", objectToJsonNode(loggerSn));
-        JsonNode result = requestFuture(POST_SOLARMAN_DEVICE_COMMUNICATION_PATH, httpHeaders, HttpMethod.POST, queries, body);
+        RequestEntity<Object> requestEntity = createSolarmanRequest(POST_SOLARMAN_DEVICE_COMMUNICATION_PATH, httpHeaders, HttpMethod.POST, queries, body);
+        JsonNode result = requestFutureSend(requestEntity);
         if (Objects.isNull(result)) {
             log.error("Create solarman device communication required, not null.");
         } else {
@@ -173,7 +179,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
                     log.error("Create solarman Inverter Id required, not zero.");
                 }
                 if (communications.get(loggerSn).getDeviceId() > 0) {
-                    solarmanDataSource.setLoggerId( communications.get(loggerSn).getDeviceId());
+                    solarmanDataSource.setLoggerId(communications.get(loggerSn).getDeviceId());
                 } else {
                     isLoggerInverterError = true;
                     log.error("Create solarman Logger Id required, not zero.");
@@ -185,6 +191,32 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
                 }
             }
         }
+    }
+
+    @SneakyThrows
+    public double getRealTimeDataStart() {
+        String bmsSocValue = null;
+        String ts = String.valueOf(System.currentTimeMillis());
+        MultiValueMap<String, String> httpHeaders = createSolarmanHeadersWithToken(ts);
+        Map<String, Object> queries = createQueries();
+        ObjectNode body = JacksonUtil.newObjectNode();
+        body.set("deviceSn", objectToJsonNode(this.solarmanDataSource.getInverterSn()));
+        body.set("deviceId", objectToJsonNode(this.solarmanDataSource.getInverterId()));
+        RequestEntity<Object> requestEntity = createSolarmanRequest(POST_SOLARMAN_REALTIME_DATA_PATH, httpHeaders, HttpMethod.POST, queries, body);
+        JsonNode result = requestFutureSend(requestEntity);
+        if (Objects.isNull(result)) {
+            log.error("Create solarman real time data Sn:[{}] Id: [{}] required, not null.",
+                    this.solarmanDataSource.getInverterSn(), this.solarmanDataSource.getInverterId());
+        } else {
+            RealTimeData realTimeData = treeToValue(result, RealTimeData.class);
+            this.bmsSocTimePrevious = this.bmsSocTimeCurrent;
+            bmsSocTimeCurrent = realTimeData.getCollectionTime();
+            log.info("New solarman real time data [{}]  previous: [{}]", formatter.format(new Date(this.bmsSocTimeCurrent * 1000)),
+                    formatter.format(new Date(this.bmsSocTimePrevious * 1000)));
+            realTimeDatas.put(bmsSocTimeCurrent, realTimeData);
+            bmsSocValue = realTimeData.getDataList().stream().filter(value -> value.getKey().equals(bmsSoc)).findFirst().get().getValue();
+        }
+        return bmsSocValue != null ? Double.valueOf(bmsSocValue) : 0;
     }
 
     @SneakyThrows
@@ -207,15 +239,35 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
 
 
     @SneakyThrows
-    private JsonNode createSolarmanRequest(String pathRequest, MultiValueMap<String, String> httpHeaders,
+    private RequestEntity<Object>createSolarmanRequest(String pathRequest, MultiValueMap<String, String> httpHeaders,
                                            HttpMethod httpMethod, Map<String, Object> queries, ObjectNode body) {
         String path = creatHttpPathWithQueries(pathRequest, queries);
-        RequestEntity<Object> requestEntity = createRequestWithBody(path, body, httpMethod, httpHeaders);
-        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null && responseEntity.getBody().get("success").asBoolean()) {
-            return responseEntity.getBody();
+        return createRequestWithBody(path, body, httpMethod, httpHeaders);
+    }
+
+    private JsonNode requestFutureSend(RequestEntity<Object> requestEntity) {
+        Future<ResponseEntity<ObjectNode>> future = executor.submit(() -> {
+            try {
+                return sendRequest(requestEntity);
+            } catch (Exception e) {
+                log.error("Create solarman request [{}] error", requestEntity, e);
+                return null;
+            } finally {
+            }
+        });
+        try {
+            ResponseEntity<ObjectNode> responseEntity = future.get();
+            if (responseEntity != null && responseEntity.getBody().get("success").asBoolean()) {
+                return responseEntity.getBody();
+            }
+            return null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            return null;
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+            return null;
         }
-        return null;
     }
 
 //    @SneakyThrows
@@ -271,7 +323,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         return httpHeaders;
     }
 
-    private Map<String, Object> createQueries () {
+    private Map<String, Object> createQueries() {
         Map<String, Object> queries = new HashMap<>();
         queries.put("language", "en");
         return queries;

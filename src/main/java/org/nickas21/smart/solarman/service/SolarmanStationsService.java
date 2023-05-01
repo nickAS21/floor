@@ -11,4 +11,9 @@ public interface SolarmanStationsService {
     void setSolarmanMqttDataSource(SolarmanDataSource solarmanMqttDataConnection);
 
     void init();
+
+    double getRealTimeDataStart();
+
+    SolarmanDataSource getSolarmanDataSource();
+
 }

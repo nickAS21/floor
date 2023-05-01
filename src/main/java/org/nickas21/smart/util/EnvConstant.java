@@ -28,5 +28,11 @@ public class EnvConstant {
 
     public static final String ENV_SOLARMAN_LOGGER_SN = "SOLARMAN_LOGGER_SN";
 
+    public static final String ENV_SOLARMAN_TIMEOUT_SEC = "SOLARMAN_TIMEOUT_SEC";
+
+    public static final String ENV_SOLARMAN_BMS_SOC_MIN = "SOLARMAN_BMS_SOC_MIN";
+
+    public static final String ENV_SOLARMAN_BMS_SOC_MAX = "SOLARMAN_BMS_SOC_MAX";
+
     public final static Map<String, String> envSystem = System.getenv();
 }

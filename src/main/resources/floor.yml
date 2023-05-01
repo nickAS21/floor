@@ -14,3 +14,6 @@ connector:
     password: "${SOLARMAN_PASS:}"
     passhash: "${SOLARMAN_PASS_HASH:}"
     logger_sn: "${SOLARMAN_LOGGER_SN:}"
+    timeout_sec: "${SOLARMAN_TIMEOUT_SEC:600}"
+    bms_soc_min: "${SOLARMAN_BMS_SOC_MIN:88.0}"
+    bms_soc_max: "${SOLARMAN_BMS_SOC_MAX:98.0}"
