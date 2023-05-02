@@ -51,9 +51,9 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private SolarmanToken accessSolarmanToken;
     private Map<Long, Station> stations;
     private Map<String, Communication> communications;
-    private Map<Long, RealTimeData> realTimeDatas;
-    private Long bmsSocTimeCurrent;
-    private Long bmsSocTimePrevious;
+//    private Map<Long, RealTimeData> realTimeDatas;
+//    private Long bmsSocTimeCurrent;
+//    private Long bmsSocTimePrevious;
 
     @Autowired
     SmartSolarmanTuyaService smartSolarmanTuyaService;
@@ -81,8 +81,8 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
                 log.info("First station id: [{}], name [{}]", stationId, stationName);
                 String loggerSn = this.solarmanDataSource.getLoggerSn();
                 getDeviceCommunication(loggerSn);
-                realTimeDatas = new ConcurrentHashMap<>();
-                this.bmsSocTimePrevious = this.bmsSocTimeCurrent = 0L;
+//                realTimeDatas = new ConcurrentHashMap<>();
+//                this.bmsSocTimePrevious = this.bmsSocTimeCurrent = 0L;
                 smartSolarmanTuyaService.solarmanRealTimeDataStart();
             } else {
                 log.error("Station size is 0");
@@ -209,11 +209,11 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
                     this.solarmanDataSource.getInverterSn(), this.solarmanDataSource.getInverterId());
         } else {
             RealTimeData realTimeData = treeToValue(result, RealTimeData.class);
-            this.bmsSocTimePrevious = this.bmsSocTimeCurrent;
-            bmsSocTimeCurrent = realTimeData.getCollectionTime();
-            log.info("New solarman real time data [{}]  previous: [{}]", formatter.format(new Date(this.bmsSocTimeCurrent * 1000)),
-                    formatter.format(new Date(this.bmsSocTimePrevious * 1000)));
-            realTimeDatas.put(bmsSocTimeCurrent, realTimeData);
+//            this.bmsSocTimePrevious = this.bmsSocTimeCurrent;
+//            bmsSocTimeCurrent = realTimeData.getCollectionTime();
+//            log.info("New solarman real time data [{}]  previous: [{}]", formatter.format(new Date(this.bmsSocTimeCurrent * 1000)),
+//                    formatter.format(new Date(this.bmsSocTimePrevious * 1000)));
+////            realTimeDatas.put(bmsSocTimeCurrent, realTimeData);
             bmsSocValue = realTimeData.getDataList().stream().filter(value -> value.getKey().equals(bmsSoc)).findFirst().get().getValue();
         }
         return bmsSocValue != null ? Double.valueOf(bmsSocValue) : 0;
