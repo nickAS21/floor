@@ -15,9 +15,11 @@ public interface TuyaDeviceService {
 
    void sendGetRequestLogs(String deviceId, Long start_time, Long end_time, Integer size);
 
-   void updateAllTermostat (Integer temp_set);
+   void updateAllTermostat(Integer temp_set);
 
-   void setConnectionConfiguration (TuyaMessageDataSource connectionConfiguration);
+   TuyaMessageDataSource getConnectionConfiguration();
+
+   void setConnectionConfiguration(TuyaMessageDataSource connectionConfiguration);
 
    void setExecutorService(ExecutorService executor);
 }

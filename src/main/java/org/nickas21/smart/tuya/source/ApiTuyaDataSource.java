@@ -6,11 +6,14 @@ import org.nickas21.smart.tuya.constant.TuyaRegion;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import static org.nickas21.smart.util.EnvConstant.ENV_AK;
-import static org.nickas21.smart.util.EnvConstant.ENV_DEVICE_IDS;
+import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_ALARM_ERROR;
+import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_AK;
+import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_DEVICE_IDS;
 import static org.nickas21.smart.util.EnvConstant.ENV_REGION;
-import static org.nickas21.smart.util.EnvConstant.ENV_SK;
-import static org.nickas21.smart.util.EnvConstant.ENV_USER_UID;
+import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_SK;
+import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_TEMP_SET_MAX;
+import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_TEMP_SET_MIN;
+import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_USER_UID;
 import static org.nickas21.smart.util.EnvConstant.envSystem;
 
 @Slf4j
@@ -24,19 +27,25 @@ public class ApiTuyaDataSource {
      * connector.region=
      */
     @Value("${connector.tuya.region}")
-    public String tuyaRegion;
+    private String tuyaRegion;
 
     @Value("${connector.tuya.ak}")
-    public String tuyaAk;
+    private String tuyaAk;
 
     @Value("${connector.tuya.sk}")
-    public String tuyaSk;
+    private String tuyaSk;
 
     @Value("${connector.tuya.device_ids}")
-    public String tuyaDeviceIds;
+    private String tuyaDeviceIds;
 
     @Value("${connector.tuya.user_uid}")
-    public String tuyaUserUid;
+    private String tuyaUserUid;
+
+    @Value("${smart.tuya.temp_set.min}")
+    private Integer tuyaTempSetMin;
+
+    @Value("${smart.tuya.temp_set.max}")
+    private Integer tuyaTempSetMax;
 
     private TuyaMessageDataSource tuyaMessageDataSource;
 
@@ -46,23 +55,29 @@ public class ApiTuyaDataSource {
             return tuyaMessageDataSource;
         } else {
             try {
-                String akConf = envSystem.get(ENV_AK);
+                String akConf = envSystem.get(ENV_TUYA_AK);
                 akConf = StringUtils.isBlank(akConf) ? this.tuyaAk : akConf;
-                String skConf = envSystem.get(ENV_SK);
+                String skConf = envSystem.get(ENV_TUYA_SK);
                 skConf = StringUtils.isBlank(skConf) ? this.tuyaSk : skConf;
-                String userUidConf = envSystem.get(ENV_USER_UID);
+                String userUidConf = envSystem.get(ENV_TUYA_USER_UID);
                 userUidConf = StringUtils.isBlank(userUidConf) ? this.tuyaUserUid : userUidConf;
 
                 String reConf = envSystem.get(ENV_REGION);
                 reConf = StringUtils.isBlank(reConf) ? this.tuyaUserUid : reConf;
                 TuyaRegion region = StringUtils.isNoneBlank(reConf) ? TuyaRegion.valueOf(reConf) : null;
 
-                String devIdsConf = envSystem.get(ENV_DEVICE_IDS);
+                String devIdsConf = envSystem.get(ENV_TUYA_DEVICE_IDS);
                 String[] deviceIds = StringUtils.isNoneBlank(devIdsConf) ? StringUtils.split(devIdsConf, ",     ") : null;
                 if (StringUtils.isArrayBlank(deviceIds)) {
                     devIdsConf = this.tuyaDeviceIds;
                     deviceIds = (devIdsConf != null && devIdsConf.isBlank()) ? StringUtils.split(devIdsConf, ",") : null;
                 }
+
+                String tempSetMinConfStr = envSystem.get(ENV_TUYA_TEMP_SET_MIN);
+                Integer tempSetMinConf = StringUtils.isBlank(tempSetMinConfStr) ? this.tuyaTempSetMin : Integer.valueOf(tempSetMinConfStr);
+
+                String tempSetMaxConfStr = envSystem.get(ENV_TUYA_TEMP_SET_MAX);
+                Integer tempSetMaxConf = StringUtils.isBlank(tempSetMaxConfStr) ? this.tuyaTempSetMax : Integer.valueOf(tempSetMaxConfStr);
 
                 if (StringUtils.isNoneBlank(akConf) && StringUtils.isNoneBlank(skConf)
                         && StringUtils.isArrayNoneBlank(deviceIds) && StringUtils.isNoneBlank(userUidConf) && region != null) {
@@ -72,6 +87,8 @@ public class ApiTuyaDataSource {
                             .sk(skConf)
                             .deviceIds(deviceIds)
                             .userUid(userUidConf)
+                            .tempSetMin(tempSetMinConf)
+                            .tempSetMax(tempSetMaxConf)
                             .build();
                     return tuyaMessageDataSource;
                 } else {
@@ -83,5 +100,5 @@ public class ApiTuyaDataSource {
             }
         }
     }
-
 }
+

@@ -26,5 +26,7 @@ public class SolarmanDataSource {
     Long timeOutSec;
     double bmsSocMin;
     double bmsSocMax;
+    double bmsSocAlarmWarn;
+    double bmsSocAlarmError;
 }
 

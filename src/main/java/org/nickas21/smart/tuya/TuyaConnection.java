@@ -51,7 +51,8 @@ public class TuyaConnection implements TuyaConnectionIn {
                 }
             });
         } else {
-            log.error("Input parameters error: \n- TuyaConnectionConfiguration: [null]. \n- ak: [{}] \n- sk: [{}] \n- region: [{}]", tuyaDataSource.tuyaAk, tuyaDataSource.tuyaSk, tuyaDataSource.tuyaRegion);
+            log.error("Input parameters error: \n- TuyaConnectionConfiguration: [null]. \n- ak: [{}] \n- sk: [{}] \n- region: [{}]",
+                    this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk(), this.tuyaConnectionConfiguration.getRegion());
             this.destroy();
         }
     }

@@ -45,5 +45,7 @@ public class TuyaMessageDataSource {
     String sk;
     String[] deviceIds;
     String userUid;
+    Integer tempSetMin;
+    Integer tempSetMax;
 }
 

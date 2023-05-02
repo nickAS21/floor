@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.SmartSolarmanTuyaService;
 import org.nickas21.smart.solarman.mq.Communication;
 import org.nickas21.smart.solarman.mq.RealTimeData;
+import org.nickas21.smart.solarman.mq.RealTimeDataValue;
 import org.nickas21.smart.solarman.mq.SolarmanToken;
 import org.nickas21.smart.solarman.mq.Station;
 import org.nickas21.smart.solarman.source.SolarmanDataSource;
@@ -26,6 +27,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -55,9 +57,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
 //    private Long bmsSocTimeCurrent;
 //    private Long bmsSocTimePrevious;
 
-    @Autowired
-    SmartSolarmanTuyaService smartSolarmanTuyaService;
-
     @Override
     public void setExecutorService(ExecutorService executor) {
         this.executor = executor;
@@ -81,9 +80,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
                 log.info("First station id: [{}], name [{}]", stationId, stationName);
                 String loggerSn = this.solarmanDataSource.getLoggerSn();
                 getDeviceCommunication(loggerSn);
-//                realTimeDatas = new ConcurrentHashMap<>();
-//                this.bmsSocTimePrevious = this.bmsSocTimeCurrent = 0L;
-                smartSolarmanTuyaService.solarmanRealTimeDataStart();
             } else {
                 log.error("Station size is 0");
             }
@@ -194,8 +190,8 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     }
 
     @SneakyThrows
-    public double getRealTimeDataStart() {
-        String bmsSocValue = null;
+    @Override
+    public RealTimeData getRealTimeDataStart() {
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createSolarmanHeadersWithToken(ts);
         Map<String, Object> queries = createQueries();
@@ -207,16 +203,10 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         if (Objects.isNull(result)) {
             log.error("Create solarman real time data Sn:[{}] Id: [{}] required, not null.",
                     this.solarmanDataSource.getInverterSn(), this.solarmanDataSource.getInverterId());
+            return null;
         } else {
-            RealTimeData realTimeData = treeToValue(result, RealTimeData.class);
-//            this.bmsSocTimePrevious = this.bmsSocTimeCurrent;
-//            bmsSocTimeCurrent = realTimeData.getCollectionTime();
-//            log.info("New solarman real time data [{}]  previous: [{}]", formatter.format(new Date(this.bmsSocTimeCurrent * 1000)),
-//                    formatter.format(new Date(this.bmsSocTimePrevious * 1000)));
-////            realTimeDatas.put(bmsSocTimeCurrent, realTimeData);
-            bmsSocValue = realTimeData.getDataList().stream().filter(value -> value.getKey().equals(bmsSoc)).findFirst().get().getValue();
+            return treeToValue(result, RealTimeData.class);
         }
-        return bmsSocValue != null ? Double.valueOf(bmsSocValue) : 0;
     }
 
     @SneakyThrows

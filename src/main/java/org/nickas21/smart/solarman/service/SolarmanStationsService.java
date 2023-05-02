@@ -1,5 +1,6 @@
 package org.nickas21.smart.solarman.service;
 
+import org.nickas21.smart.solarman.mq.RealTimeData;
 import org.nickas21.smart.solarman.source.SolarmanDataSource;
 
 import java.util.concurrent.ExecutorService;
@@ -12,7 +13,7 @@ public interface SolarmanStationsService {
 
     void init();
 
-    double getRealTimeDataStart();
+    RealTimeData getRealTimeDataStart();
 
     SolarmanDataSource getSolarmanDataSource();
 

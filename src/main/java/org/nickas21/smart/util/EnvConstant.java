@@ -4,15 +4,19 @@ import java.util.Map;
 
 public class EnvConstant {
 
-    public static final String ENV_AK = "TUYA_AK";
+    public static final String ENV_TUYA_AK = "TUYA_AK";
 
-    public static final String ENV_SK = "TUYA_SK";
+    public static final String ENV_TUYA_SK = "TUYA_SK";
 
     public static final String ENV_REGION = "TUYA_REGION";
 
-    public static final String ENV_DEVICE_IDS = "TUYA_DEVICE_IDS";
+    public static final String ENV_TUYA_DEVICE_IDS = "TUYA_DEVICE_IDS";
 
-    public static final String ENV_USER_UID = "TUYA_USER_UID";
+    public static final String ENV_TUYA_TEMP_SET_MIN = "TUYA_TEMP_SET_MIN";
+
+    public static final String ENV_TUYA_TEMP_SET_MAX = "TUYA_TEMP_SET_MAX";
+
+    public static final String ENV_TUYA_USER_UID = "TUYA_USER_UID";
 
     public static final String ENV_SOLARMAN_REGION = "SOLARMAN_REGION";
 
@@ -33,6 +37,10 @@ public class EnvConstant {
     public static final String ENV_SOLARMAN_BMS_SOC_MIN = "SOLARMAN_BMS_SOC_MIN";
 
     public static final String ENV_SOLARMAN_BMS_SOC_MAX = "SOLARMAN_BMS_SOC_MAX";
+
+    public static final String ENV_SOLARMAN_BMS_SOC_ALARM_WARN = "SOLARMAN_BMS_SOC_ALARM_WARN";
+
+    public static final String ENV_SOLARMAN_BMS_SOC_ALARM_ERROR = "SOLARMAN_BMS_SOC_ALARM_ERROR";
 
     public final static Map<String, String> envSystem = System.getenv();
 }
