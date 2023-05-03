@@ -42,5 +42,7 @@ public class EnvConstant {
 
     public static final String ENV_SOLARMAN_BMS_SOC_ALARM_ERROR = "SOLARMAN_BMS_SOC_ALARM_ERROR";
 
+    public static final String ENV_SOLARMAN_BMS_SOC_STEP_VALUE_CHANGE = "SOLARMAN_BMS_SOC_STEP_VALUE_CHANGE";
+
     public final static Map<String, String> envSystem = System.getenv();
 }

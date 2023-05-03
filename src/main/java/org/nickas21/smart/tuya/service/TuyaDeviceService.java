@@ -17,6 +17,10 @@ public interface TuyaDeviceService {
 
    void updateAllTermostat(Integer temp_set);
 
+   void updateTermostatBatteryCharge(int deltaPower);
+
+   void updateTermostatBatteryDischarge(int deltaPower);
+
    TuyaMessageDataSource getConnectionConfiguration();
 
    void setConnectionConfiguration(TuyaMessageDataSource connectionConfiguration);

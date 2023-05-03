@@ -28,5 +28,6 @@ public class SolarmanDataSource {
     double bmsSocMax;
     double bmsSocAlarmWarn;
     double bmsSocAlarmError;
+    double bmsSocStepValueChange;
 }
 

@@ -13,7 +13,7 @@ public interface SolarmanStationsService {
 
     void init();
 
-    RealTimeData getRealTimeDataStart();
+    RealTimeData getRealTimeData();
 
     SolarmanDataSource getSolarmanDataSource();
 

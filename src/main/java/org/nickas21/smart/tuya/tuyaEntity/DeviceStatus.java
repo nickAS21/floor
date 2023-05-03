@@ -1,4 +1,4 @@
-package org.nickas21.smart.tuya.response;
+package org.nickas21.smart.tuya.tuyaEntity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;

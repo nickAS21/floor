@@ -41,5 +41,5 @@ public class SolarmanToken implements Serializable {
     private String accessToken;
     private String refreshToken;
     private String uid;
-    private String expiresIn;
+    private Long expiresIn;
 }

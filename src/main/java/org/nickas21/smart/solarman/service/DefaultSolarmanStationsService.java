@@ -5,16 +5,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.SmartSolarmanTuyaService;
 import org.nickas21.smart.solarman.mq.Communication;
 import org.nickas21.smart.solarman.mq.RealTimeData;
-import org.nickas21.smart.solarman.mq.RealTimeDataValue;
 import org.nickas21.smart.solarman.mq.SolarmanToken;
 import org.nickas21.smart.solarman.mq.Station;
 import org.nickas21.smart.solarman.source.SolarmanDataSource;
 import org.nickas21.smart.util.JacksonUtil;
 import org.nickas21.smart.util.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
@@ -23,11 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 
 import java.net.URI;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -38,9 +33,7 @@ import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_OBT
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_OBTAIN_TOKEN_C_PATH;
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_REALTIME_DATA_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_REFRESH_TOKEN_URL_PATH;
-import static org.nickas21.smart.util.HttpUtil.bmsSoc;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
-import static org.nickas21.smart.util.HttpUtil.formatter;
 import static org.nickas21.smart.util.HttpUtil.sendRequest;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
@@ -94,9 +87,9 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     @SneakyThrows
     private SolarmanToken getSolarmanToken() {
         if (accessSolarmanToken != null) {
-//            if (!hasValidAccessToken()) {
-//                accessSolarmanToken = refreshSolarmanToken();
-//            }
+            if (!hasValidAccessToken()) {
+                accessSolarmanToken = refreshSolarmanToken();
+            }
         } else {
             String ts = String.valueOf(System.currentTimeMillis());
             MultiValueMap<String, String> httpHeaders = createSolarmanHeaders(ts);
@@ -111,10 +104,11 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
             if (Objects.isNull(result)) {
                 log.error("Create solarman token required, not null.");
             } else {
+                Long expireIn = System.currentTimeMillis() + (Long.parseLong(result.get("expires_in").asText()) * 1000);
                 accessSolarmanToken = SolarmanToken.builder()
                         .accessToken(result.get("access_token").asText())
                         .refreshToken(result.get("refresh_token").asText())
-                        .expiresIn(result.get("expires_in").asText())
+                        .expiresIn(expireIn)
                         .uid(result.get("uid").asText())
                         .build();
             }
@@ -191,7 +185,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
 
     @SneakyThrows
     @Override
-    public RealTimeData getRealTimeDataStart() {
+    public RealTimeData getRealTimeData() {
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createSolarmanHeadersWithToken(ts);
         Map<String, Object> queries = createQueries();
@@ -284,10 +278,11 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
         if (responseEntity != null) {
             JsonNode result = responseEntity.getBody();
+            Long expireIn = System.currentTimeMillis() + (Long.parseLong(result.get("expires_in").asText()) * 1000);
             return SolarmanToken.builder()
                     .accessToken(result.get("access_token").asText())
                     .refreshToken(result.get("refresh_token").asText())
-                    .expiresIn(result.get("expires_in").asText())
+                    .expiresIn(expireIn)
                     .uid(result.get("uid").asText())
                     .build();
         }
@@ -318,6 +313,11 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         queries.put("language", "en");
         return queries;
     }
+
+    private boolean hasValidAccessToken() {
+        return accessSolarmanToken.getExpiresIn() > System.currentTimeMillis();
+    }
+
 
 
 }

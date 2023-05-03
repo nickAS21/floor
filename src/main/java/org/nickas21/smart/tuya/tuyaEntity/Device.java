@@ -1,4 +1,4 @@
-package org.nickas21.smart.tuya.response;
+package org.nickas21.smart.tuya.tuyaEntity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,6 +16,8 @@ import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 public class Device {
     private String name;
     private String id;
+        // unit = w
+    private int consumptionPower;
     private Map<String, DeviceStatus> status;
     private Long active_time;
         // cz,          wsdcg,                              wk

@@ -24,7 +24,11 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 public class HttpUtil {
     private static final RestTemplate httpClient = new RestTemplate();
     public static final SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-    public static final String bmsSoc = "BMS_SOC";
+    public static final String tempSetKey = "temp_set";
+    public static final String bmsSocKey = "BMS_SOC";
+    public static final String totalSolarPowerKey = "S_P_T";
+    public static final String totalEnergySellKey = "E_S_TO";
+    public static final String totalConsumptionPowerKey = "E_Puse_t1";
 
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;

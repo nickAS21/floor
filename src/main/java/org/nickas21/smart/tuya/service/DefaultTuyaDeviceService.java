@@ -7,14 +7,12 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
 import org.nickas21.smart.SmartSolarmanTuyaService;
-import org.nickas21.smart.solarman.service.SolarmanStationsService;
-import org.nickas21.smart.tuya.response.DeviceStatus;
+import org.nickas21.smart.tuya.tuyaEntity.DeviceStatus;
 import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaToken;
-import org.nickas21.smart.tuya.response.Device;
-import org.nickas21.smart.tuya.response.Devices;
-import org.nickas21.smart.tuya.source.ApiTuyaDataSource;
+import org.nickas21.smart.tuya.tuyaEntity.Device;
+import org.nickas21.smart.tuya.tuyaEntity.Devices;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.JacksonUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.nickas21.smart.tuya.constant.TuyaApi.CODE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.COMMANDS;
@@ -48,6 +47,7 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.VALUE;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 import static org.nickas21.smart.util.HttpUtil.sendRequest;
+import static org.nickas21.smart.util.HttpUtil.tempSetKey;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 import static org.nickas21.smart.util.HttpUtil.formatter;
@@ -75,7 +75,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         log.info("init successful: [{}] devices", devices.getDevIds().size());
         // Test Sun Uzel
         String deviceIdTest = "bfa715581477683002qb4l";
-        String deviceIdsTest = "bf11fce4b500291373jnn2,bfa715581477683002qb4l,bfc99c5e1b444322eaaqgu";
+        String deviceIdsTest = "bf11fce4b500291373jnn2:1800,bfa715581477683002qb4l:1800,bfc99c5e1b444322eaaqgu:1800";
 //        updateAllTermostat (18);
         smartSolarmanTuyaService.solarmanRealTimeDataStart();
     }
@@ -98,14 +98,14 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         String deviceId = msg.getJson().get("devId").asText();
         JsonNode deviceStatus = msg.getJson().get("status");
         Device device = deviceStatus != null ? this.devices.getDevIds().get(deviceId) : null;
-        if ( device != null) {
+        if (device != null) {
             device.setStatus(deviceStatus);
             if ("wk".equals(device.getCategory())) {
-            String nameField = deviceStatus.get(0).get("code").asText();
-            DeviceStatus devStatus = device.getStatus().get(nameField);
-            log.info("Device: [{}] parameter: [{}] time: [{}] valueOld: [{}] valueNew: [{}] ", device.getName(), nameField,
-                    formatter.format(new Date(Long.valueOf(String.valueOf(deviceStatus.get(0).get("t"))))),
-                    devStatus.getValueOld(), devStatus.getValue());
+                String nameField = deviceStatus.get(0).get("code").asText();
+                DeviceStatus devStatus = device.getStatus().get(nameField);
+                log.info("Device: [{}] parameter: [{}] time: [{}] valueOld: [{}] valueNew: [{}] ", device.getName(), nameField,
+                        formatter.format(new Date(Long.valueOf(String.valueOf(deviceStatus.get(0).get("t"))))),
+                        devStatus.getValueOld(), devStatus.getValue());
             }
 
         } else {
@@ -166,10 +166,33 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
 //        sendGetRequest(path);
     }
 
+    @Override
     public void updateAllTermostat(Integer temp_set) {
-        this.devices.getDevIds().forEach((k,v) -> {
-            if(v.getCategory().equals("wk")) {
-                sendPostRequestCommand(k, "temp_set", temp_set, v.getName());
+        this.devices.getDevIds().forEach((k, v) -> {
+            if (v.getCategory().equals("wk") && v.getStatus().get(tempSetKey).getValue() != temp_set) {
+                sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
+            }
+        });
+    }
+
+    @Override
+    public void updateTermostatBatteryCharge(int deltaPower) {
+        AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
+        this.devices.getDevIds().forEach((k, v) -> {
+            if (v.getCategory().equals("wk") && atomicDeltaPower.get() > v.getConsumptionPower()) {
+                sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMax(), v.getName());
+                atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
+            }
+        });
+    }
+
+    @Override
+    public void updateTermostatBatteryDischarge(int deltaPower) {
+        AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
+        this.devices.getDevIds().forEach((k, v) -> {
+            if (v.getCategory().equals("wk") && atomicDeltaPower.get() < 0) {
+                sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMin(), v.getName());
+                atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
             }
         });
     }
@@ -330,18 +353,12 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         }
     }
 
-    private void sendPutRequest(String path, ObjectNode commandsNode) throws Exception {
-        RequestEntity<Object> requestEntity = createRequestWithBody(path, commandsNode, HttpMethod.PUT);
-        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null) {
-            JsonNode result = responseEntity.getBody().get("result");
-            log.info("result PUT: [{}]", result);
-        }
-    }
-
     private void sendInitRequest() {
-        for (String deviceId : this.connectionConfiguration.getDeviceIds()) {
+        for (String deviceIdWithPower : this.connectionConfiguration.getDeviceIds()) {
             try {
+                String[] devId = deviceIdWithPower.split(":");
+                String deviceId = devId[0];
+                int consumptionPower = Integer.parseInt(devId[1]);
                 String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
                 RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
                 ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
@@ -355,12 +372,13 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                     if (responseEntity != null) {
                         result = responseEntity.getBody().get("result");
                         devices.getDevIds().get(deviceId).setStatus(result);
+                        devices.getDevIds().get(deviceId).setConsumptionPower(consumptionPower);
                     }
                 } else {
                     log.error("Failed init device with id [{}]", deviceId);
                 }
             } catch (Exception e) {
-                log.error("Failed init device with id [{}] [{}]", deviceId, e.getMessage());
+                log.error("Failed init device with id [{}] [{}]", deviceIdWithPower, e.getMessage());
             }
         }
     }

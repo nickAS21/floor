@@ -12,6 +12,7 @@ import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_ALARM_ERR
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_ALARM_WARN;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_MAX;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_MIN;
+import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_STEP_VALUE_CHANGE;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_LOGGER_SN;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_PASS;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_PASS_HASH;
@@ -62,6 +63,9 @@ public class ApiSolarmanDataSource {
     @Value("${smart.solarman.bms_soc.alarm_error}")
     private double solarmanBmsSocAlarmError;
 
+    @Value("${smart.solarman.bms_soc.step_value_change}")
+    private double solarmanBmsSocStepValueChange;
+
     private SolarmanDataSource solarmanDataSource;
 
     public SolarmanDataSource getSolarmanDataSource() {
@@ -84,7 +88,7 @@ public class ApiSolarmanDataSource {
                 String soLogSnConf = envSystem.get(ENV_SOLARMAN_LOGGER_SN);
                 soLogSnConf = StringUtils.isBlank(soLogSnConf) ? this.solarmanLoggerSn : soLogSnConf;
                 String soTimeOutSecConfStr = envSystem.get(ENV_SOLARMAN_TIMEOUT_SEC);
-                Long soTimeOutSecConf = StringUtils.isBlank(soTimeOutSecConfStr) ? this.solarmanTimeOutSec : Long.valueOf(soLogSnConf);
+                Long soTimeOutSecConf = StringUtils.isBlank(soTimeOutSecConfStr) ? this.solarmanTimeOutSec : Long.valueOf(soTimeOutSecConfStr);
                 String soBmsSocMinConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_MIN);
                 double soBmsSocMinConf = StringUtils.isBlank(soBmsSocMinConfStr) ? this.solarmanBmsSocMin : Double.valueOf(soBmsSocMinConfStr);
                 String soBmsSocMaxConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_MAX);
@@ -93,6 +97,8 @@ public class ApiSolarmanDataSource {
                 double soBmsSocAlarmWarnConf = StringUtils.isBlank(soBmsSocAlarmWarnConfStr) ? this.solarmanBmsSocAlarmWarn : Double.valueOf(soBmsSocAlarmWarnConfStr);
                 String soBmsSocAlarmErrorConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_ALARM_ERROR);
                 double soBmsSocAlarmErrorConf = StringUtils.isBlank(soBmsSocAlarmErrorConfStr) ? this.solarmanBmsSocAlarmError : Double.valueOf(soBmsSocAlarmErrorConfStr);
+                String soBmsSocStepValueChangeConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_STEP_VALUE_CHANGE);
+                double soBmsSocStepValueChangeConf = StringUtils.isBlank(soBmsSocStepValueChangeConfStr) ? this.solarmanBmsSocStepValueChange : Double.valueOf(soBmsSocStepValueChangeConfStr);
                 if (StringUtils.isBlank(soAppIdConf) || StringUtils.isBlank(soLogSnConf) || StringUtils.isBlank(soSecretConf)
                         || soPassHashConf.equals(EMPTY_HASH) || region == null) {
                     log.error("During processing Solarman connection data source error. One of parameters is null");
@@ -111,6 +117,7 @@ public class ApiSolarmanDataSource {
                             .bmsSocMax(soBmsSocMaxConf)
                             .bmsSocAlarmWarn(soBmsSocAlarmWarnConf)
                             .bmsSocAlarmError(soBmsSocAlarmErrorConf)
+                            .bmsSocStepValueChange(soBmsSocStepValueChangeConf)
                             .build();
                 }
             } catch (Exception e) {
