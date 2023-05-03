@@ -11,7 +11,7 @@ public interface TuyaDeviceService {
 
    void devicesFromUpDateStatusValue(TuyaConnectionMsg msg);
 
-   void sendPostRequestCommand(String deviceId, String code, Object value);
+   void sendPostRequestCommand(String deviceId, String code, Object value, String... deviceName);
 
    void sendGetRequestLogs(String deviceId, Long start_time, Long end_time, Integer size);
 

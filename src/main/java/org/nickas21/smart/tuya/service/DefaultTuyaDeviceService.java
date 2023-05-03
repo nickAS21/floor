@@ -117,7 +117,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
      * devicesToUpDateStatusValue
      */
     @SneakyThrows
-    public void sendPostRequestCommand(String deviceId, String code, Object value) {
+    public void sendPostRequestCommand(String deviceId, String code, Object value, String... deviceName) {
         ObjectNode commandsNode = JacksonUtil.newObjectNode();
         ArrayNode arrayNode = JacksonUtil.OBJECT_MAPPER.createArrayNode();
         ObjectNode data = JacksonUtil.newObjectNode();
@@ -128,7 +128,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         arrayNode.add(data);
         commandsNode.set(COMMANDS, arrayNode);
         String path = String.format(POST_DEVICE_COMMANDS_URL_PATH, deviceId);
-        sendPostRequest(path, commandsNode);
+        sendPostRequest(path, commandsNode, deviceName);
     }
 
     @SneakyThrows
@@ -169,7 +169,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     public void updateAllTermostat(Integer temp_set) {
         this.devices.getDevIds().forEach((k,v) -> {
             if(v.getCategory().equals("wk")) {
-                sendPostRequestCommand(k, "temp_set", temp_set);
+                sendPostRequestCommand(k, "temp_set", temp_set, v.getName());
             }
         });
     }
@@ -316,12 +316,17 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         return null;
     }
 
-    private void sendPostRequest(String path, ObjectNode commandsNode) throws Exception {
+    private void sendPostRequest(String path, ObjectNode commandsNode, String... deviceName) throws Exception {
         RequestEntity<Object> requestEntity = createRequestWithBody(path, commandsNode, HttpMethod.POST);
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
         if (responseEntity != null) {
             JsonNode result = responseEntity.getBody().get("result");
-            log.info("result POST: [{}]", result);
+            JsonNode success = responseEntity.getBody().get("success");
+            if (deviceName.length > 0) {
+                log.info("Device: [{}] POST result [{}], body [{}]", deviceName[0], result.booleanValue() & success.booleanValue(), requestEntity.getBody().toString());
+            } else {
+                log.info("POST result [{}], body [{}]", result.booleanValue() & success.booleanValue(), requestEntity.getBody().toString());
+            }
         }
     }
 

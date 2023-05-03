@@ -30,36 +30,46 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     @Override
     public void solarmanRealTimeDataStart() {
-        bmsSocCur = getBmsSocValue();
+        bmsSocCur = 0;
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         executorService.scheduleAtFixedRate(this::setBmsSocCur, 0, solarmanStationsService.getSolarmanDataSource().getTimeOutSec(), TimeUnit.SECONDS);
      }
 
     private void setBmsSocCur() {
         double bmsSocNew = getBmsSocValue();
+        if (bmsSocCur == 0) {
+            log.info("Battery analysis. start, bmsSocNew = [{}].", bmsSocNew);
+        }
         if (bmsSocNew != bmsSocCur) {
             if (bmsSocNew < solarmanStationsService.getSolarmanDataSource().getBmsSocMin()) {
                 // Reducing electricity consumption
                 this.setReducingElectricityCons();
-                log.info("Reducing electricity consumption bmsSoc.");
             } else if (bmsSocNew > solarmanStationsService.getSolarmanDataSource().getBmsSocMax()) {
                 // Increasing electricity consumption
                 this.setIncreasingElectricityCons();
-                log.info("Increasing electricity consumption bmsSoc.");
+            } else{
+                // Battery charge/discharge analysis program
+                log.info("Battery analysis. bmsSocCur = [{}], bmsSocNew = [{}], charge/discharge = [{}]", bmsSocCur, bmsSocNew, (bmsSocNew- bmsSocCur));
+                batteryChargeDischarge();
             }
             bmsSocCur = bmsSocNew;
         }
     }
 
-
     //        String deviceIdTest = "bf11fce4b500291373jnn2";
 //        sendPostRequestCommand(deviceIdTest, "temp_set", 5); // temp_current
     private void setReducingElectricityCons() {
+        log.info("Reducing electricity consumption bmsSoc.");
         this.tuyaDeviceService.updateAllTermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin());
     }
 
     private void setIncreasingElectricityCons() {
+        log.info("Increasing electricity consumption bmsSoc.");
         this.tuyaDeviceService.updateAllTermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMax());
+    }
+
+    private void batteryChargeDischarge() {
+
     }
 
     private double getBmsSocValue() {
