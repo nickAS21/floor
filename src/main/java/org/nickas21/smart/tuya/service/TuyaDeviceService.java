@@ -1,5 +1,6 @@
 package org.nickas21.smart.tuya.service;
 
+import org.nickas21.smart.tuya.mq.TuyaToken;
 import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 
@@ -9,17 +10,19 @@ public interface TuyaDeviceService {
 
    void init();
 
+   TuyaToken refreshTuyaToken();
+
    void devicesFromUpDateStatusValue(TuyaConnectionMsg msg);
 
-   void sendPostRequestCommand(String deviceId, String code, Object value, String... deviceName);
+   void sendPostRequestCommand(String deviceId, String code, Object value, String... deviceName) throws Exception;
 
    void sendGetRequestLogs(String deviceId, Long start_time, Long end_time, Integer size);
 
-   void updateAllTermostat(Integer temp_set);
+   void updateAllTermostat(Integer temp_set) throws Exception;
 
-   void updateTermostatBatteryCharge(int deltaPower);
+   void updateTermostatBatteryCharge(int deltaPower) throws Exception;
 
-   void updateTermostatBatteryDischarge(int deltaPower);
+   void updateTermostatBatteryDischarge(int deltaPower) throws Exception;
 
    TuyaMessageDataSource getConnectionConfiguration();
 

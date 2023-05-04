@@ -116,8 +116,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     /**
      * devicesToUpDateStatusValue
      */
-    @SneakyThrows
-    public void sendPostRequestCommand(String deviceId, String code, Object value, String... deviceName) {
+    public void sendPostRequestCommand(String deviceId, String code, Object value, String... deviceName) throws Exception {
         ObjectNode commandsNode = JacksonUtil.newObjectNode();
         ArrayNode arrayNode = JacksonUtil.OBJECT_MAPPER.createArrayNode();
         ObjectNode data = JacksonUtil.newObjectNode();
@@ -129,16 +128,6 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         commandsNode.set(COMMANDS, arrayNode);
         String path = String.format(POST_DEVICE_COMMANDS_URL_PATH, deviceId);
         sendPostRequest(path, commandsNode, deviceName);
-    }
-
-    @SneakyThrows
-    public void sendPostRequestDevice(String deviceId, String pathConst, String code, Object value) {
-        ObjectNode data = JacksonUtil.newObjectNode();
-        JsonNode valueNode = objectToJsonNode(value);
-        data.set(code, valueNode);
-        String path = String.format(pathConst, deviceId);
-        sendPostRequest(path, data);
-
     }
 
     @SneakyThrows
@@ -167,31 +156,55 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     }
 
     @Override
-    public void updateAllTermostat(Integer temp_set) {
+    public void updateAllTermostat(Integer temp_set) throws Exception{
         this.devices.getDevIds().forEach((k, v) -> {
             if (v.getCategory().equals("wk") && v.getStatus().get(tempSetKey).getValue() != temp_set) {
-                sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
+                try {
+                    sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
+                } catch (Exception e) {
+                    try {
+                        throw new Exception(e);
+                    } catch (Exception exception) {
+                        exception.printStackTrace();
+                    }
+                }
             }
         });
     }
 
     @Override
-    public void updateTermostatBatteryCharge(int deltaPower) {
+    public void updateTermostatBatteryCharge(int deltaPower)  throws Exception{
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         this.devices.getDevIds().forEach((k, v) -> {
             if (v.getCategory().equals("wk") && atomicDeltaPower.get() > v.getConsumptionPower()) {
-                sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMax(), v.getName());
+                try {
+                    sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMax(), v.getName());
+                } catch (Exception e) {
+                    try {
+                        throw new Exception(e);
+                    } catch (Exception exception) {
+                        exception.printStackTrace();
+                    }
+                }
                 atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
             }
         });
     }
 
     @Override
-    public void updateTermostatBatteryDischarge(int deltaPower) {
+    public void updateTermostatBatteryDischarge(int deltaPower) throws Exception{
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         this.devices.getDevIds().forEach((k, v) -> {
             if (v.getCategory().equals("wk") && atomicDeltaPower.get() < 0) {
-                sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMin(), v.getName());
+                try {
+                    sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMin(), v.getName());
+                } catch (Exception e) {
+                    try {
+                        throw new Exception(e);
+                    } catch (Exception exception) {
+                        exception.printStackTrace();
+                    }
+                }
                 atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
             }
         });
@@ -241,7 +254,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     }
 
     @SneakyThrows
-    private TuyaToken refreshTuyaToken() {
+    public TuyaToken refreshTuyaToken() {
         Future<TuyaToken> future = executor.submit(() -> {
             try {
                 return refreshGetToken();

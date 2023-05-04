@@ -8,6 +8,7 @@ import org.nickas21.smart.tuya.service.TuyaDeviceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Calendar;
 import java.util.Date;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.nickas21.smart.util.HttpUtil.bmsSocKey;
 import static org.nickas21.smart.util.HttpUtil.formatter;
+import static org.nickas21.smart.util.HttpUtil.getSunRiseSunset;
 import static org.nickas21.smart.util.HttpUtil.totalConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
@@ -39,37 +41,54 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         executorService.scheduleAtFixedRate(this::setBmsSocCur, 0, solarmanStationsService.getSolarmanDataSource().getTimeOutSec(), TimeUnit.SECONDS);
      }
 
-    private void setBmsSocCur() {   // ToDo add if else by time Sunrise and Sunset
-        updatePowerValue();
-        double bmsSocNew = powerValueRealTimeData.getBmsSocValue();
-        String updateTimeData = formatter.format(new Date(powerValueRealTimeData.getCollectionTime()*1000));
-        log.info("BmsSocNew = [{}] Update real time data [{}]  Current real time data [{}] ", bmsSocNew, updateTimeData, formatter.format(new Date()));
-        if (bmsSocNew != bmsSocCur) {
-            if (bmsSocNew < solarmanStationsService.getSolarmanDataSource().getBmsSocMin()) {
-                // Reducing electricity consumption
-                this.setReducingElectricityConsumption(bmsSocNew);
-            } else if (bmsSocNew > solarmanStationsService.getSolarmanDataSource().getBmsSocMax()) {
-                // Increasing electricity consumption
-                this.setIncreasingElectricityConsumption(bmsSocNew);
-            } else if (bmsSocCur > 0){
-                // Battery charge/discharge analysis program
-                batteryChargeDischarge(bmsSocNew, (powerValueRealTimeData.getTotalSolarPower() - powerValueRealTimeData.getTotalConsumptionPower()));
+    private void setBmsSocCur() {
+        Calendar[] sunriseSunset = getSunRiseSunset(solarmanStationsService.getSolarmanDataSource().getLocationLat(),
+                solarmanStationsService.getSolarmanDataSource().getLocationLng());
+        Date currentTime = new Date();
+        log.info("Sunrise at: [{}] [{}]", sunriseSunset[0].getTime(), sunriseSunset[0].getTime().getTime());
+        log.info("Sunset at: [{}] [{}]", sunriseSunset[1].getTime(), sunriseSunset[1].getTime().getTime());
+        log.info("CurrentTime at: [{}] [{}]",currentTime, currentTime.getTime());
+        if (currentTime.getTime() > sunriseSunset[0].getTime().getTime() && currentTime.getTime() < sunriseSunset[1].getTime().getTime())  {
+            updatePowerValue();
+            double bmsSocNew = powerValueRealTimeData.getBmsSocValue();
+            String updateTimeData = formatter.format(new Date(powerValueRealTimeData.getCollectionTime() * 1000));
+            log.info("BmsSocNew = [{}] Update real time data [{}]  Current real time data [{}] ", bmsSocNew, updateTimeData, formatter.format(new Date()));
+           if (bmsSocNew != bmsSocCur) {
+               try {
+                   if (bmsSocNew < solarmanStationsService.getSolarmanDataSource().getBmsSocMin()) {
+                       // Reducing electricity consumption
+                       this.setReducingElectricityConsumption(bmsSocNew);
+                   } else if (bmsSocNew > solarmanStationsService.getSolarmanDataSource().getBmsSocMax()) {
+                       // Increasing electricity consumption
+                       this.setIncreasingElectricityConsumption(bmsSocNew);
+                   } else if (bmsSocCur > 0) {
+                       // Battery charge/discharge analysis program
+                       this.batteryChargeDischarge(bmsSocNew, (powerValueRealTimeData.getTotalSolarPower() - powerValueRealTimeData.getTotalConsumptionPower()));
+                   }
+               } catch (Exception e) {
+//                   cod: [1010], msg: [token invalid]
+                   if ("token invalid".equals(e.getMessage())) {
+                       this.updateTuyaToken();
+                   } else {
+                       log.error("", e);
+                   }
+               }
+                bmsSocCur = bmsSocNew;
             }
-            bmsSocCur = bmsSocNew;
         }
     }
 
-    private void setReducingElectricityConsumption(double bmsSocNew) {
+    private void setReducingElectricityConsumption(double bmsSocNew) throws Exception {
         log.info("Reducing electricity consumption, bmsSocNew [{}].", bmsSocNew);
         this.tuyaDeviceService.updateAllTermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin());
     }
 
-    private void setIncreasingElectricityConsumption(double bmsSocNew) {
+    private void setIncreasingElectricityConsumption(double bmsSocNew)  throws Exception {
         log.info("Increasing electricity consumption, bmsSocNew [{}].", bmsSocNew);
         this.tuyaDeviceService.updateAllTermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMax());
     }
 
-    private void batteryChargeDischarge(double bmsSocNew, int deltaPower) {
+    private void batteryChargeDischarge(double bmsSocNew, int deltaPower) throws Exception {
         String stateBmsSoc = (bmsSocNew - bmsSocCur) > 0 ? "charge" : "discharge";
         log.info("Battery analysis. bmsSocCur = [{}], bmsSocNew = [{}], [{}] bmsSoc = [{}], deltaPower [{}]",
                 bmsSocCur, bmsSocNew, stateBmsSoc, (bmsSocNew - bmsSocCur), deltaPower);
@@ -103,6 +122,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         powerValueRealTimeData.setTotalSolarPower(totalSolarPower);
         powerValueRealTimeData.setTotalConsumptionPower(totalConsumptionPower);
         powerValueRealTimeData.setTotalEnergySell(totalEnergySell);
+    }
+
+    private void updateTuyaToken () {
+        this.tuyaDeviceService.refreshTuyaToken();
+        try {
+            setBmsSocCur();
+        } catch (Exception e) {
+            log.error("", e);
+        }
     }
 }
 

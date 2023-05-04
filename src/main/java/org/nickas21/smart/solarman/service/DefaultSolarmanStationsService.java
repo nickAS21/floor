@@ -3,6 +3,7 @@ package org.nickas21.smart.solarman.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.util.concurrent.FutureCallback;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.mq.Communication;
@@ -70,6 +71,8 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
                 String stationName = stations.get(stationId).getName();
                 solarmanDataSource.setStationId(stationId);
                 solarmanDataSource.setName(stationName);
+                solarmanDataSource.setLocationLat(stations.get(stationId).getLocationLat());
+                solarmanDataSource.setLocationLng(stations.get(stationId).getLocationLng());
                 log.info("First station id: [{}], name [{}]", stationId, stationName);
                 String loggerSn = this.solarmanDataSource.getLoggerSn();
                 getDeviceCommunication(loggerSn);
@@ -228,6 +231,21 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         String path = creatHttpPathWithQueries(pathRequest, queries);
         return createRequestWithBody(path, body, httpMethod, httpHeaders);
     }
+
+//    private JsonNode requestFutureSend1(RequestEntity<Object> requestEntity) {
+//        FutureCallback<ObjectNode> producerCallback = new FutureCallback<ObjectNode>() {
+//            @Override
+//            public void onFailure(Throwable t) {
+//                log.error("Create solarman request [{}] error", requestEntity, t);
+//                throw new Exception(t);
+//            }
+//
+//            @Override
+//            public void onSuccess(UserRecordResult result) {
+//            }
+//
+//        };
+//    }
 
     private JsonNode requestFutureSend(RequestEntity<Object> requestEntity) {
         Future<ResponseEntity<ObjectNode>> future = executor.submit(() -> {

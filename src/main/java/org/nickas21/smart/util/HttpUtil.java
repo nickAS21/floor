@@ -7,6 +7,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
@@ -14,6 +15,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -89,6 +92,10 @@ public class HttpUtil {
         byte[] salt = new byte[16];
         sr.nextBytes(salt);
         return salt.toString();
+    }
+
+    public static Calendar[] getSunRiseSunset(double locationLat, double locationLng) {
+        return ca.rmen.sunrisesunset.SunriseSunset.getSunriseSunset(Calendar.getInstance(), locationLat,locationLng);
     }
 
 }

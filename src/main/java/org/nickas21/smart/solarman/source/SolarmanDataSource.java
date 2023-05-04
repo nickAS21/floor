@@ -29,5 +29,7 @@ public class SolarmanDataSource {
     double bmsSocAlarmWarn;
     double bmsSocAlarmError;
     double bmsSocStepValueChange;
+    double locationLat;   //": 50.31023634165624,
+    double locationLng;
 }
 

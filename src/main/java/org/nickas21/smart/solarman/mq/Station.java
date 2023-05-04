@@ -6,8 +6,8 @@ import lombok.Data;
 public class Station {
        Long id;             //": 60422108,
        String name;         //": "Dacha_Mostische",
-       Float locationLat;   //": 50.31023634165624,
-       Float locationLng;   //": 30.019779655026674,
+       double locationLat;   //": 50.31023634165624,
+       double locationLng;   //": 30.019779655026674,
        String locationAddress;  // ": "Фастівський (Макарівський) р-н, с. Мостище, Садівниче Товариство \"Механізатор\", вул. Лісова, 29",
        Integer regionNationId;  //": 232,
        Integer regionLevel1;    //": 3425,

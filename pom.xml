@@ -153,6 +153,11 @@
             <artifactId>org.eclipse.paho.mqttv5.client</artifactId>
             <version>${paho.mqttv5.client.version}</version>
         </dependency>
+        <dependency>
+            <groupId>ca.rmen</groupId>
+            <artifactId>lib-sunrise-sunset</artifactId>
+            <version>1.1.1</version>
+        </dependency>
     </dependencies>
 
     <build>
