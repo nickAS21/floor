@@ -15,13 +15,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Slf4j
 @Service
-//public class TuyaConnection implements TuyaConnectionIn, ApplicationContextAware {
 public class TuyaConnection implements TuyaConnectionIn {
     private ExecutorService executor;
     private MqPulsarConsumer mqPulsarConsumer;
@@ -57,12 +57,7 @@ public class TuyaConnection implements TuyaConnectionIn {
         }
     }
 
-//    @Override
-//    public void update(String accessId, String accessKey) throws Exception {
-//
-//    }
-
-    @Override
+    @PreDestroy
     public void destroy() {
         if (mqPulsarConsumer != null) {
             try {
@@ -87,7 +82,7 @@ public class TuyaConnection implements TuyaConnectionIn {
     }
 
     private void resultHandler(String type, String msg, Exception exception) {
-        if ("Tuya CONNECT".equals(type) && exception != null) {
+        if ("CONNECT".equals(type) && exception != null) {
             // Reconnect
             try {
                 mqPulsarConsumer.stop();

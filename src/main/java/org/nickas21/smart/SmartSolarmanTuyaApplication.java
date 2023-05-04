@@ -2,17 +2,18 @@ package org.nickas21.smart;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
-
+import org.springframework.scheduling.annotation.EnableAsync;
 import java.util.Arrays;
 
 @SpringBootConfiguration
 @ComponentScan({"org.nickas21.smart"})
+@EnableAsync
 public class SmartSolarmanTuyaApplication {
 
     private static final String SPRING_CONFIG_NAME_KEY = "--spring.config.name";
     private static final String DEFAULT_SPRING_CONFIG_PARAM = SPRING_CONFIG_NAME_KEY + "=" + "floor";
+
 
     public static void main(String[] args) {
         SpringApplication.run(SmartSolarmanTuyaApplication.class, updateArguments(args));

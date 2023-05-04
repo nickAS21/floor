@@ -18,11 +18,11 @@ public interface TuyaDeviceService {
 
    void sendGetRequestLogs(String deviceId, Long start_time, Long end_time, Integer size);
 
-   void updateAllTermostat(Integer temp_set) throws Exception;
+   void updateAllThermostat(Integer temp_set) throws Exception;
 
-   void updateTermostatBatteryCharge(int deltaPower) throws Exception;
+   void updateThermostatBatteryCharge(int deltaPower) throws Exception;
 
-   void updateTermostatBatteryDischarge(int deltaPower) throws Exception;
+   void updateThermostatBatteryDischarge(int deltaPower) throws Exception;
 
    TuyaMessageDataSource getConnectionConfiguration();
 

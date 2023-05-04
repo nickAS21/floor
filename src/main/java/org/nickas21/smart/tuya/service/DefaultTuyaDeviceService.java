@@ -23,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 
+import javax.annotation.PreDestroy;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -82,6 +83,15 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
 
     public void setConnectionConfiguration(TuyaMessageDataSource connectionConfiguration) {
         this.connectionConfiguration = connectionConfiguration;
+    }
+
+    @PreDestroy
+    public void destroy() {
+        try {
+            this.updateAllThermostat(this.getConnectionConfiguration().getTempSetMin());
+        } catch (Exception e) {
+            log.error("Destroy error ", e);
+        }
     }
 
     @Override
@@ -156,24 +166,28 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     }
 
     @Override
-    public void updateAllTermostat(Integer temp_set) throws Exception{
+    public void updateAllThermostat(Integer temp_set) throws Exception{
         this.devices.getDevIds().forEach((k, v) -> {
-            if (v.getCategory().equals("wk") && v.getStatus().get(tempSetKey).getValue() != temp_set) {
-                try {
-                    sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
-                } catch (Exception e) {
+            if (v.getCategory().equals("wk")) {
+                if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
                     try {
-                        throw new Exception(e);
-                    } catch (Exception exception) {
-                        exception.printStackTrace();
+                        sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
+                    } catch (Exception e) {
+                        try {
+                            throw new Exception(e);
+                        } catch (Exception exception) {
+                            exception.printStackTrace();
+                        }
                     }
+                } else {
+                    log.info("Device: [{}], updateAllTermostat, tempSetKey newValue [{}] equals oldValue", v.getName(), temp_set);
                 }
             }
         });
     }
 
     @Override
-    public void updateTermostatBatteryCharge(int deltaPower)  throws Exception{
+    public void updateThermostatBatteryCharge(int deltaPower)  throws Exception{
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         this.devices.getDevIds().forEach((k, v) -> {
             if (v.getCategory().equals("wk") && atomicDeltaPower.get() > v.getConsumptionPower()) {
@@ -192,7 +206,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     }
 
     @Override
-    public void updateTermostatBatteryDischarge(int deltaPower) throws Exception{
+    public void updateThermostatBatteryDischarge(int deltaPower) throws Exception{
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         this.devices.getDevIds().forEach((k, v) -> {
             if (v.getCategory().equals("wk") && atomicDeltaPower.get() < 0) {
@@ -205,7 +219,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                         exception.printStackTrace();
                     }
                 }
-                atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
+                atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
             }
         });
     }
