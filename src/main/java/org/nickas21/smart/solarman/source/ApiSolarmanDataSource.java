@@ -63,9 +63,6 @@ public class ApiSolarmanDataSource {
     @Value("${smart.solarman.bms_soc.alarm_error}")
     private double solarmanBmsSocAlarmError;
 
-    @Value("${smart.solarman.bms_soc.step_value_change}")
-    private double solarmanBmsSocStepValueChange;
-
     private SolarmanDataSource solarmanDataSource;
 
     public SolarmanDataSource getSolarmanDataSource() {
@@ -97,8 +94,6 @@ public class ApiSolarmanDataSource {
                 double soBmsSocAlarmWarnConf = StringUtils.isBlank(soBmsSocAlarmWarnConfStr) ? this.solarmanBmsSocAlarmWarn : Double.valueOf(soBmsSocAlarmWarnConfStr);
                 String soBmsSocAlarmErrorConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_ALARM_ERROR);
                 double soBmsSocAlarmErrorConf = StringUtils.isBlank(soBmsSocAlarmErrorConfStr) ? this.solarmanBmsSocAlarmError : Double.valueOf(soBmsSocAlarmErrorConfStr);
-                String soBmsSocStepValueChangeConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_STEP_VALUE_CHANGE);
-                double soBmsSocStepValueChangeConf = StringUtils.isBlank(soBmsSocStepValueChangeConfStr) ? this.solarmanBmsSocStepValueChange : Double.valueOf(soBmsSocStepValueChangeConfStr);
                 if (StringUtils.isBlank(soAppIdConf) || StringUtils.isBlank(soLogSnConf) || StringUtils.isBlank(soSecretConf)
                         || soPassHashConf.equals(EMPTY_HASH) || region == null) {
                     log.error("During processing Solarman connection data source error. One of parameters is null");
@@ -117,7 +112,6 @@ public class ApiSolarmanDataSource {
                             .bmsSocMax(soBmsSocMaxConf)
                             .bmsSocAlarmWarn(soBmsSocAlarmWarnConf)
                             .bmsSocAlarmError(soBmsSocAlarmErrorConf)
-                            .bmsSocStepValueChange(soBmsSocStepValueChangeConf)
                             .build();
                 }
             } catch (Exception e) {

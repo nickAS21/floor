@@ -190,7 +190,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     public void updateThermostatBatteryCharge(int deltaPower)  throws Exception{
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         this.devices.getDevIds().forEach((k, v) -> {
-            if (v.getCategory().equals("wk") && atomicDeltaPower.get() > v.getConsumptionPower()) {
+            if (v.getCategory().equals("wk") && atomicDeltaPower.get() >= (v.getConsumptionPower()*0.75)) {
                 try {
                     sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMax(), v.getName());
                 } catch (Exception e) {

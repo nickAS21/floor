@@ -27,6 +27,7 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 public class HttpUtil {
     private static final RestTemplate httpClient = new RestTemplate();
     public static final SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+    public static final SimpleDateFormat formatter_D_M_Y = new SimpleDateFormat("dd/MM/yyyy");
     public static final String tempSetKey = "temp_set";
     public static final String bmsSocKey = "BMS_SOC";
     public static final String totalSolarPowerKey = "S_P_T";

@@ -26,5 +26,4 @@ smart:
       max: "${SOLARMAN_BMS_SOC_MAX:97.0}"
       alarm_warn: "${SOLARMAN_BMS_SOC_ALARM_WARN:80.0}"
       alarm_error: "${SOLARMAN_BMS_SOC_ALARM_ERROR:59.0}"
-      step_value_change: "${SOLARMAN_BMS_STEP_VALUE_CHANGE:3.0}"
 
