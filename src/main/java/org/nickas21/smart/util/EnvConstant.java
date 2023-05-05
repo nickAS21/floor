@@ -16,6 +16,8 @@ public class EnvConstant {
 
     public static final String ENV_TUYA_TEMP_SET_MAX = "TUYA_TEMP_SET_MAX";
 
+    public static final String ENV_TUYA_CATEGORY_FOR_CONTROL_POWERS = "TUYA_CATEGORY_FOR_CONTROL_POWERS";
+
     public static final String ENV_TUYA_USER_UID = "TUYA_USER_UID";
 
     public static final String ENV_SOLARMAN_REGION = "SOLARMAN_REGION";

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.collections4.MapUtils;
 import org.nickas21.smart.SmartSolarmanTuyaService;
 import org.nickas21.smart.tuya.tuyaEntity.DeviceStatus;
 import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
@@ -27,8 +28,11 @@ import javax.annotation.PreDestroy;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +52,7 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.VALUE;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 import static org.nickas21.smart.util.HttpUtil.sendRequest;
+import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
@@ -88,7 +93,8 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     @PreDestroy
     public void destroy() {
         try {
-            this.updateAllThermostat(this.getConnectionConfiguration().getTempSetMin());
+            this.updateAllThermostat(this.getConnectionConfiguration().getTempSetMin(),
+                    this.getConnectionConfiguration().getCategoryForControlPowers());
         } catch (Exception e) {
             log.error("Destroy error ", e);
         }
@@ -166,33 +172,42 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     }
 
     @Override
-    public void updateAllThermostat(Integer temp_set) throws Exception{
+    public void updateAllThermostat(Integer temp_set, String... filters) throws Exception {
         this.devices.getDevIds().forEach((k, v) -> {
-            if (v.getCategory().equals("wk")) {
-                if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
-                    try {
-                        sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
-                    } catch (Exception e) {
+            for (String f : filters) {
+                if (v.getCategory().equals(f)) {
+                    if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
                         try {
-                            throw new Exception(e);
-                        } catch (Exception exception) {
-                            exception.printStackTrace();
+                            sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
+                        } catch (Exception e) {
+                            try {
+                                throw new Exception(e);
+                            } catch (Exception exception) {
+                                exception.printStackTrace();
+                            }
                         }
+                    } else {
+                        log.info("Device: [{}], updateAllTermostat, tempSetKey newValue [{}] equals oldValue", v.getName(), temp_set);
                     }
-                } else {
-                    log.info("Device: [{}], updateAllTermostat, tempSetKey newValue [{}] equals oldValue", v.getName(), temp_set);
                 }
             }
         });
     }
 
     @Override
-    public void updateThermostatBatteryCharge(int deltaPower)  throws Exception{
+    public void updateThermostatBatteryCharge(int deltaPower, String... filters) throws Exception {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
-        this.devices.getDevIds().forEach((k, v) -> {
-            if (v.getCategory().equals("wk") && atomicDeltaPower.get() >= (v.getConsumptionPower()*0.75)) {
+        LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(true, filters);
+        Integer temp_set = this.getConnectionConfiguration().getTempSetMax();
+        devicesTempSort.forEach((k, v) -> {
+            if (atomicDeltaPower.get() >= (v.getConsumptionPower() * 0.75)) {
                 try {
-                    sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMax(), v.getName());
+                    if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
+                        sendPostRequestCommand(k, tempSetKey, temp_set, this.devices.getDevIds().get(k).getName());
+                        atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
+                    } else {
+                        log.info("Device: [{}], updateAllTermostat, tempSetKey newValue [{}] equals oldValue", v.getName(), temp_set);
+                    }
                 } catch (Exception e) {
                     try {
                         throw new Exception(e);
@@ -200,18 +215,24 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                         exception.printStackTrace();
                     }
                 }
-                atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
             }
         });
     }
 
     @Override
-    public void updateThermostatBatteryDischarge(int deltaPower) throws Exception{
+    public void updateThermostatBatteryDischarge(int deltaPower, String... filters) throws Exception {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
-        this.devices.getDevIds().forEach((k, v) -> {
+        LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(false, filters);
+        Integer temp_set = this.getConnectionConfiguration().getTempSetMin();
+        devicesTempSort.forEach((k, v) -> {
             if (v.getCategory().equals("wk") && atomicDeltaPower.get() < 0) {
                 try {
-                    sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMin(), v.getName());
+                    if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
+                        sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMin(), v.getName());
+                        atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
+                    } else {
+                        log.info("Device: [{}], updateAllTermostat, tempSetKey newValue [{}] equals oldValue", v.getName(), temp_set);
+                    }
                 } catch (Exception e) {
                     try {
                         throw new Exception(e);
@@ -219,9 +240,30 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                         exception.printStackTrace();
                     }
                 }
-                atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
             }
         });
+    }
+
+    private LinkedHashMap<String, Device> getDevicesTempSort(boolean order, String... filters) {
+        HashMap<String, Integer> devicesPowerNotSort = new HashMap<>();
+        LinkedHashMap<String, Device> sortedMap = new LinkedHashMap<>();
+        this.devices.getDevIds().forEach((k, v) -> {
+            for (String f : filters) {
+                if (v.getCategory().equals(f)) {
+                    devicesPowerNotSort.put(k, (Integer) v.getStatus().get(tempCurrentKey).getValue());
+                }
+            }
+        });
+        List<Map.Entry<String, Integer>> list = new ArrayList<>(devicesPowerNotSort.entrySet());
+        if (order) {
+            list.sort(Map.Entry.comparingByValue());
+        } else {
+            list.sort(Map.Entry.comparingByValue(Comparator.reverseOrder()));
+        }
+        for (Map.Entry<String, Integer> entry : list) {
+            sortedMap.put(entry.getKey(), this.devices.getDevIds().get(entry.getKey()));
+        }
+        return sortedMap;
     }
 
     @Override

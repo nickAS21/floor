@@ -55,7 +55,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         String deltaPower = (powerValueRealTimeData.getTotalSolarPower() - powerValueRealTimeData.getTotalConsumptionPower()) + " w";
         log.info("\n-Current real time data [{}] \n-Update real time data [{}] \n-BmsSocNew = [{}] \n-deltaPower [{}]",
                 formatter.format(new Date()), updateTimeData, bmsSocNew, deltaPower);
-        if (this.bmsSocCur > 0 &&
+       if (this.bmsSocCur > 0 &&
                 this.curDate.getTime() > this.sunRiseDate.getTime() &&
                 this.curDate.getTime() <= (this.sunSetDate.getTime() - 3600000)) {
             isDay = true;
@@ -91,12 +91,14 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     private void setIncreasingElectricityConsumption(double bmsSocNew) throws Exception {
         log.info("Increasing electricity consumption, TempSetMax, bmsSocNew [{}].", bmsSocNew);
-        this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMax());
+        this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMax(),
+                this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
     }
 
     private void setReducingElectricityConsumption(double bmsSocNew) throws Exception {
         log.info("Reducing electricity consumption, TempSetMin,  bmsSocNew [{}].", bmsSocNew);
-        this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin());
+        this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin(),
+                this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
     }
 
     private void batteryChargeDischarge(double bmsSocNew, int deltaPower) throws Exception {
@@ -104,9 +106,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         log.info("Battery analysis. bmsSocCur = [{}], bmsSocNew = [{}], [{}] bmsSoc = [{}], deltaPower [{}]",
                 bmsSocCur, bmsSocNew, stateBmsSoc, (bmsSocNew - bmsSocCur), deltaPower);
         if (deltaPower > 0) {             // Battery charge
-            this.tuyaDeviceService.updateThermostatBatteryCharge(deltaPower);
+            this.tuyaDeviceService.updateThermostatBatteryCharge(deltaPower,
+                    this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
         } else if (deltaPower < 0) {      // Battery discharge
-            this.tuyaDeviceService.updateThermostatBatteryDischarge(deltaPower);
+            this.tuyaDeviceService.updateThermostatBatteryDischarge(deltaPower,
+                    this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
         }
     }
 
@@ -160,4 +164,5 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         }
     }
 }
+
 

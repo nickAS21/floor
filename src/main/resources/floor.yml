@@ -19,6 +19,7 @@ smart:
     temp_set:
       min: "${TUYA_TEMP_SET_MIN:5}"
       max: "${TUYA_TEMP_SET_MAX:24}"
+    category_for_control_powers: "${TUYA_CATEGORY_FOR_CONTROL_POWERS:wk}"
   solarman:
     timeout_sec: "${SOLARMAN_TIMEOUT_SEC:600}"
     bms_soc:

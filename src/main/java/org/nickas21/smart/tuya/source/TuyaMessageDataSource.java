@@ -47,5 +47,6 @@ public class TuyaMessageDataSource {
     String userUid;
     Integer tempSetMin;
     Integer tempSetMax;
+    String [] categoryForControlPowers;
 }
 

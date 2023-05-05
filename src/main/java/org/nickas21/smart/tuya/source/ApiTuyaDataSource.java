@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_ALARM_ERROR;
 import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_AK;
+import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_CATEGORY_FOR_CONTROL_POWERS;
 import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_DEVICE_IDS;
 import static org.nickas21.smart.util.EnvConstant.ENV_REGION;
 import static org.nickas21.smart.util.EnvConstant.ENV_TUYA_SK;
@@ -47,6 +48,9 @@ public class ApiTuyaDataSource {
     @Value("${smart.tuya.temp_set.max}")
     private Integer tuyaTempSetMax;
 
+    @Value("${smart.tuya.category_for_control_powers}")
+    private String tuyaCategoryForControlPowers;
+
     private TuyaMessageDataSource tuyaMessageDataSource;
 
 
@@ -67,17 +71,18 @@ public class ApiTuyaDataSource {
                 TuyaRegion region = StringUtils.isNoneBlank(reConf) ? TuyaRegion.valueOf(reConf) : null;
 
                 String devIdsConf = envSystem.get(ENV_TUYA_DEVICE_IDS);
+                devIdsConf = StringUtils.isNoneBlank(devIdsConf) ?devIdsConf : this.tuyaDeviceIds;
                 String[] deviceIds = StringUtils.isNoneBlank(devIdsConf) ? StringUtils.split(devIdsConf, ",     ") : null;
-                if (StringUtils.isArrayBlank(deviceIds)) {
-                    devIdsConf = this.tuyaDeviceIds;
-                    deviceIds = (devIdsConf != null && devIdsConf.isBlank()) ? StringUtils.split(devIdsConf, ",") : null;
-                }
 
                 String tempSetMinConfStr = envSystem.get(ENV_TUYA_TEMP_SET_MIN);
                 Integer tempSetMinConf = StringUtils.isBlank(tempSetMinConfStr) ? this.tuyaTempSetMin : Integer.valueOf(tempSetMinConfStr);
 
                 String tempSetMaxConfStr = envSystem.get(ENV_TUYA_TEMP_SET_MAX);
                 Integer tempSetMaxConf = StringUtils.isBlank(tempSetMaxConfStr) ? this.tuyaTempSetMax : Integer.valueOf(tempSetMaxConfStr);
+
+                String categoryForControlPowersConf = envSystem.get(ENV_TUYA_CATEGORY_FOR_CONTROL_POWERS);
+                categoryForControlPowersConf = StringUtils.isNoneBlank(categoryForControlPowersConf) ? categoryForControlPowersConf : this.tuyaCategoryForControlPowers;
+                String [] categoryForControlPowers = StringUtils.isNoneBlank(categoryForControlPowersConf) ? StringUtils.split(categoryForControlPowersConf, ",") : null;
 
                 if (StringUtils.isNoneBlank(akConf) && StringUtils.isNoneBlank(skConf)
                         && StringUtils.isArrayNoneBlank(deviceIds) && StringUtils.isNoneBlank(userUidConf) && region != null) {
@@ -89,6 +94,7 @@ public class ApiTuyaDataSource {
                             .userUid(userUidConf)
                             .tempSetMin(tempSetMinConf)
                             .tempSetMax(tempSetMaxConf)
+                            .categoryForControlPowers(categoryForControlPowers)
                             .build();
                     return tuyaMessageDataSource;
                 } else {
