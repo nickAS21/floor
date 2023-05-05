@@ -105,9 +105,14 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         String stateBmsSoc = (bmsSocNew - bmsSocCur) > 0 ? "charge" : "discharge";
         log.info("Battery analysis. bmsSocCur = [{}], bmsSocNew = [{}], [{}] bmsSoc = [{}], deltaPower [{}]",
                 bmsSocCur, bmsSocNew, stateBmsSoc, (bmsSocNew - bmsSocCur), deltaPower);
-        if (deltaPower > 0) {             // Battery charge
-            this.tuyaDeviceService.updateThermostatBatteryCharge(deltaPower,
-                    this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+        if (deltaPower > 0) {
+            if ((bmsSocNew - bmsSocCur) >= 0 ) {// Battery charge
+                this.tuyaDeviceService.updateThermostatBatteryCharge(deltaPower,
+                        this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+            } else {
+                this.tuyaDeviceService.updateThermostatBatteryDischarge(deltaPower,
+                        this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+            }
         } else if (deltaPower < 0) {      // Battery discharge
             this.tuyaDeviceService.updateThermostatBatteryDischarge(deltaPower,
                     this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
