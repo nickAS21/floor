@@ -1,14 +1,7 @@
 package org.nickas21.smart.util;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.RequestEntity;
-import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
-import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -18,14 +11,13 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 
 @Slf4j
 public class HttpUtil {
-    private static final RestTemplate httpClient = new RestTemplate();
+    //    private static final RestTemplate httpClient = new RestTemplate();
     public static final SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
     public static final SimpleDateFormat formatter_D_M_Y = new SimpleDateFormat("dd/MM/yyyy");
     public static final String tempSetKey = "temp_set";
@@ -34,30 +26,16 @@ public class HttpUtil {
     public static final String totalSolarPowerKey = "S_P_T";
     public static final String totalEnergySellKey = "E_S_TO";
     public static final String totalConsumptionPowerKey = "E_Puse_t1";
+    public static final String tuyaTokenInvalid = "token invalid";
+    public static final int tuyaTokenInvalidCode = 1010;
 
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;
-        if ( queries != null) {
+        if (queries != null) {
             pathWithQueries += "?" + queries.entrySet().stream().map(it -> it.getKey() + "=" + it.getValue())
                     .collect(Collectors.joining("&"));
         }
         return pathWithQueries;
-    }
-
-    //    https://openapi.tuyaeu.com/v1.0/iot-03/devices/bfa715581477683002qb4l/freeze-state
-    public static ResponseEntity<ObjectNode> sendRequest(RequestEntity<Object> requestEntity) {
-
-        ResponseEntity<ObjectNode> responseEntity = httpClient.exchange(requestEntity.getUrl(), requestEntity.getMethod(), requestEntity, ObjectNode.class);
-        if (!HttpStatus.OK.equals(responseEntity.getStatusCode())) {
-            throw new RuntimeException(String.format("No response for device command request! Reason code from Tuya Cloud: %s", responseEntity.getStatusCode().toString()));
-        } else {
-            if (Objects.requireNonNull(responseEntity.getBody()).get("success").asBoolean()) {
-                return responseEntity;
-            } else {
-                log.error("cod: [{}], msg: [{}]", responseEntity.getBody().get("code").asInt(), responseEntity.getBody().get("msg").asText());
-                return null;
-            }
-        }
     }
 
     public static String getBodyHash(String body) throws Exception {
@@ -96,8 +74,14 @@ public class HttpUtil {
         return salt.toString();
     }
 
-    public static Calendar[] getSunRiseSunset(double locationLat, double locationLng) {
-        return ca.rmen.sunrisesunset.SunriseSunset.getSunriseSunset(Calendar.getInstance(), locationLat,locationLng);
+    public static Date[] getSunRiseSunset(double locationLat, double locationLng) {
+        Date[] result = new Date[2];
+        log.info("GetSunRiseSunset Calendar dateTime: [{}]", Calendar.getInstance().getTime());
+        Calendar[] calendars = ca.rmen.sunrisesunset.SunriseSunset.getSunriseSunset(Calendar.getInstance(), locationLat, locationLng);
+        result[0] = calendars[0].getTime();
+        result[1] = calendars[1].getTime();
+        log.info("Sunrise at: [{}]", result[0]);
+        log.info("Sunset at: [{}]", result[1]);
+        return result;
     }
-
 }

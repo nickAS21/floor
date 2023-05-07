@@ -55,8 +55,11 @@ public class Device {
                     DeviceStatus statusNew = treeToValue(statusNode, DeviceStatus.class);
                     DeviceStatus statusOld = this.status != null ? this.status.get(code) : null;
                     if (statusNew != null) {
+                        statusNew.setEventTime(System.currentTimeMillis());
+                        statusNew.setName(code);
                         if (statusOld != null) {
                             statusNew.setValueOld(statusOld.getValue());
+                            statusNew.setName(code);
                         }
                         setStatus(code, statusNew);
 //                        log.trace("Init: devId [{}] devName [{}], status: [{}] -> old=[{}], new=[{}]",

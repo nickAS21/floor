@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -23,6 +24,7 @@ public class SolarmanConnection {
     private ExecutorService executor;
     private SolarmanDataSource solarmanMqttDataConnection;
     public MqttAsyncClient client;
+
 
     /**
      *
@@ -55,9 +57,13 @@ public class SolarmanConnection {
         this.solarmanMqttDataConnection = solarmanDataSource.getSolarmanDataSource();
         this.solarmanInverterService.setExecutorService(this.executor);
         this.solarmanInverterService.setSolarmanMqttDataSource(this.solarmanMqttDataConnection);
-        this.solarmanInverterService.init();
-//        createClient();
-
+        try {
+            CountDownLatch cdl = new CountDownLatch(1);
+            this.solarmanInverterService.init(cdl);
+            cdl.await();
+        } catch (InterruptedException exc) {
+            log.error("", exc);
+        }
     }
 
 

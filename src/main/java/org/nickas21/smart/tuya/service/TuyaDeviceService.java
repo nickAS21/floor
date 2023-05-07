@@ -10,7 +10,7 @@ public interface TuyaDeviceService {
 
    void init();
 
-   TuyaToken refreshTuyaToken();
+   TuyaToken refreshTuyaToken() throws Exception;
 
    void devicesFromUpDateStatusValue(TuyaConnectionMsg msg);
 

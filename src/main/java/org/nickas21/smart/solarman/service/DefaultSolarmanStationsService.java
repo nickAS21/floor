@@ -3,7 +3,6 @@ package org.nickas21.smart.solarman.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.util.concurrent.FutureCallback;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.mq.Communication;
@@ -15,16 +14,19 @@ import org.nickas21.smart.util.JacksonUtil;
 import org.nickas21.smart.util.StringUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -35,7 +37,6 @@ import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_OBT
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_REALTIME_DATA_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_REFRESH_TOKEN_URL_PATH;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
-import static org.nickas21.smart.util.HttpUtil.sendRequest;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 
@@ -46,11 +47,11 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private SolarmanDataSource solarmanDataSource;
     private SolarmanToken accessSolarmanToken;
     private Map<Long, Station> stations;
-    private Map<String, Communication> communications;
+    private final RestTemplate httpClient = new RestTemplate();
 //    private Map<Long, RealTimeData> realTimeDatas;
 //    private Long bmsSocTimeCurrent;
 //    private Long bmsSocTimePrevious;
-
+// Boyler 1500 W.
     @Override
     public void setExecutorService(ExecutorService executor) {
         this.executor = executor;
@@ -62,22 +63,23 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     }
 
     @Override
-    public void init() {
+    public void init(CountDownLatch c) {
         accessSolarmanToken = getSolarmanToken();
+        c.countDown();
         if (accessSolarmanToken != null) {
-            getStaionList();
-            if (stations.size() > 0) {
-                Long stationId = Long.valueOf(stations.keySet().toArray()[0].toString());
-                String stationName = stations.get(stationId).getName();
-                solarmanDataSource.setStationId(stationId);
-                solarmanDataSource.setName(stationName);
-                solarmanDataSource.setLocationLat(stations.get(stationId).getLocationLat());
-                solarmanDataSource.setLocationLng(stations.get(stationId).getLocationLng());
-                log.info("First station id: [{}], name [{}]", stationId, stationName);
-                String loggerSn = this.solarmanDataSource.getLoggerSn();
-                getDeviceCommunication(loggerSn);
+            initAfterTokenSuccess();
+        } else {
+            accessSolarmanToken = refreshSolarmanToken();
+            if (accessSolarmanToken != null) {
+                initAfterTokenSuccess();
+
+                if (stations.size() == 0) {
+                    log.error("Bad start. Solarman stations required, none available.");
+                    System.exit(0);
+                }
             } else {
-                log.error("Station size is 0");
+                log.error("Bad start. Solarman token required, not null.");
+                System.exit(0);
             }
         }
     }
@@ -119,6 +121,23 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         return accessSolarmanToken;
     }
 
+    private void initAfterTokenSuccess() {
+        getStaionList();
+        if (stations.size() > 0) {
+            Long stationId = Long.valueOf(stations.keySet().toArray()[0].toString());
+            String stationName = stations.get(stationId).getName();
+            solarmanDataSource.setStationId(stationId);
+            solarmanDataSource.setName(stationName);
+            solarmanDataSource.setLocationLat(stations.get(stationId).getLocationLat());
+            solarmanDataSource.setLocationLng(stations.get(stationId).getLocationLng());
+            log.info("First station id: [{}], name [{}]", stationId, stationName);
+            String loggerSn = this.solarmanDataSource.getLoggerSn();
+            getDeviceCommunication(loggerSn);
+        } else {
+            log.error("Station size is 0");
+        }
+    }
+
     @SneakyThrows
     private void getStaionList() {
         stations = new ConcurrentHashMap<>();
@@ -143,7 +162,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
 
     @SneakyThrows
     private void getDeviceCommunication(String loggerSn) {
-        communications = new ConcurrentHashMap<>();
+        Map<String, Communication> communications = new ConcurrentHashMap<>();
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createSolarmanHeadersWithToken(ts);
         Map<String, Object> queries = createQueries();
@@ -208,26 +227,22 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
 
     @SneakyThrows
     private SolarmanToken refreshSolarmanToken() {
-        Future<SolarmanToken> future = executor.submit(() -> {
-            try {
-                return refreshGetSolarmanToken();
-            } catch (Exception e) {
-                log.error("refresh token error", e);
-                return null;
-            } finally {
-            }
-        });
-        SolarmanToken refreshedToken = future.get();
-        if (Objects.isNull(refreshedToken)) {
-            log.error("Refreshed token required, not null.");
+        try {
+            do {
+                this.accessSolarmanToken = refreshGetSolarmanToken();
+            } while (accessSolarmanToken == null);
+            return this.accessSolarmanToken;
+        } catch (Exception e) {
+            log.error("Refresh token error, ", e);
+            return null;
+        } finally {
         }
-        return refreshedToken;
     }
 
 
     @SneakyThrows
-    private RequestEntity<Object>createSolarmanRequest(String pathRequest, MultiValueMap<String, String> httpHeaders,
-                                           HttpMethod httpMethod, Map<String, Object> queries, ObjectNode body) {
+    private RequestEntity<Object> createSolarmanRequest(String pathRequest, MultiValueMap<String, String> httpHeaders,
+                                                        HttpMethod httpMethod, Map<String, Object> queries, ObjectNode body) {
         String path = creatHttpPathWithQueries(pathRequest, queries);
         return createRequestWithBody(path, body, httpMethod, httpHeaders);
     }
@@ -250,7 +265,10 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private JsonNode requestFutureSend(RequestEntity<Object> requestEntity) {
         Future<ResponseEntity<ObjectNode>> future = executor.submit(() -> {
             try {
-                return sendRequest(requestEntity);
+                CountDownLatch cdlSendRequest = new CountDownLatch(1);
+                ResponseEntity<ObjectNode> result = sendRequest(requestEntity, cdlSendRequest);
+                cdlSendRequest.await();
+                return result;
             } catch (Exception e) {
                 log.error("Create solarman request [{}] error", requestEntity, e);
                 return null;
@@ -293,7 +311,9 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         String path = String.format(GET_TUYA_REFRESH_TOKEN_URL_PATH, accessSolarmanToken.getRefreshToken());
 //        RequestEntity<Object> requestEntity = createGetTuyaRequest(path, true);
         RequestEntity<Object> requestEntity = null;
-        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
+        CountDownLatch cdlRefreshToken = new CountDownLatch(1);
+        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity, cdlRefreshToken);
+        cdlRefreshToken.await();
         if (responseEntity != null) {
             JsonNode result = responseEntity.getBody();
             Long expireIn = System.currentTimeMillis() + (Long.parseLong(result.get("expires_in").asText()) * 1000);
@@ -335,7 +355,25 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private boolean hasValidAccessToken() {
         return accessSolarmanToken.getExpiresIn() > System.currentTimeMillis();
     }
-
+    private ResponseEntity<ObjectNode> sendRequest(RequestEntity<Object> requestEntity, CountDownLatch c) {
+        try {
+            ResponseEntity<ObjectNode> responseEntity = httpClient.exchange(requestEntity.getUrl(), requestEntity.getMethod(), requestEntity, ObjectNode.class);
+            c.countDown();
+            if (!HttpStatus.OK.equals(responseEntity.getStatusCode())) {
+                throw new RuntimeException(String.format("No response for device command request! Reason code from Tuya Cloud: %s", responseEntity.getStatusCode().toString()));
+            } else {
+                if (Objects.requireNonNull(responseEntity.getBody()).get("success").asBoolean()) {
+                    return responseEntity;
+                } else {
+                    log.error("cod: [{}], msg: [{}]", responseEntity.getBody().get("code").asInt(), responseEntity.getBody().get("msg").asText());
+                    return null;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Method: [{}], url: [{}], body: [{}]. ", requestEntity.getMethod(), requestEntity.getUrl(), requestEntity.getBody(), e);
+            return null;
+        }
+    }
 
 
 }

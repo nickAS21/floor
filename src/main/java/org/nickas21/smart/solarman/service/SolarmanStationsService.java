@@ -3,6 +3,7 @@ package org.nickas21.smart.solarman.service;
 import org.nickas21.smart.solarman.mq.RealTimeData;
 import org.nickas21.smart.solarman.source.SolarmanDataSource;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 
 public interface SolarmanStationsService {
@@ -11,7 +12,7 @@ public interface SolarmanStationsService {
 
     void setSolarmanMqttDataSource(SolarmanDataSource solarmanMqttDataConnection);
 
-    void init();
+    void init(CountDownLatch c);
 
     RealTimeData getRealTimeData();
 
