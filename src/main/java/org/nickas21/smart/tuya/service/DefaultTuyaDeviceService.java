@@ -37,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,7 +45,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.nickas21.smart.tuya.constant.TuyaApi.CODE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.COMMANDS;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_DEVICES_ID_URL_PATH;
-import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_REFRESH_TOKEN_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_DEVICE_STATUS_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_TOKEN_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.POST_DEVICE_COMMANDS_URL_PATH;
@@ -75,18 +75,18 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     SmartSolarmanTuyaService smartSolarmanTuyaService;
 
     @Override
-    public void init() {
-        accessTuyaToken = getTuyaToken();
+    public void init() throws Exception {
         devices = new Devices();
-        if (accessTuyaToken != null) {
-            sendInitRequest();
+        try {
+            if (getTuyaToken() != null) {
+                sendInitRequest();
+                log.info("Init tuya successful: [{}] devices", devices.getDevIds().size());
+                smartSolarmanTuyaService.solarmanRealTimeDataStart();
+            }
+        } catch (ExecutionException | InterruptedException e) {
+            log.error("Init tuya error. Tuya token required, not null.", e);
+            throw new Exception(e);
         }
-        log.info("init successful: [{}] devices", devices.getDevIds().size());
-        // Test Sun Uzel
-        String deviceIdTest = "bfa715581477683002qb4l";
-        String deviceIdsTest = "bf11fce4b500291373jnn2:1800,bfa715581477683002qb4l:1800,bfc99c5e1b444322eaaqgu:1800";
-//        updateAllTermostat (18);
-        smartSolarmanTuyaService.solarmanRealTimeDataStart();
     }
 
     public void setConnectionConfiguration(TuyaMessageDataSource connectionConfiguration) {
@@ -110,10 +110,6 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
 
     @SneakyThrows
     public void devicesFromUpDateStatusValue(TuyaConnectionMsg msg) {
-//        log.info("TuyaConnectionMsg: [{}]",  msg);
-//        updateAllTermostat (5);
-//        String deviceIdTest = "bf11fce4b500291373jnn2";
-//        sendPostRequestCommand(deviceIdTest, "temp_set", 5); // temp_current
         String deviceId = msg.getJson().get("devId").asText();
         JsonNode deviceStatus = msg.getJson().get("status");
         Device device = deviceStatus != null ? this.devices.getDevIds().get(deviceId) : null;
@@ -126,7 +122,6 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                         formatter.format(new Date(Long.valueOf(String.valueOf(deviceStatus.get(0).get("t"))))),
                         devStatus.getValueOld(), devStatus.getValue());
             }
-
         } else {
             log.error("Device or status is null, [{}]", msg);
         }
@@ -150,8 +145,8 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
             sendPostRequest(path, commandsNode, deviceName);
         } catch (Exception e) {
             if (tuyaTokenInvalid.equals(e.getMessage())) {
-                this.accessTuyaToken = refreshTuyaToken();
-                if (this.accessTuyaToken != null) {
+                refreshTuyaToken();
+                if (getTuyaToken() != null) {
                     try {
                         sendPostRequest(path, commandsNode, deviceName);
                     } catch (Exception exception) {
@@ -287,13 +282,12 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         return this.connectionConfiguration;
     }
 
-    @SneakyThrows
-    private TuyaToken createTuyaToken() {
+    private TuyaToken createTuyaToken() throws ExecutionException, InterruptedException {
         Future<TuyaToken> future = executor.submit(() -> {
             try {
                 return createGetTuyaToken();
             } catch (Exception e) {
-                log.error("create token error", e);
+                log.error("Create token error", e);
                 return null;
             } finally {
             }
@@ -305,8 +299,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         return createToken;
     }
 
-    @SneakyThrows
-    private TuyaToken createGetTuyaToken() {
+    private TuyaToken createGetTuyaToken() throws Exception {
         Map<String, Object> queries = new HashMap<>();
         queries.put("grant_type", TOKEN_GRANT_TYPE);
         String path = creatHttpPathWithQueries(GET_TUYA_TOKEN_URL_PATH, queries);
@@ -334,7 +327,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         HttpMethod httpMethod = HttpMethod.GET;
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createTuyaHeaders(ts);
-        if (!isGetToken) httpHeaders.add("access_token", accessTuyaToken.getAccessToken());
+        if (!isGetToken) httpHeaders.add("access_token", getTuyaToken().getAccessToken());
         String strToSign = isGetToken ? this.connectionConfiguration.getAk() + ts + stringToSign(path, getBodyHash(null), httpMethod) :
                 this.connectionConfiguration.getAk() + accessTuyaToken.getAccessToken() + ts + stringToSign(path, getBodyHash(null), httpMethod);
         String signedStr = sign(strToSign, this.connectionConfiguration.getSk());
@@ -346,8 +339,8 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     private RequestEntity<Object> createRequestWithBody(String path, ObjectNode body, HttpMethod httpMethod) throws Exception {
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createTuyaHeaders(ts);
-        httpHeaders.add("access_token", accessTuyaToken.getAccessToken());
-        String strToSign = this.connectionConfiguration.getAk() + accessTuyaToken.getAccessToken() +
+        httpHeaders.add("access_token", getTuyaToken().getAccessToken());
+        String strToSign = this.connectionConfiguration.getAk() + getTuyaToken().getAccessToken() +
                 ts + stringToSign(path, getBodyHash(body.toString()), httpMethod);
         String signedStr = sign(strToSign, this.connectionConfiguration.getSk());
         httpHeaders.add("sign", signedStr);
@@ -365,24 +358,16 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         return httpHeaders;
     }
 
-    private TuyaToken getTuyaToken() {
-        if (this.accessTuyaToken != null) {
-            if (!hasValidAccessToken()) {
-                try {
-                    this.accessTuyaToken = refreshGetToken();
-                } catch (Exception e) {
-                    log.error("Refresh Tuya Token: [{}]", e.getMessage());
-                }
-            }
-        } else {
+    private TuyaToken getTuyaToken() throws ExecutionException, InterruptedException {
+        if (this.accessTuyaToken == null) {
             this.accessTuyaToken = createTuyaToken();
         }
         return this.accessTuyaToken;
     }
-
-    private boolean hasValidAccessToken() {
-        return this.accessTuyaToken.getExpireAt() + 20_000 > System.currentTimeMillis();
-    }
+//
+//    private boolean hasValidAccessToken() {
+//        return getTuyaToken().getExpireAt() + 20_000 > System.currentTimeMillis();
+//    }
 
     private String stringToSign(String path, String bodyHash, HttpMethod httpMethod) throws Exception {
         List<String> lines = new ArrayList<>(16);
@@ -399,20 +384,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     }
 
     private TuyaToken refreshGetToken() throws Exception {
-        String path = String.format(GET_TUYA_REFRESH_TOKEN_URL_PATH, accessTuyaToken.getRefreshToken());
-        RequestEntity<Object> requestEntity = createGetTuyaRequest(path, true);
-        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null) {
-            JsonNode result = responseEntity.getBody().get("result");
-            Long expireAt = responseEntity.getBody().get("t").asLong() + result.get("expire_time").asLong() * 1000;
-            return TuyaToken.builder()
-                    .accessToken(result.get("access_token").asText())
-                    .refreshToken(result.get("refresh_token").asText())
-                    .uid(result.get("uid").asText())
-                    .expireAt(expireAt)
-                    .build();
-        }
-        return null;
+        return createGetTuyaToken();
     }
 
     private void sendPostRequest(String path, ObjectNode commandsNode, String... deviceName) throws Exception {
@@ -483,7 +455,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                    if (responseEntity.getBody().has("code") && responseEntity.getBody().has("msg")) {
                     log.error("code: [{}], msg: [{}]", responseEntity.getBody().get("code").asInt(), responseEntity.getBody().get("msg").asText());
                     if (responseEntity.getBody().get("code").asInt() == tuyaTokenInvalidCode) {
-                        log.error ("code1010: [{}],  token : [{}]", responseEntity.getBody().get("code").asInt(), this.accessTuyaToken);
+                        log.error ("code1010: [{}],  AccessToken : [{}]", responseEntity.getBody().get("code").asInt(), this.accessTuyaToken.getAccessToken());
                     throw new Exception(tuyaTokenInvalid);
                     }
                    }

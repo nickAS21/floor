@@ -81,7 +81,7 @@ public class TuyaConnection implements TuyaConnectionIn {
         }
     }
 
-    private void resultHandler(String type, String msg, Exception exception) {
+    private void resultHandler(String type, String msg, Exception exception) throws Exception {
         if ("CONNECT".equals(type) && exception != null) {
             // Reconnect
             try {
@@ -123,10 +123,8 @@ public class TuyaConnection implements TuyaConnectionIn {
                             TuyaConnectionMsg msg = new TuyaConnectionMsg(dataNode);
                             this.process(msg);
                         }
-                    } catch (IllegalArgumentException e) {
-                        resultHandler("Input Decoder", decryptedData, e);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        resultHandler("Input Decoder", decryptedData, e);
                     }
                 })
                 .resultHandler((this::resultHandler))

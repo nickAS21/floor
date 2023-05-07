@@ -35,7 +35,6 @@ import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_DEV
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_OBTAIN_PLANT_LIST_PATH;
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_OBTAIN_TOKEN_C_PATH;
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_REALTIME_DATA_PATH;
-import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_REFRESH_TOKEN_URL_PATH;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
@@ -247,21 +246,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         return createRequestWithBody(path, body, httpMethod, httpHeaders);
     }
 
-//    private JsonNode requestFutureSend1(RequestEntity<Object> requestEntity) {
-//        FutureCallback<ObjectNode> producerCallback = new FutureCallback<ObjectNode>() {
-//            @Override
-//            public void onFailure(Throwable t) {
-//                log.error("Create solarman request [{}] error", requestEntity, t);
-//                throw new Exception(t);
-//            }
-//
-//            @Override
-//            public void onSuccess(UserRecordResult result) {
-//            }
-//
-//        };
-//    }
-
     private JsonNode requestFutureSend(RequestEntity<Object> requestEntity) {
         Future<ResponseEntity<ObjectNode>> future = executor.submit(() -> {
             try {
@@ -290,26 +274,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         }
     }
 
-//    @SneakyThrows
-//    private JsonNode createGetStationList() {
-//        Map<String, Object> queries = new HashMap<>();
-//        queries.put("language", "en");
-//        String path = creatHttpPathWithQueries(POST_SOLARMAN_OBTAIN_PLANT_LIST_PATH, queries);
-//        ObjectNode data = JacksonUtil.newObjectNode();
-//        data.set("page", objectToJsonNode(1));
-//        data.set("size", objectToJsonNode(10));
-//        RequestEntity<Object> requestEntity = createRequestWithBody(path, data, HttpMethod.POST);
-//        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-//        if (responseEntity != null && responseEntity.getBody().get("success").asBoolean()) {
-//            return responseEntity.getBody();
-//        }
-//        return null;
-//    }
-
-
     private SolarmanToken refreshGetSolarmanToken() throws Exception {
-        String path = String.format(GET_TUYA_REFRESH_TOKEN_URL_PATH, accessSolarmanToken.getRefreshToken());
-//        RequestEntity<Object> requestEntity = createGetTuyaRequest(path, true);
         RequestEntity<Object> requestEntity = null;
         CountDownLatch cdlRefreshToken = new CountDownLatch(1);
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity, cdlRefreshToken);
@@ -336,7 +301,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.add("t", ts);
         httpHeaders.add("Content-Type", "application/json");
-//            httpHeaders.set("Authorization", "bearer " + accessSolarmanToken.getAccessToken());
         return httpHeaders;
     }
 
@@ -374,7 +338,5 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
             return null;
         }
     }
-
-
 }
 

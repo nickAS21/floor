@@ -127,11 +127,11 @@ public class MqPulsarConsumer {
     }
 
     public interface IMessageListener {
-        void onMessageArrived(Message message);
+        void onMessageArrived(Message message) throws Exception;
     }
 
     public interface ResultHandler {
-        void onResult(String type, String msg, Exception exception);
+        void onResult(String type, String msg, Exception exception) throws Exception;
     }
 
     public void stop() throws Exception {

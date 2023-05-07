@@ -8,7 +8,7 @@ import java.util.concurrent.ExecutorService;
 
 public interface TuyaDeviceService {
 
-   void init();
+   void init() throws Exception;
 
    TuyaToken refreshTuyaToken() throws Exception;
 
