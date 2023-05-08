@@ -11,13 +11,13 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 
 @Slf4j
 public class HttpUtil {
-    //    private static final RestTemplate httpClient = new RestTemplate();
     public static final SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
     public static final SimpleDateFormat formatter_D_M_Y = new SimpleDateFormat("dd/MM/yyyy");
     public static final String tempSetKey = "temp_set";
@@ -26,8 +26,6 @@ public class HttpUtil {
     public static final String totalSolarPowerKey = "S_P_T";
     public static final String totalEnergySellKey = "E_S_TO";
     public static final String totalConsumptionPowerKey = "E_Puse_t1";
-    public static final String tuyaTokenInvalid = "token invalid";
-    public static final int tuyaTokenInvalidCode = 1010;
 
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;
@@ -77,7 +75,11 @@ public class HttpUtil {
     public static Date[] getSunRiseSunset(double locationLat, double locationLng) {
         Date[] result = new Date[2];
         log.info("GetSunRiseSunset Calendar dateTime: [{}]", Calendar.getInstance().getTime());
-        Calendar[] calendars = ca.rmen.sunrisesunset.SunriseSunset.getSunriseSunset(Calendar.getInstance(), locationLat, locationLng);
+        Calendar date = Calendar.getInstance(TimeZone.getDefault());
+        if (date.get(Calendar.HOUR_OF_DAY) <= 2) {
+            date.set(Calendar.HOUR_OF_DAY, 2);
+        }
+        Calendar[] calendars = ca.rmen.sunrisesunset.SunriseSunset.getSunriseSunset(date, locationLat, locationLng);
         result[0] = calendars[0].getTime();
         result[1] = calendars[1].getTime();
         log.info("Sunrise at: [{}]", result[0]);

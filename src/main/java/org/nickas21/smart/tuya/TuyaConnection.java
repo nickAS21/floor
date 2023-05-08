@@ -26,7 +26,6 @@ public class TuyaConnection implements TuyaConnectionIn {
     private ExecutorService executor;
     private MqPulsarConsumer mqPulsarConsumer;
     private TuyaMessageDataSource tuyaConnectionConfiguration;
-//    private static ApplicationContext ctx;
 
     @Autowired
     private ApiTuyaDataSource tuyaDataSource;
@@ -36,8 +35,7 @@ public class TuyaConnection implements TuyaConnectionIn {
 
     @PostConstruct
     public void init() throws Exception {
-        executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-tuya"));
-        tuyaDeviceService.setExecutorService(executor);
+        executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-tuyaConnection"));
         this.tuyaConnectionConfiguration = tuyaDataSource.getTuyaConnectionConfiguration();
         if (this.tuyaConnectionConfiguration != null) {
             tuyaDeviceService.setConnectionConfiguration(this.tuyaConnectionConfiguration);

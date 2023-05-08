@@ -10,6 +10,7 @@ import org.nickas21.smart.solarman.mq.RealTimeData;
 import org.nickas21.smart.solarman.mq.SolarmanToken;
 import org.nickas21.smart.solarman.mq.Station;
 import org.nickas21.smart.solarman.source.SolarmanDataSource;
+import org.nickas21.smart.util.ConnectThreadFactory;
 import org.nickas21.smart.util.JacksonUtil;
 import org.nickas21.smart.util.StringUtils;
 import org.springframework.http.HttpHeaders;
@@ -29,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_DEVICE_COMMUNICATION_PATH;
@@ -47,14 +49,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private SolarmanToken accessSolarmanToken;
     private Map<Long, Station> stations;
     private final RestTemplate httpClient = new RestTemplate();
-//    private Map<Long, RealTimeData> realTimeDatas;
-//    private Long bmsSocTimeCurrent;
-//    private Long bmsSocTimePrevious;
-// Boyler 1500 W.
-    @Override
-    public void setExecutorService(ExecutorService executor) {
-        this.executor = executor;
-    }
 
     @Override
     public void setSolarmanMqttDataSource(SolarmanDataSource solarmanMqttDataConnection) {
@@ -63,6 +57,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
 
     @Override
     public void init(CountDownLatch c) {
+        this.executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-solarman"));
         accessSolarmanToken = getSolarmanToken();
         c.countDown();
         if (accessSolarmanToken != null) {

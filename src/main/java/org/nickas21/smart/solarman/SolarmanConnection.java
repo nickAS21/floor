@@ -8,20 +8,16 @@ import org.eclipse.paho.mqttv5.common.MqttException;
 import org.nickas21.smart.solarman.service.DefaultSolarmanStationsService;
 import org.nickas21.smart.solarman.source.ApiSolarmanDataSource;
 import org.nickas21.smart.solarman.source.SolarmanDataSource;
-import org.nickas21.smart.util.ConnectThreadFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Slf4j
 @Service
 public class SolarmanConnection {
-    private ExecutorService executor;
     private SolarmanDataSource solarmanMqttDataConnection;
     public MqttAsyncClient client;
 
@@ -53,9 +49,7 @@ public class SolarmanConnection {
 
     @PostConstruct
     public void init() throws Exception {
-        this.executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-solarman"));
         this.solarmanMqttDataConnection = solarmanDataSource.getSolarmanDataSource();
-        this.solarmanInverterService.setExecutorService(this.executor);
         this.solarmanInverterService.setSolarmanMqttDataSource(this.solarmanMqttDataConnection);
         try {
             CountDownLatch cdl = new CountDownLatch(1);
