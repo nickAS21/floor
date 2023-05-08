@@ -169,20 +169,13 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
 
     @Override
     public void updateAllThermostat(Integer temp_set, String... filters) throws Exception {
-
-        this.devices.getDevIds().forEach((k, v) -> {
+        for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+            String k = entry.getKey();
+            Device v = entry.getValue();
             for (String f : filters) {
                 if (v.getCategory().equals(f)) {
                     if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
-                        try {
-                            sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
-                        } catch (Exception e) {
-                            try {
-                                throw new Exception(e);
-                            } catch (Exception exception) {
-                                log.error("UpdateAllThermostat. SndPostRequestCommand. ", e);
-                            }
-                        }
+                        sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
                     } else {
                         String stateBmsSoc = temp_set == this.getConnectionConfiguration().getTempSetMax() ? "Charge" : "Discharge";
                         log.info("Device: [{}] not Update. [{}] tempSetKey changeValue [{}] currentValue [{}]",
@@ -190,7 +183,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                     }
                 }
             }
-        });
+        }
     }
 
     @Override
@@ -198,28 +191,22 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(true, filters);
         Integer temp_set = this.getConnectionConfiguration().getTempSetMax();
-        devicesTempSort.forEach((k, v) -> {
-            if (atomicDeltaPower.get() > 0) {
-                try {
-                    if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
-                        sendPostRequestCommand(k, tempSetKey, temp_set, this.devices.getDevIds().get(k).getName());
-                        atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
-                    } else {
-                        log.info("Device: [{}] not Update. Charge left power [{}], tempSetKey changeValue [{}] lastValue [{}]",
-                                v.getName(), atomicDeltaPower.get(), temp_set, v.getStatus().get(tempSetKey).getValue());
-                    }
-                } catch (Exception e) {
-                    try {
-                        throw new Exception(e);
-                    } catch (Exception exception) {
-                        exception.printStackTrace();
-                    }
+        for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
+            String k = entry.getKey();
+            Device v = entry.getValue();
+            if ((atomicDeltaPower.get() - v.getConsumptionPower()) > 0) {
+                if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
+                    sendPostRequestCommand(k, tempSetKey, temp_set, this.devices.getDevIds().get(k).getName());
+                    atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
+                } else {
+                    log.info("Device: [{}] not Update. Charge left power [{}], tempSetKey changeValue [{}] lastValue [{}]",
+                            v.getName(), atomicDeltaPower.get(), temp_set, v.getStatus().get(tempSetKey).getValue());
                 }
             } else {
                 log.info("Device: [{}] not Update. Charge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
                         v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), temp_set, v.getStatus().get(tempSetKey).getValue());
             }
-        });
+        }
     }
 
     @Override
@@ -227,17 +214,13 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(false, filters);
         Integer temp_set = this.getConnectionConfiguration().getTempSetMin();
-        devicesTempSort.forEach((k, v) -> {
-            if (Arrays.stream(this.getConnectionConfiguration().getCategoryForControlPowers()).anyMatch(v.getCategory()::equals)
-                    && (atomicDeltaPower.get() - v.getConsumptionPower()) < 0) {
-
-                if (atomicDeltaPower.get() < 0 && v.getStatus().get(tempSetKey).getValue() != temp_set) {
-                    try {
-                        sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMin(), v.getName());
-                        atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
-                    } catch (Exception e) {
-                        log.error("", e);
-                    }
+        for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
+            String k = entry.getKey();
+            Device v = entry.getValue();
+            if ((atomicDeltaPower.get() - v.getConsumptionPower()) < 0) {
+                if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
+                    sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMin(), v.getName());
+                    atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
                 } else {
                     log.info("Device: [{}] not Update. Discharge left power [{}], tempSetKey changeValue [{}] lastValue [{}]",
                             v.getName(), atomicDeltaPower.get(), temp_set, v.getStatus().get(tempSetKey).getValue());
@@ -246,7 +229,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                 log.info("Device: [{}] not Update. Discharge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
                         v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), temp_set, v.getStatus().get(tempSetKey).getValue());
             }
-        });
+        }
     }
 
     private LinkedHashMap<String, Device> getDevicesTempSort(boolean order, String... filters) {
@@ -283,7 +266,6 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
             } catch (Exception e) {
                 log.error("Create token error", e);
                 return null;
-            } finally {
             }
         });
         TuyaToken createToken = future.get();
@@ -333,7 +315,6 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         } finally {
             c.countDown();
         }
-
     }
 
     private RequestEntity<Object> createGetTuyaRequest(String path, boolean isGetToken) throws Exception {
@@ -376,7 +357,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
             this.accessTuyaToken = this.createTuyaToken();
         } else if (!hasValidAccessToken()) {
             CountDownLatch cdl = new CountDownLatch(1);
-            log.info("Refresh Tuya token: expireAt [{}] [{}]", formatter.format(new Date(this.accessTuyaToken.getExpireAt() + 20_000)), formatter.format(new Date()));
+            log.info("Refresh Tuya token: expireAt [{}] currentDate [{}]", formatter.format(new Date(this.accessTuyaToken.getExpireAt() + 20_000)), formatter.format(new Date()));
             this.accessTuyaToken = this.refreshTuyaToken(cdl);
             cdl.await();
         }

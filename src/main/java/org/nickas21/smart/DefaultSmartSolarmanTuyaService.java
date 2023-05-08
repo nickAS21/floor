@@ -47,6 +47,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     }
 
     private void setBmsSocCur() {
+        log.info("Is Day [{}]", isDay);
         updatePowerValue();
         double bmsSocNew = powerValueRealTimeData.getBmsSocValue();
         updateSunRiseSunSetDate();
@@ -55,7 +56,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         log.info("\n-Current real time data \t[{}] \n-Update real time data \t\t[{}] \n-bmsSocLast \t\t\t\t [{}] " +
                         "\n-bmsSocNew \t\t\t\t\t [{}] \n-deltaBmsSoc \t\t\t\t [{}] \n-deltaPower \t\t\t\t [{}]",
                 formatter.format(new Date()), updateTimeData, this.bmsSocCur, bmsSocNew, (bmsSocNew - this.bmsSocCur), deltaPower);
-        log.info("Is Day [{}]", isDay);
+
         if (this.sunRiseDate != null && this.sunSetDate != null) {
             if (this.bmsSocCur > 0 &&
                     this.curDate.getTime() > this.sunRiseDate.getTime() &&
@@ -80,7 +81,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 log.info("Reducing electricity consumption, TempSetMin,  SunSet start: [{}].", this.sunSetDate);
                 isDay = false;
                 try {
-                    this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin());
+                    this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin(),
+                            this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
                 } catch (Exception e) {
                     log.error("SunSet, updateAllThermostat to min.", e);
                 }

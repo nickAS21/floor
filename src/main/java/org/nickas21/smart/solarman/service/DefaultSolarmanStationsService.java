@@ -229,7 +229,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         } catch (Exception e) {
             log.error("Refresh token error, ", e);
             return null;
-        } finally {
         }
     }
 
@@ -251,7 +250,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
             } catch (Exception e) {
                 log.error("Create solarman request [{}] error", requestEntity, e);
                 return null;
-            } finally {
             }
         });
         try {
@@ -317,7 +315,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private ResponseEntity<ObjectNode> sendRequest(RequestEntity<Object> requestEntity, CountDownLatch c) {
         try {
             ResponseEntity<ObjectNode> responseEntity = httpClient.exchange(requestEntity.getUrl(), requestEntity.getMethod(), requestEntity, ObjectNode.class);
-            c.countDown();
             if (!HttpStatus.OK.equals(responseEntity.getStatusCode())) {
                 throw new RuntimeException(String.format("No response for device command request! Reason code from Tuya Cloud: %s", responseEntity.getStatusCode().toString()));
             } else {
@@ -331,6 +328,8 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         } catch (Exception e) {
             log.error("Method: [{}], url: [{}], body: [{}]. ", requestEntity.getMethod(), requestEntity.getUrl(), requestEntity.getBody(), e);
             return null;
+        } finally {
+            c.countDown();
         }
     }
 }
