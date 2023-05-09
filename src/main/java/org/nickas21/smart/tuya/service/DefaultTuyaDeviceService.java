@@ -177,7 +177,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                     if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
                         sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
                     } else {
-                        String stateBmsSoc = temp_set == this.getConnectionConfiguration().getTempSetMax() ? "Charge" : "Discharge";
+                        String stateBmsSoc = temp_set == this.getConnectionConfiguration().getTempSetMax() ? "Max bmsSoc" : "Min bmsSoc";
                         log.info("Device: [{}] not Update. [{}] tempSetKey changeValue [{}] currentValue [{}]",
                                 v.getName(), stateBmsSoc, temp_set, v.getStatus().get(tempSetKey).getValue());
                     }
