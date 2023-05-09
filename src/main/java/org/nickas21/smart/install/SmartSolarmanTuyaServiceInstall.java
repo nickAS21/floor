@@ -11,8 +11,8 @@ import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.util.SmartSolarmanTuyaThreadFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+
 import javax.annotation.PreDestroy;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -21,10 +21,10 @@ import java.util.concurrent.Executors;
 
 @Slf4j
 @Service@ComponentScan({"org.nickas21.smart"})
-@Profile("install")
 public class SmartSolarmanTuyaServiceInstall {
 
-    final ExecutorService submitExecutor = Executors.newFixedThreadPool(3, SmartSolarmanTuyaThreadFactory.forName(getClass().getSimpleName() + "-smart_T_S"));
+//    final ExecutorService submitExecutor = Executors.newFixedThreadPool(3, SmartSolarmanTuyaThreadFactory.forName(getClass().getSimpleName() + "-smart_T_S"));
+    final ExecutorService submitExecutor = Executors.newFixedThreadPool(3, SmartSolarmanTuyaThreadFactory.forName("smart_S_T"));
 
     @Autowired
     private TuyaConnection tuyaConnection;

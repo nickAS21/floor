@@ -54,7 +54,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         String updateTimeData = formatter.format(new Date(powerValueRealTimeData.getCollectionTime() * 1000));
         String deltaPower = (powerValueRealTimeData.getTotalSolarPower() - powerValueRealTimeData.getTotalConsumptionPower()) + " w";
         log.info("\n-Current real time data \t[{}] \n-Update real time data \t\t[{}] \n-bmsSocLast \t\t\t\t [{}] " +
-                        "\n-bmsSocNew \t\t\t\t\t [{}] \n-deltaBmsSoc \t\t\t\t [{}] \n-deltaPower \t\t\t\t [{}]",
+                        "\n-bmsSocNew \t\t\t\t [{}] \n-deltaBmsSoc \t\t\t\t [{}] \n-deltaPower \t\t\t\t [{}]",
                 formatter.format(new Date()), updateTimeData, this.bmsSocCur, bmsSocNew, (bmsSocNew - this.bmsSocCur), deltaPower);
 
         if (this.sunRiseDate != null && this.sunSetDate != null) {

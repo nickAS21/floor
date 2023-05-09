@@ -19,7 +19,6 @@ public class SmartSolarmanTuyaApplication {
     public static void main(String[] args) {
         try {
             SpringApplication application = new SpringApplication(SmartSolarmanTuyaApplication.class);
-            application.setAdditionalProfiles("install");
             ConfigurableApplicationContext context = application.run(updateArguments(args));
             context.getBean(SmartSolarmanTuyaServiceInstall.class).performInstall();
         } catch (Exception e) {
