@@ -6,17 +6,14 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
-import org.nickas21.smart.SmartSolarmanTuyaService;
 import org.nickas21.smart.tuya.tuyaEntity.DeviceStatus;
 import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaToken;
 import org.nickas21.smart.tuya.tuyaEntity.Device;
 import org.nickas21.smart.tuya.tuyaEntity.Devices;
-import org.nickas21.smart.util.ConnectThreadFactory;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.JacksonUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -26,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.PreDestroy;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -41,7 +37,6 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -73,18 +68,14 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     private TuyaMessageDataSource connectionConfiguration;
     private final RestTemplate httpClient = new RestTemplate();
 
-    @Autowired
-    SmartSolarmanTuyaService smartSolarmanTuyaService;
-
     @Override
-    public void init() throws Exception {
-        this.executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-tuyaService"));
+    public void init(ExecutorService submitExecutor) throws Exception {
+        this.executor = submitExecutor;
         this.devices = new Devices();
         try {
             if (getTuyaToken() != null) {
                 sendInitRequest();
                 log.info("Init tuya successful: [{}] devices", devices.getDevIds().size());
-                smartSolarmanTuyaService.solarmanRealTimeDataStart();
             }
         } catch (ExecutionException | InterruptedException e) {
             log.error("Init tuya error. Tuya token required, not null.", e);
@@ -96,14 +87,9 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         this.connectionConfiguration = connectionConfiguration;
     }
 
-    @PreDestroy
-    public void destroy() {
-        try {
+    public void destroy() throws Exception {
             this.updateAllThermostat(this.getConnectionConfiguration().getTempSetMin(),
                     this.getConnectionConfiguration().getCategoryForControlPowers());
-        } catch (Exception e) {
-            log.error("Destroy error ", e);
-        }
     }
 
     @SneakyThrows
@@ -168,18 +154,18 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     }
 
     @Override
-    public void updateAllThermostat(Integer temp_set, String... filters) throws Exception {
+    public void updateAllThermostat(Integer tempSet, String... filters) throws Exception {
         for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
             String k = entry.getKey();
             Device v = entry.getValue();
             for (String f : filters) {
                 if (v.getCategory().equals(f)) {
-                    if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
-                        sendPostRequestCommand(k, tempSetKey, temp_set, v.getName());
+                    if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
+                        sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
                     } else {
-                        String stateBmsSoc = temp_set == this.getConnectionConfiguration().getTempSetMax() ? "Max bmsSoc" : "Min bmsSoc";
-                        log.info("Device: [{}] not Update. [{}] tempSetKey changeValue [{}] currentValue [{}]",
-                                v.getName(), stateBmsSoc, temp_set, v.getStatus().get(tempSetKey).getValue());
+                        String stateBmsSoc = tempSet == this.getConnectionConfiguration().getTempSetMax() ? "Max bmsSoc" : "Min bmsSoc";
+                        log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
+                                v.getName(), stateBmsSoc, tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
                     }
                 }
             }
@@ -190,21 +176,21 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     public void updateThermostatBatteryCharge(int deltaPower, String... filters) throws Exception {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(true, filters);
-        Integer temp_set = this.getConnectionConfiguration().getTempSetMax();
+        Integer tempSet = this.getConnectionConfiguration().getTempSetMax();
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
             String k = entry.getKey();
             Device v = entry.getValue();
             if ((atomicDeltaPower.get() - v.getConsumptionPower()) > 0) {
-                if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
-                    sendPostRequestCommand(k, tempSetKey, temp_set, this.devices.getDevIds().get(k).getName());
+                if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
+                    sendPostRequestCommand(k, tempSetKey, tempSet, this.devices.getDevIds().get(k).getName());
                     atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
                 } else {
-                    log.info("Device: [{}] not Update. Charge left power [{}], tempSetKey changeValue [{}] lastValue [{}]",
-                            v.getName(), atomicDeltaPower.get(), temp_set, v.getStatus().get(tempSetKey).getValue());
+                    log.info("Device: [{}] not Update. Charge left power [{}], [{}] changeValue [{}] lastValue [{}]",
+                            v.getName(), atomicDeltaPower.get(), tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
                 }
             } else {
                 log.info("Device: [{}] not Update. Charge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
-                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), temp_set, v.getStatus().get(tempSetKey).getValue());
+                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), tempSet, v.getStatus().get(tempSetKey).getValue());
             }
         }
     }
@@ -213,21 +199,21 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     public void updateThermostatBatteryDischarge(int deltaPower, String... filters) throws Exception {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(false, filters);
-        Integer temp_set = this.getConnectionConfiguration().getTempSetMin();
+        Integer tempSet = this.getConnectionConfiguration().getTempSetMin();
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
             String k = entry.getKey();
             Device v = entry.getValue();
-            if ((atomicDeltaPower.get() - v.getConsumptionPower()) < 0) {
-                if (v.getStatus().get(tempSetKey).getValue() != temp_set) {
+            if (atomicDeltaPower.get() < 0) {
+                if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
                     sendPostRequestCommand(k, tempSetKey, this.getConnectionConfiguration().getTempSetMin(), v.getName());
                     atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
                 } else {
-                    log.info("Device: [{}] not Update. Discharge left power [{}], tempSetKey changeValue [{}] lastValue [{}]",
-                            v.getName(), atomicDeltaPower.get(), temp_set, v.getStatus().get(tempSetKey).getValue());
+                    log.info("Device: [{}] not Update. Discharge left power [{}], [{}] changeValue [{}] lastValue [{}]",
+                            v.getName(), atomicDeltaPower.get(), tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
                 }
             } else {
                 log.info("Device: [{}] not Update. Discharge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
-                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), temp_set, v.getStatus().get(tempSetKey).getValue());
+                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), tempSet, v.getStatus().get(tempSetKey).getValue());
             }
         }
     }
@@ -294,7 +280,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         return null;
     }
 
-    public TuyaToken refreshTuyaToken(CountDownLatch c) throws Exception {
+    private TuyaToken refreshTuyaToken(CountDownLatch c) throws Exception {
         try {
             String path = String.format(GET_TUYA_REFRESH_TOKEN_URL_PATH, this.accessTuyaToken.getRefreshToken());
             RequestEntity<Object> requestEntity = createGetTuyaRequest(path, true);

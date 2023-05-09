@@ -1,4 +1,4 @@
-package org.nickas21.smart.solarman.service;
+package org.nickas21.smart.solarman;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -10,7 +10,6 @@ import org.nickas21.smart.solarman.mq.RealTimeData;
 import org.nickas21.smart.solarman.mq.SolarmanToken;
 import org.nickas21.smart.solarman.mq.Station;
 import org.nickas21.smart.solarman.source.SolarmanDataSource;
-import org.nickas21.smart.util.ConnectThreadFactory;
 import org.nickas21.smart.util.JacksonUtil;
 import org.nickas21.smart.util.StringUtils;
 import org.springframework.http.HttpHeaders;
@@ -30,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_DEVICE_COMMUNICATION_PATH;
@@ -51,13 +49,9 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private final RestTemplate httpClient = new RestTemplate();
 
     @Override
-    public void setSolarmanMqttDataSource(SolarmanDataSource solarmanMqttDataConnection) {
-        this.solarmanDataSource = solarmanMqttDataConnection;
-    }
-
-    @Override
-    public void init(CountDownLatch c) {
-        this.executor = Executors.newSingleThreadExecutor(ConnectThreadFactory.forName(getClass().getSimpleName() + "-solarman"));
+    public void init(CountDownLatch c, SolarmanDataSource solarmanDataConnection, ExecutorService executor) throws Exception {
+        this.executor = executor;
+        this.solarmanDataSource = solarmanDataConnection;
         accessSolarmanToken = getSolarmanToken();
         c.countDown();
         if (accessSolarmanToken != null) {
@@ -83,36 +77,44 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         return this.solarmanDataSource;
     }
 
-    @SneakyThrows
-    private SolarmanToken getSolarmanToken() {
+
+    private SolarmanToken getSolarmanToken() throws Exception {
         if (accessSolarmanToken != null) {
             if (!hasValidAccessToken()) {
                 accessSolarmanToken = refreshSolarmanToken();
+                if (accessSolarmanToken == null) {
+                    accessSolarmanToken = createSolarmanToken();
+                }
             }
         } else {
-            String ts = String.valueOf(System.currentTimeMillis());
-            MultiValueMap<String, String> httpHeaders = createSolarmanHeaders(ts);
-            Map<String, Object> queries = createQueries();
-            queries.put("appId", this.solarmanDataSource.getAppId());
-            ObjectNode body = JacksonUtil.newObjectNode();
-            body.set("appSecret", objectToJsonNode(this.solarmanDataSource.getSecret()));
-            body.set("email", objectToJsonNode(this.solarmanDataSource.getUserName()));
-            body.set("password", objectToJsonNode(this.solarmanDataSource.getPassHash()));
-            RequestEntity<Object> requestEntity = createSolarmanRequest(POST_SOLARMAN_OBTAIN_TOKEN_C_PATH, httpHeaders, HttpMethod.POST, queries, body);
-            JsonNode result = requestFutureSend(requestEntity);
-            if (Objects.isNull(result)) {
-                log.error("Create solarman token required, not null.");
-            } else {
-                Long expireIn = System.currentTimeMillis() + (Long.parseLong(result.get("expires_in").asText()) * 1000);
-                accessSolarmanToken = SolarmanToken.builder()
-                        .accessToken(result.get("access_token").asText())
-                        .refreshToken(result.get("refresh_token").asText())
-                        .expiresIn(expireIn)
-                        .uid(result.get("uid").asText())
-                        .build();
-            }
+            accessSolarmanToken = createSolarmanToken();
         }
         return accessSolarmanToken;
+    }
+
+    private SolarmanToken createSolarmanToken() throws Exception {
+        String ts = String.valueOf(System.currentTimeMillis());
+        MultiValueMap<String, String> httpHeaders = createSolarmanHeaders(ts);
+        Map<String, Object> queries = createQueries();
+        queries.put("appId", this.solarmanDataSource.getAppId());
+        ObjectNode body = JacksonUtil.newObjectNode();
+        body.set("appSecret", objectToJsonNode(this.solarmanDataSource.getSecret()));
+        body.set("email", objectToJsonNode(this.solarmanDataSource.getUserName()));
+        body.set("password", objectToJsonNode(this.solarmanDataSource.getPassHash()));
+        RequestEntity<Object> requestEntity = createSolarmanRequest(POST_SOLARMAN_OBTAIN_TOKEN_C_PATH, httpHeaders, HttpMethod.POST, queries, body);
+        JsonNode result = requestFutureSend(requestEntity);
+        if (Objects.isNull(result)) {
+            log.error("Create solarman token required, not null.");
+            return null;
+        } else {
+            Long expireIn = System.currentTimeMillis() + (Long.parseLong(result.get("expires_in").asText()) * 1000);
+            return SolarmanToken.builder()
+                    .accessToken(result.get("access_token").asText())
+                    .refreshToken(result.get("refresh_token").asText())
+                    .expiresIn(expireIn)
+                    .uid(result.get("uid").asText())
+                    .build();
+        }
     }
 
     private void initAfterTokenSuccess() {
@@ -219,8 +221,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         }
     }
 
-    @SneakyThrows
-    private SolarmanToken refreshSolarmanToken() {
+    private SolarmanToken refreshSolarmanToken() throws Exception {
         try {
             do {
                 this.accessSolarmanToken = refreshGetSolarmanToken();
@@ -310,8 +311,9 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     }
 
     private boolean hasValidAccessToken() {
-        return accessSolarmanToken.getExpiresIn() > System.currentTimeMillis();
+        return accessSolarmanToken.getExpiresIn() + 20_000 > System.currentTimeMillis();
     }
+
     private ResponseEntity<ObjectNode> sendRequest(RequestEntity<Object> requestEntity, CountDownLatch c) {
         try {
             ResponseEntity<ObjectNode> responseEntity = httpClient.exchange(requestEntity.getUrl(), requestEntity.getMethod(), requestEntity, ObjectNode.class);

@@ -1,16 +1,12 @@
 package org.nickas21.smart.tuya.service;
 
-import org.nickas21.smart.tuya.mq.TuyaToken;
-import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
-
-import java.util.concurrent.CountDownLatch;
+import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
+import java.util.concurrent.ExecutorService;
 
 public interface TuyaDeviceService {
 
-   void init() throws Exception;
-
-   TuyaToken refreshTuyaToken(CountDownLatch cdl) throws Exception;
+   void init(ExecutorService executor) throws Exception;
 
    void devicesFromUpDateStatusValue(TuyaConnectionMsg msg);
 
@@ -27,5 +23,7 @@ public interface TuyaDeviceService {
    TuyaMessageDataSource getConnectionConfiguration();
 
    void setConnectionConfiguration(TuyaMessageDataSource connectionConfiguration);
+
+   void destroy() throws Exception;
 
 }

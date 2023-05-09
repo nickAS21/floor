@@ -1,15 +1,13 @@
-package org.nickas21.smart.solarman.service;
+package org.nickas21.smart.solarman;
 
 import org.nickas21.smart.solarman.mq.RealTimeData;
 import org.nickas21.smart.solarman.source.SolarmanDataSource;
-
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 
 public interface SolarmanStationsService {
 
-    void setSolarmanMqttDataSource(SolarmanDataSource solarmanMqttDataConnection);
-
-    void init(CountDownLatch c);
+    void init(CountDownLatch c, SolarmanDataSource solarmanDataConnection, ExecutorService executor)  throws Exception;
 
     RealTimeData getRealTimeData();
 

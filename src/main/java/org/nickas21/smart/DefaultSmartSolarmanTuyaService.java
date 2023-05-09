@@ -3,7 +3,7 @@ package org.nickas21.smart;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.mq.RealTimeData;
-import org.nickas21.smart.solarman.service.SolarmanStationsService;
+import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.service.TuyaDeviceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
