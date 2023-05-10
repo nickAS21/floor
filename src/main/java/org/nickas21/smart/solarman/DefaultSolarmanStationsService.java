@@ -22,6 +22,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +37,7 @@ import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_OBT
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_OBTAIN_TOKEN_C_PATH;
 import static org.nickas21.smart.solarman.constant.SolarmanApi.POST_SOLARMAN_REALTIME_DATA_PATH;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
+import static org.nickas21.smart.util.HttpUtil.formatter;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 
@@ -55,20 +57,16 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         accessSolarmanToken = getSolarmanToken();
         c.countDown();
         if (accessSolarmanToken != null) {
-            initAfterTokenSuccess();
-        } else {
-            accessSolarmanToken = refreshSolarmanToken();
-            if (accessSolarmanToken != null) {
-                initAfterTokenSuccess();
-
-                if (stations.size() == 0) {
-                    log.error("Bad start. Solarman stations required, none available.");
-                    System.exit(0);
-                }
-            } else {
-                log.error("Bad start. Solarman token required, not null.");
+            CountDownLatch cdlInitAfter = new CountDownLatch(1);
+            initAfterTokenSuccess(cdlInitAfter);
+            cdlInitAfter.await();
+            if (stations.size() == 0) {
+                log.error("Bad start. Solarman stations required, none available.");
                 System.exit(0);
             }
+        } else {
+            log.error("Bad start. Solarman token required is null.");
+            System.exit(0);
         }
     }
 
@@ -81,10 +79,8 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
     private SolarmanToken getSolarmanToken() throws Exception {
         if (accessSolarmanToken != null) {
             if (!hasValidAccessToken()) {
-                accessSolarmanToken = refreshSolarmanToken();
-                if (accessSolarmanToken == null) {
-                    accessSolarmanToken = createSolarmanToken();
-                }
+                log.info("ReCreate Solarman token: expireIn [{}] currentDate [{}]", formatter.format(new Date(this.accessSolarmanToken.getExpiresIn() + 20_000)), formatter.format(new Date()));
+                accessSolarmanToken = createSolarmanToken();
             }
         } else {
             accessSolarmanToken = createSolarmanToken();
@@ -117,7 +113,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         }
     }
 
-    private void initAfterTokenSuccess() {
+    private void initAfterTokenSuccess(CountDownLatch cdlInitAfter) {
         getStaionList();
         if (stations.size() > 0) {
             Long stationId = Long.valueOf(stations.keySet().toArray()[0].toString());
@@ -129,9 +125,8 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
             log.info("First station id: [{}], name [{}]", stationId, stationName);
             String loggerSn = this.solarmanDataSource.getLoggerSn();
             getDeviceCommunication(loggerSn);
-        } else {
-            log.error("Station size is 0");
         }
+        cdlInitAfter.countDown();
     }
 
     @SneakyThrows
@@ -221,19 +216,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         }
     }
 
-    private SolarmanToken refreshSolarmanToken() throws Exception {
-        try {
-            do {
-                this.accessSolarmanToken = refreshGetSolarmanToken();
-            } while (accessSolarmanToken == null);
-            return this.accessSolarmanToken;
-        } catch (Exception e) {
-            log.error("Refresh token error, ", e);
-            return null;
-        }
-    }
-
-
     @SneakyThrows
     private RequestEntity<Object> createSolarmanRequest(String pathRequest, MultiValueMap<String, String> httpHeaders,
                                                         HttpMethod httpMethod, Map<String, Object> queries, ObjectNode body) {
@@ -266,24 +248,6 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
             e.printStackTrace();
             return null;
         }
-    }
-
-    private SolarmanToken refreshGetSolarmanToken() throws Exception {
-        RequestEntity<Object> requestEntity = null;
-        CountDownLatch cdlRefreshToken = new CountDownLatch(1);
-        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity, cdlRefreshToken);
-        cdlRefreshToken.await();
-        if (responseEntity != null) {
-            JsonNode result = responseEntity.getBody();
-            Long expireIn = System.currentTimeMillis() + (Long.parseLong(result.get("expires_in").asText()) * 1000);
-            return SolarmanToken.builder()
-                    .accessToken(result.get("access_token").asText())
-                    .refreshToken(result.get("refresh_token").asText())
-                    .expiresIn(expireIn)
-                    .uid(result.get("uid").asText())
-                    .build();
-        }
-        return null;
     }
 
     private RequestEntity<Object> createRequestWithBody(String path, ObjectNode body, HttpMethod httpMethod, MultiValueMap<String, String> httpHeaders) throws Exception {
