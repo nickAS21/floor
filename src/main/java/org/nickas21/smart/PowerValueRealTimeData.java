@@ -14,7 +14,13 @@ public class PowerValueRealTimeData {
     int totalSolarPower;
         // unit W
     int totalConsumptionPower;
+         // unit W
+    int totalGridPower;
         // unit kWh
     double totalEnergySell;
+        // Pull-in, Break
+    String gridRelayStatus;
+        // Purchasing energy, Grid connected, Static
+    String gridStatus;
 }
 

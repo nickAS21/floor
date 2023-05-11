@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.Date;
 import java.util.HashMap;
@@ -196,9 +197,8 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
         }
     }
 
-    @SneakyThrows
     @Override
-    public RealTimeData getRealTimeData() {
+    public RealTimeData getRealTimeData() throws IOException {
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createSolarmanHeadersWithToken(ts);
         Map<String, Object> queries = createQueries();
@@ -232,7 +232,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
                 return result;
             } catch (Exception e) {
                 log.error("Create solarman request [{}] error", requestEntity, e);
-                return null;
+                throw new Exception(e);
             }
         });
         try {

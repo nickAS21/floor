@@ -26,6 +26,9 @@ public class HttpUtil {
     public static final String totalSolarPowerKey = "S_P_T";
     public static final String totalEnergySellKey = "E_S_TO";
     public static final String totalConsumptionPowerKey = "E_Puse_t1";
+    public static final String totalGridPowerKey = "PG_Pt1";
+    public static final String gridRelayStatusKey = "GRID_RELAY_ST1";
+    public static final String gridStatusKey = "ST_PG1";
 
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;

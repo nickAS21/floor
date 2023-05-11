@@ -4,12 +4,12 @@
 
     <springProperty scope="context" name="logFile" source="logging.file"/>
     <springProperty scope="context" name="logFolder" source="logging.folder"/>
-    <property name="logPath" value='${logFolder}/${logFile}.log'/>
+    <property name="logPath" value='${logFolder}/${logFile}'/>
     <property name="logName" value='${basedir}'/>
 
     <appender name="FILE"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${logPath}</file>
+        <file>${logPath}.log</file>
         <rollingPolicy
                 class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${logPath}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
