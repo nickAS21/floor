@@ -14,12 +14,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.nickas21.smart.util.HttpUtil.bmsSocKey;
+import static org.nickas21.smart.util.HttpUtil.dailyEnergyBuyKey;
+import static org.nickas21.smart.util.HttpUtil.dailyEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.formatter;
 import static org.nickas21.smart.util.HttpUtil.formatter_D_M_Y;
 import static org.nickas21.smart.util.HttpUtil.getSunRiseSunset;
 import static org.nickas21.smart.util.HttpUtil.gridRelayStatusKey;
 import static org.nickas21.smart.util.HttpUtil.gridStatusKey;
 import static org.nickas21.smart.util.HttpUtil.totalConsumptionPowerKey;
+import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.totalGridPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
@@ -57,14 +60,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             updateSunRiseSunSetDate();
             String updateTimeData = formatter.format(new Date(powerValueRealTimeData.getCollectionTime() * 1000));
             String deltaPower = (powerValueRealTimeData.getTotalSolarPower() - powerValueRealTimeData.getTotalConsumptionPower()) + " w";
-            String gidEnergySellOrBuy = powerValueRealTimeData.getTotalGridPower() >= 0 ? "Buying energy " : "Sale energy ";
-            gidEnergySellOrBuy += powerValueRealTimeData.getTotalGridPower() + " w";
+            String gidEnergySellOrBuy = powerValueRealTimeData.getTotalGridPower() >= 0 ? "buying energy " : "sale energy ";
+            gidEnergySellOrBuy += ("[" + powerValueRealTimeData.getTotalGridPower() + " w]");
             log.info("Current real time data: [{}], -Update real time data: [{}], \n-bmsSocLast: [{}], " +
-                            "-bmsSocNew: [{}], -deltaBmsSoc: [{}], -deltaPower: [{}], -relayStatus: [{}], -gridStatus: [{}], [{}].",
+                            "-bmsSocNew: [{}], -deltaBmsSoc: [{}], -deltaPower: [{}], -relayStatus: [{}], -gridStatus: [{}], -{}, -dailySell: [{} kWh].",
                     formatter.format(new Date()), updateTimeData, this.bmsSocCur, bmsSocNew, (bmsSocNew - this.bmsSocCur), deltaPower,
                     powerValueRealTimeData.getGridRelayStatus(),
                     powerValueRealTimeData.getGridStatus(),
-                    gidEnergySellOrBuy);
+                    gidEnergySellOrBuy,
+                    powerValueRealTimeData.dailyEnergySell);
 
             if (this.sunRiseDate != null && this.sunSetDate != null) {
                 if (this.bmsSocCur > 0 &&
@@ -145,6 +149,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         double totalEnergySell = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalEnergySellKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
 
+        double totalEnergyBuy = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalEnergyBuyKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+
+        double dailyEnergySell = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyEnergySellKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+
+        double dailyEnergyBuy = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyEnergyBuyKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+
         int  totalGridPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalGridPowerKey)).findFirst()
                 .map(realTimeDataValue -> Integer.parseInt(realTimeDataValue.getValue())).orElse(0);
 
@@ -158,6 +171,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         powerValueRealTimeData.setTotalSolarPower(totalSolarPower);
         powerValueRealTimeData.setTotalConsumptionPower(totalConsumptionPower);
         powerValueRealTimeData.setTotalEnergySell(totalEnergySell);
+        powerValueRealTimeData.setTotalEnergyBuy(totalEnergyBuy);
+        powerValueRealTimeData.setDailyEnergySell(dailyEnergySell);
+        powerValueRealTimeData.setDailyEnergyBuy(dailyEnergyBuy);
         powerValueRealTimeData.setGridRelayStatus(gridRelayStatus);
         powerValueRealTimeData.setGridStatus(gridStatus);
         powerValueRealTimeData.setTotalGridPower(totalGridPower);

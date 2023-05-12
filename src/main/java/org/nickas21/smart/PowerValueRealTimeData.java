@@ -18,6 +18,12 @@ public class PowerValueRealTimeData {
     int totalGridPower;
         // unit kWh
     double totalEnergySell;
+        // unit kWh
+    double totalEnergyBuy;
+        // unit kWh
+    double dailyEnergySell;
+        // unit kWh
+    double dailyEnergyBuy;
         // Pull-in, Break
     String gridRelayStatus;
         // Purchasing energy, Grid connected, Static

@@ -25,6 +25,9 @@ public class HttpUtil {
     public static final String bmsSocKey = "BMS_SOC";
     public static final String totalSolarPowerKey = "S_P_T";
     public static final String totalEnergySellKey = "E_S_TO";
+    public static final String dailyEnergySellKey = "E_S_D";
+    public static final String totalEnergyBuyKey = "E_B_TO";
+    public static final String dailyEnergyBuyKey = "E_B_D";
     public static final String totalConsumptionPowerKey = "E_Puse_t1";
     public static final String totalGridPowerKey = "PG_Pt1";
     public static final String gridRelayStatusKey = "GRID_RELAY_ST1";
