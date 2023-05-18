@@ -38,8 +38,6 @@ public class EnvConstant {
 
     public static final String ENV_SOLARMAN_BMS_SOC_MIN = "SOLARMAN_BMS_SOC_MIN";
 
-    public static final String ENV_SOLARMAN_BMS_SOC_MAX = "SOLARMAN_BMS_SOC_MAX";
-
     public static final String ENV_SOLARMAN_BMS_SOC_ALARM_WARN = "SOLARMAN_BMS_SOC_ALARM_WARN";
 
     public static final String ENV_SOLARMAN_BMS_SOC_ALARM_ERROR = "SOLARMAN_BMS_SOC_ALARM_ERROR";

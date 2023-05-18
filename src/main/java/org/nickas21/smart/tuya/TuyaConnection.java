@@ -57,7 +57,7 @@ public class TuyaConnection implements TuyaConnectionIn {
         try {
             tuyaDeviceService.devicesFromUpDateStatusValue(msg);
         } catch (Exception e) {
-            log.debug("Failed to apply data converter function: {}", e.getMessage(), e);
+            log.error("Failed to apply data converter function: {}", e.getMessage(), e);
         }
     }
 

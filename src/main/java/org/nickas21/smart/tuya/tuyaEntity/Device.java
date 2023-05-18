@@ -46,6 +46,7 @@ public class Device {
 
     private String asset_id;
     private String gateway_id;
+    private String bizCode;
 
     public void setStatus (JsonNode statusArrayNode) {
         if ( statusArrayNode.isArray()) {
@@ -62,8 +63,8 @@ public class Device {
                             statusNew.setName(code);
                         }
                         setStatus(code, statusNew);
-//                        log.trace("Init: devId [{}] devName [{}], status: [{}] -> old=[{}], new=[{}]",
-//                                this.id, this.name, code, statusNew.getValueOld(), statusNew.getValue());
+                        log.trace("Init: devId [{}] devName [{}], status: [{}] -> old=[{}], new=[{}]",
+                                this.id, this.name, code, statusNew.getValueOld(), statusNew.getValue());
                     }
                 }
             }

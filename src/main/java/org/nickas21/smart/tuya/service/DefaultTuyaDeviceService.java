@@ -92,22 +92,31 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                     this.getConnectionConfiguration().getCategoryForControlPowers());
     }
 
-    @SneakyThrows
-    public void devicesFromUpDateStatusValue(TuyaConnectionMsg msg) {
+    public void devicesFromUpDateStatusValue(TuyaConnectionMsg msg) throws Exception {
         String deviceId = msg.getJson().get("devId").asText();
         JsonNode deviceStatus = msg.getJson().get("status");
-        Device device = deviceStatus != null ? this.devices.getDevIds().get(deviceId) : null;
+        JsonNode bizCode = msg.getJson().get("bizCode");
+        Device device = deviceStatus != null || bizCode != null ? this.devices.getDevIds().get(deviceId) : null;
         if (device != null) {
-            device.setStatus(deviceStatus);
-            if (Arrays.stream(this.getConnectionConfiguration().getCategoryForControlPowers()).anyMatch(device.getCategory()::equals)) {
-                String nameField = deviceStatus.get(0).get("code").asText();
-                DeviceStatus devStatus = device.getStatus().get(nameField);
-                log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
-                        device.getName(), formatter.format(new Date(Long.valueOf(String.valueOf(deviceStatus.get(0).get("t"))))),
-                        nameField, devStatus.getValueOld(), devStatus.getValue());
+            if (deviceStatus != null) {
+                device.setStatus(deviceStatus);
+                if (Arrays.stream(this.getConnectionConfiguration().getCategoryForControlPowers()).anyMatch(device.getCategory()::equals)) {
+                    String nameField = deviceStatus.get(0).get("code").asText();
+                    DeviceStatus devStatus = device.getStatus().get(nameField);
+                    log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
+                            device.getName(), formatter.format(new Date(Long.valueOf(String.valueOf(deviceStatus.get(0).get("t"))))),
+                            nameField, devStatus.getValueOld(), devStatus.getValue());
+                }
+            }
+            if (bizCode != null) {
+                device.setOnline("online".equals(bizCode.asText()));
+                device.setUpdate_time(msg.getJson().get("ts").asLong());
+                log.info("Device: [{}] time: -> [{}] parameter: [bizCode] valueNew: [{}] ",
+                        device.getName(), formatter.format(new Date(msg.getJson().get("ts").asLong())), bizCode.asText());
+
             }
         } else {
-            log.error("Device or status is null, [{}]", msg);
+            log.error("Device is null, [{}]", msg);
         }
     }
 

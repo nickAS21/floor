@@ -8,7 +8,7 @@ public interface TuyaDeviceService {
 
    void init(ExecutorService executor) throws Exception;
 
-   void devicesFromUpDateStatusValue(TuyaConnectionMsg msg);
+   void devicesFromUpDateStatusValue(TuyaConnectionMsg msg) throws Exception;
 
    void sendPostRequestCommand(String deviceId, String code, Object value, String... deviceName) throws Exception;
 

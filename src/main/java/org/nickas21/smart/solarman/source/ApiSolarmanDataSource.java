@@ -10,14 +10,12 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_APP_ID;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_ALARM_ERROR;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_ALARM_WARN;
-import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_MAX;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_MIN;
-import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_STEP_VALUE_CHANGE;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_LOGGER_SN;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_PASS;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_PASS_HASH;
-import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_SECRET;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_REGION;
+import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_SECRET;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_TIMEOUT_SEC;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_USER_NAME;
 import static org.nickas21.smart.util.EnvConstant.envSystem;
@@ -54,9 +52,6 @@ public class ApiSolarmanDataSource {
     @Value("${smart.solarman.bms_soc.min}")
     private double solarmanBmsSocMin;
 
-    @Value("${smart.solarman.bms_soc.max}")
-    private double solarmanBmsSocMax;
-
     @Value("${smart.solarman.bms_soc.alarm_warn}")
     private double solarmanBmsSocAlarmWarn;
 
@@ -88,8 +83,6 @@ public class ApiSolarmanDataSource {
                 Long soTimeOutSecConf = StringUtils.isBlank(soTimeOutSecConfStr) ? this.solarmanTimeOutSec : Long.valueOf(soTimeOutSecConfStr);
                 String soBmsSocMinConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_MIN);
                 double soBmsSocMinConf = StringUtils.isBlank(soBmsSocMinConfStr) ? this.solarmanBmsSocMin : Double.valueOf(soBmsSocMinConfStr);
-                String soBmsSocMaxConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_MAX);
-                double soBmsSocMaxConf = StringUtils.isBlank(soBmsSocMaxConfStr) ? this.solarmanBmsSocMax : Double.valueOf(soBmsSocMaxConfStr);
                 String soBmsSocAlarmWarnConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_ALARM_WARN);
                 double soBmsSocAlarmWarnConf = StringUtils.isBlank(soBmsSocAlarmWarnConfStr) ? this.solarmanBmsSocAlarmWarn : Double.valueOf(soBmsSocAlarmWarnConfStr);
                 String soBmsSocAlarmErrorConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_ALARM_ERROR);
@@ -109,7 +102,6 @@ public class ApiSolarmanDataSource {
                             .passWord(soPassConf)
                             .timeOutSec(soTimeOutSecConf)
                             .bmsSocMin(soBmsSocMinConf)
-                            .bmsSocMax(soBmsSocMaxConf)
                             .bmsSocAlarmWarn(soBmsSocAlarmWarnConf)
                             .bmsSocAlarmError(soBmsSocAlarmErrorConf)
                             .build();

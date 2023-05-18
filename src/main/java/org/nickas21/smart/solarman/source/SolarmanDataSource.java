@@ -1,7 +1,6 @@
 package org.nickas21.smart.solarman.source;
 
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
@@ -25,7 +24,6 @@ public class SolarmanDataSource {
     String passWord;
     Long timeOutSec;
     double bmsSocMin;
-    double bmsSocMax;
     double bmsSocAlarmWarn;
     double bmsSocAlarmError;
     double locationLat;   //": 50.31023634165624,

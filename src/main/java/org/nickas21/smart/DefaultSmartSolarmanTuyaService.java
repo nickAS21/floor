@@ -60,15 +60,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             updateSunRiseSunSetDate();
             String updateTimeData = formatter.format(new Date(powerValueRealTimeData.getCollectionTime() * 1000));
             String deltaPower = (powerValueRealTimeData.getTotalSolarPower() - powerValueRealTimeData.getTotalConsumptionPower()) + " w";
-            String gidEnergySellOrBuy = powerValueRealTimeData.getTotalGridPower() >= 0 ? "buying energy " : "sale energy ";
-            gidEnergySellOrBuy += ("[" + powerValueRealTimeData.getTotalGridPower() + " w]");
             log.info("Current real time data: [{}], -Update real time data: [{}], \n-bmsSocLast: [{}], " +
-                            "-bmsSocNew: [{}], -deltaBmsSoc: [{}], -deltaPower: [{}], -relayStatus: [{}], -gridStatus: [{}], -{}, -dailySell: [{} kWh].",
+                            "-bmsSocNew: [{}], -deltaBmsSoc: [{}], -deltaPower: [{}], -relayStatus: [{}], -gridStatus: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].",
                     formatter.format(new Date()), updateTimeData, this.bmsSocCur, bmsSocNew, (bmsSocNew - this.bmsSocCur), deltaPower,
                     powerValueRealTimeData.getGridRelayStatus(),
                     powerValueRealTimeData.getGridStatus(),
-                    gidEnergySellOrBuy,
-                    powerValueRealTimeData.dailyEnergySell);
+                    powerValueRealTimeData.getDailyEnergyBuy(),
+                    powerValueRealTimeData.getDailyEnergySell());
 
             if (this.sunRiseDate != null && this.sunSetDate != null) {
                 if (this.bmsSocCur > 0 &&
@@ -76,11 +74,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         this.curDate.getTime() <= (this.sunSetDate.getTime() - 3600000)) {
                     isDay = true;
                     try {
-                        if (bmsSocNew >= solarmanStationsService.getSolarmanDataSource().getBmsSocMax()) {   // 97%
-                            // Increasing electricity consumption
-                            this.setIncreasingElectricityConsumption(bmsSocNew);
-                        } else if (bmsSocNew < solarmanStationsService.getSolarmanDataSource().getBmsSocMin()) {    // 87%
-
+                        if (bmsSocNew < solarmanStationsService.getSolarmanDataSource().getBmsSocMin()) {    // 87%
                             // Reducing electricity consumption
                             this.setReducingElectricityConsumption(bmsSocNew);
                         } else {
@@ -107,12 +101,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         } catch (Exception e) {
             log.error("Failed updatePower or SunRiseSunSetDate or updateThermostat, [{}]", e.getMessage());
         }
-    }
-
-    private void setIncreasingElectricityConsumption(double bmsSocNew) throws Exception {
-        log.info("Increasing electricity consumption, TempSetMax, bmsSocNew [{}].", bmsSocNew);
-        this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMax(),
-                this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
     }
 
     private void setReducingElectricityConsumption(double bmsSocNew) throws Exception {
@@ -158,7 +146,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         double dailyEnergyBuy = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyEnergyBuyKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
 
-        int  totalGridPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalGridPowerKey)).findFirst()
+        int totalGridPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalGridPowerKey)).findFirst()
                 .map(realTimeDataValue -> Integer.parseInt(realTimeDataValue.getValue())).orElse(0);
 
         String gridRelayStatus = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridRelayStatusKey)).findFirst()
