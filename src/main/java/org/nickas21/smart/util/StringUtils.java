@@ -30,7 +30,6 @@
  */
 package org.nickas21.smart.util;
 
-import com.google.common.base.Splitter;
 import org.apache.commons.lang3.RandomStringUtils;
 
 import java.security.SecureRandom;
@@ -53,6 +52,10 @@ public class StringUtils {
         return source == null || source.isEmpty() || source.trim().isEmpty();
     }
 
+    public static boolean isNotBlank(String source) {
+        return !isBlank(source);
+    }
+
     public static boolean isArrayBlank(String[] source) {
         return source == null || source.length == 0;
     }
@@ -62,10 +65,6 @@ public class StringUtils {
 
     public static boolean isNotEmpty(String source) {
         return source != null && !source.isEmpty();
-    }
-
-    public static boolean isNotBlank(String source) {
-        return source != null && !source.isEmpty() && !source.trim().isEmpty();
     }
 
     public static String removeStart(final String str, final String remove) {
@@ -154,7 +153,7 @@ public class StringUtils {
     }
 
     public static boolean isNoneBlank(String... str) {
-        return org.apache.commons.lang3.StringUtils.isNoneBlank(str);
+        return str != null & org.apache.commons.lang3.StringUtils.isNoneBlank(str);
     }
 
     public static boolean hasText(String str) {

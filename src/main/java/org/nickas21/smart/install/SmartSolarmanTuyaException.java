@@ -8,6 +8,10 @@ public class SmartSolarmanTuyaException extends RuntimeException implements Exit
         super(message, cause);
     }
 
+    public SmartSolarmanTuyaException(String message) {
+        super(message);
+    }
+
     public int getExitCode() {
         return 1;
     }

@@ -11,6 +11,7 @@ import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.util.JacksonUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.util.concurrent.ExecutorService;
 
 
@@ -41,8 +42,8 @@ public class TuyaConnection implements TuyaConnectionIn {
     }
 
 
-     public void destroy() throws Exception {
-         tuyaDeviceService.destroy();
+    public void destroy() throws Exception {
+        tuyaDeviceService.destroy();
         if (mqPulsarConsumer != null) {
             try {
                 mqPulsarConsumer.stop();

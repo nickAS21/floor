@@ -1,4 +1,3 @@
-
 spring:
   profiles:
     active: "${SPRING_PROFILES_ACTIVE:dev}"
@@ -12,7 +11,7 @@ connector:
   tuya:
     ak: "${TUYA_AK:}"
     sk: "${TUYA_SK:}"
-    region: "${TUYA_REGION:CN}"
+    region: "${TUYA_REGION:EU}"
     device_ids: "${TUYA_DEVICE_IDS:}"
     user_uid: "${TUYA_USER_UID:}"
   solarman:

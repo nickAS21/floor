@@ -2,6 +2,7 @@ package org.nickas21.smart;
 
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.install.SmartSolarmanTuyaServiceInstall;
+import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -20,12 +21,16 @@ public class SmartSolarmanTuyaApplication {
         try {
             SpringApplication application = new SpringApplication(SmartSolarmanTuyaApplication.class);
             ConfigurableApplicationContext context = application.run(updateArguments(args));
-            context.getBean(SmartSolarmanTuyaServiceInstall.class).performInstall();
+            SmartSolarmanTuyaServiceInstall solarmanTuyaServiceInstall = context.getBean(SmartSolarmanTuyaServiceInstall.class);
+            TuyaMessageDataSource tuyaMessageDataSource = solarmanTuyaServiceInstall.performInstall();
+            if (tuyaMessageDataSource == null) {
+//                solarmanTuyaServiceInstall.destroy();
+                System.exit(1);
+            }
         } catch (Exception e) {
             log.error(e.getMessage());
             System.exit(1);
         }
-        SpringApplication.run(SmartSolarmanTuyaApplication.class, updateArguments(args));
     }
 
     private static String[] updateArguments(String[] args) {

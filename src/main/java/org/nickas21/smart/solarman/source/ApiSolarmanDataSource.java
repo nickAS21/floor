@@ -25,37 +25,37 @@ import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 @Component
 public class ApiSolarmanDataSource {
 
-    @Value("${connector.solarman.region}")
+    @Value("${connector.solarman.region:}")
     private String solarmanRegion;
 
-    @Value("${connector.solarman.appid}")
+    @Value("${connector.solarman.appid:}")
     private String solarmanAppId;
 
-    @Value("${connector.solarman.secret}")
+    @Value("${connector.solarman.secret:}")
     private String solarmanSecret;
 
-    @Value("${connector.solarman.password}")
+    @Value("${connector.solarman.password:}")
     private String solarmanPassword;
 
-    @Value("${connector.solarman.username}")
+    @Value("${connector.solarman.username:}")
     private String solarmanUserName;
 
-    @Value("${connector.solarman.passhash}")
+    @Value("${connector.solarman.passhash:}")
     private String solarmanPassHash;
 
-    @Value("${connector.solarman.logger_sn}")
+    @Value("${connector.solarman.logger_sn:}")
     private String solarmanLoggerSn;
 
-    @Value("${smart.solarman.timeout_sec}")
+    @Value("${smart.solarman.timeout_sec:600}")
     private Long solarmanTimeOutSec;
 
-    @Value("${smart.solarman.bms_soc.min}")
+    @Value("${smart.solarman.bms_soc.min:87.0}")
     private double solarmanBmsSocMin;
 
-    @Value("${smart.solarman.bms_soc.alarm_warn}")
+    @Value("${smart.solarman.bms_soc.alarm_warn:80.0}")
     private double solarmanBmsSocAlarmWarn;
 
-    @Value("${smart.solarman.bms_soc.alarm_error}")
+    @Value("${smart.solarman.bms_soc.alarm_error:59.0}")
     private double solarmanBmsSocAlarmError;
 
     private SolarmanDataSource solarmanDataSource;

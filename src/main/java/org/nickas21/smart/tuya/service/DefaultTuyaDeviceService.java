@@ -88,36 +88,41 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     }
 
     public void destroy() throws Exception {
+        if (this.getConnectionConfiguration() != null) {
             this.updateAllThermostat(this.getConnectionConfiguration().getTempSetMin(),
                     this.getConnectionConfiguration().getCategoryForControlPowers());
+        }
     }
 
     public void devicesFromUpDateStatusValue(TuyaConnectionMsg msg) throws Exception {
         String deviceId = msg.getJson().get("devId").asText();
         JsonNode deviceStatus = msg.getJson().get("status");
         JsonNode bizCode = msg.getJson().get("bizCode");
-        Device device = deviceStatus != null || bizCode != null ? this.devices.getDevIds().get(deviceId) : null;
-        if (device != null) {
-            if (deviceStatus != null) {
-                device.setStatus(deviceStatus);
-                if (Arrays.stream(this.getConnectionConfiguration().getCategoryForControlPowers()).anyMatch(device.getCategory()::equals)) {
-                    String nameField = deviceStatus.get(0).get("code").asText();
-                    DeviceStatus devStatus = device.getStatus().get(nameField);
-                    log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
-                            device.getName(), formatter.format(new Date(Long.valueOf(String.valueOf(deviceStatus.get(0).get("t"))))),
-                            nameField, devStatus.getValueOld(), devStatus.getValue());
-                }
-            }
-            if (bizCode != null) {
-                device.setOnline("online".equals(bizCode.asText()));
-                device.setUpdate_time(msg.getJson().get("ts").asLong());
-                log.info("Device: [{}] time: -> [{}] parameter: [bizCode] valueNew: [{}] ",
-                        device.getName(), formatter.format(new Date(msg.getJson().get("ts").asLong())), bizCode.asText());
-
-            }
-        } else {
-            log.error("Device is null, [{}]", msg);
+        Device device = this.devices.getDevIds().get(deviceId);
+        if (device == null) {
+            log.warn("Device is null, [{}]. Create device...", msg);
+            device = new Device();
+            device.setId(deviceId);
+            devices.getDevIds().put(deviceId, device);
         }
+        if (deviceStatus != null) {
+            device.setStatus(deviceStatus);
+            if (device.getCategory() != null && Arrays.stream(this.getConnectionConfiguration().getCategoryForControlPowers()).anyMatch(device.getCategory()::equals)) {
+                String nameField = deviceStatus.get(0).get("code").asText();
+                DeviceStatus devStatus = device.getStatus().get(nameField);
+                log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
+                        device.getName(), formatter.format(new Date(Long.valueOf(String.valueOf(deviceStatus.get(0).get("t"))))),
+                        nameField, devStatus.getValueOld(), devStatus.getValue());
+            }
+        }
+        if (bizCode != null) {
+            device.setOnline("online".equals(bizCode.asText()));
+            device.setUpdate_time(msg.getJson().get("ts").asLong());
+            log.info("Device: [{}] time: -> [{}] parameter: [bizCode] valueNew: [{}] ",
+                    device.getName(), formatter.format(new Date(msg.getJson().get("ts").asLong())), bizCode.asText());
+
+        }
+
     }
 
     /**
@@ -168,7 +173,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
             String k = entry.getKey();
             Device v = entry.getValue();
             for (String f : filters) {
-                if (v.getCategory().equals(f)) {
+                if (f.equals(v.getCategory())) {
                     if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
                         sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
                     } else {
@@ -409,7 +414,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                         devices.getDevIds().get(deviceId).setConsumptionPower(consumptionPower);
                     }
                 } else {
-                    log.error("Failed init device with id [{}]", deviceId);
+                    log.warn("Device with id [{}] is not available", deviceId);
                 }
             } catch (Exception e) {
                 log.error("Failed init device with id [{}] [{}]", deviceIdWithPower, e.getMessage());

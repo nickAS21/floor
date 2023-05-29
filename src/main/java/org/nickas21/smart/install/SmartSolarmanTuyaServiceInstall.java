@@ -20,7 +20,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Slf4j
-@Service@ComponentScan({"org.nickas21.smart"})
+@Service
+@ComponentScan({"org.nickas21.smart"})
 public class SmartSolarmanTuyaServiceInstall {
 
 //    final ExecutorService submitExecutor = Executors.newFixedThreadPool(3, SmartSolarmanTuyaThreadFactory.forName(getClass().getSimpleName() + "-smart_T_S"));
@@ -41,7 +42,7 @@ public class SmartSolarmanTuyaServiceInstall {
     @Autowired
     private ApiSolarmanDataSource solarmanDataSource;
 
-    public void performInstall() {
+    public TuyaMessageDataSource performInstall() {
         try {
             TuyaMessageDataSource tuyaConnectionConfiguration = tuyaDataSource.getTuyaConnectionConfiguration();
 
@@ -52,15 +53,14 @@ public class SmartSolarmanTuyaServiceInstall {
                 solarmanStationsService.init(cdl, solarmanDataConnection, submitExecutor);
                 cdl.await();
                 smartSolarmanTuyaService.solarmanRealTimeDataStart();
+                return tuyaConnectionConfiguration;
             } else {
-                log.error("Input parameters error: \n- TuyaConnectionConfiguration: [null]. \n- ak: [{}] \n- sk: [{}] \n- region: [{}]",
-                        tuyaConnectionConfiguration.getAk(), tuyaConnectionConfiguration.getSk(), tuyaConnectionConfiguration.getRegion());
+                log.error("Input parameters error: - TuyaConnectionConfiguration: [null].");
+                return null;
             }
-
-
         } catch (Exception e) {
-            log.error("Unexpected error during ThingsBoard installation!", e);
-            throw new SmartSolarmanTuyaException("Unexpected error during ThingsBoard installation!", e);
+            log.error("Unexpected error during SmartSolarmanTuyaService installation!", e);
+            throw new SmartSolarmanTuyaException("Unexpected error during SmartSolarmanTuyaService installation!", e);
         }
     }
 
