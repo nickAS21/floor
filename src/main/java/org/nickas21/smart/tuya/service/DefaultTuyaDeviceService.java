@@ -100,29 +100,27 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         JsonNode bizCode = msg.getJson().get("bizCode");
         Device device = this.devices.getDevIds().get(deviceId);
         if (device == null) {
-            log.warn("Device is null, [{}]. Create device...", msg);
-            device = new Device();
-            device.setId(deviceId);
-            devices.getDevIds().put(deviceId, device);
+            device = initDeviceTuya(deviceId);
+            if (device == null) {
+                log.warn("Device is null. Failed to create new device ... [{}]", msg);
+            } else {
+                log.warn("Device is null. Successful creation of a new device with id [{}] category [{}] consumptionPower [{}]",
+                        device.getId(), device.getCategory(), device.getConsumptionPower());
+            }
         }
-        if (deviceStatus != null) {
+        if (device != null && deviceStatus != null) {
             device.setStatus(deviceStatus);
+            String nameField = deviceStatus.get(0).get("code").asText();
+            DeviceStatus devStatus = device.getStatus().get(nameField);
             if (device.getCategory() != null && Arrays.stream(this.getConnectionConfiguration().getCategoryForControlPowers()).anyMatch(device.getCategory()::equals)) {
-                String nameField = deviceStatus.get(0).get("code").asText();
-                DeviceStatus devStatus = device.getStatus().get(nameField);
                 log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
                         device.getName(), formatter.format(new Date(Long.valueOf(String.valueOf(deviceStatus.get(0).get("t"))))),
                         nameField, devStatus.getValueOld(), devStatus.getValue());
             }
         }
         if (bizCode != null) {
-            device.setOnline("online".equals(bizCode.asText()));
-            device.setUpdate_time(msg.getJson().get("ts").asLong());
-            log.info("Device: [{}] time: -> [{}] parameter: [bizCode] valueNew: [{}] ",
-                    device.getName(), formatter.format(new Date(msg.getJson().get("ts").asLong())), bizCode.asText());
-
+            device.setBizCode((ObjectNode) msg.getJson());
         }
-
     }
 
     /**
@@ -398,28 +396,38 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                 String[] devId = deviceIdWithPower.split(":");
                 String deviceId = devId[0];
                 int consumptionPower = Integer.parseInt(devId[1]);
-                String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
-                RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
-                ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-                if (responseEntity != null) {
-                    JsonNode result = responseEntity.getBody().get("result");
-                    Device device = treeToValue(result, Device.class);
-                    devices.getDevIds().put(deviceId, device);
-                    path = String.format(GET_DEVICE_STATUS_URL_PATH, deviceId);
-                    requestEntity = createGetTuyaRequest(path, false);
-                    responseEntity = sendRequest(requestEntity);
-                    if (responseEntity != null) {
-                        result = responseEntity.getBody().get("result");
-                        devices.getDevIds().get(deviceId).setStatus(result);
-                        devices.getDevIds().get(deviceId).setConsumptionPower(consumptionPower);
-                    }
-                } else {
-                    log.warn("Device with id [{}] is not available", deviceId);
-                }
+                initDeviceTuya (deviceId, consumptionPower);
             } catch (Exception e) {
                 log.error("Failed init device with id [{}] [{}]", deviceIdWithPower, e.getMessage());
             }
         }
+    }
+
+    private Device initDeviceTuya(String deviceId, int... consumptionPower) throws Exception {
+        Device device = null;
+        String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
+        RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
+        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
+        if (responseEntity != null) {
+            JsonNode result = responseEntity.getBody().get("result");
+            device = treeToValue(result, Device.class);
+            devices.getDevIds().put(deviceId, device);
+            path = String.format(GET_DEVICE_STATUS_URL_PATH, deviceId);
+            requestEntity = createGetTuyaRequest(path, false);
+            responseEntity = sendRequest(requestEntity);
+            if (responseEntity != null) {
+                result = responseEntity.getBody().get("result");
+                devices.getDevIds().get(deviceId).setStatus(result);
+                if (consumptionPower.length > 0) {
+                    devices.getDevIds().get(deviceId).setConsumptionPower(consumptionPower[0]);
+                } else if ("wk".equals(device.getCategory())) {
+                    devices.getDevIds().get(deviceId).setConsumptionPower(2000);
+                }
+            }
+        } else {
+            log.warn("Device with id [{}] is not available", deviceId);
+        }
+        return device;
     }
 
     //    https://openapi.tuyaeu.com/v1.0/iot-03/devices/bfa715581477683002qb4l/freeze-state

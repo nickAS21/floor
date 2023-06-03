@@ -2,12 +2,15 @@ package org.nickas21.smart.tuya.tuyaEntity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.nickas21.smart.util.HttpUtil.formatter;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 
 @Slf4j
@@ -46,10 +49,10 @@ public class Device {
 
     private String asset_id;
     private String gateway_id;
-    private String bizCode;
+    private String bizCodeLast;
 
     public void setStatus (JsonNode statusArrayNode) {
-        if ( statusArrayNode.isArray()) {
+        if (statusArrayNode.isArray()) {
             for (JsonNode statusNode : statusArrayNode) {
                 if (statusNode.has("code")) {
                     String code = statusNode.get("code").asText();
@@ -69,7 +72,28 @@ public class Device {
                 }
             }
         }
+    }
 
+    public void setBizCode (ObjectNode bizCodeNode) {
+        DeviceBizCode deviceBizCode = treeToValue(bizCodeNode, DeviceBizCode.class);
+        this.setBizCodeLast(deviceBizCode.getBizCode());
+        this.setUpdate_time(deviceBizCode.getTs());
+        if ("nameUpdate".equals(deviceBizCode.getBizCode())) {
+            deviceBizCode.setValueOld(this.getName());
+            deviceBizCode.setValue(deviceBizCode.getBizData().getName());
+            this.setName(deviceBizCode.getBizData().getName());
+        } else if ("online".equals(deviceBizCode.getBizCode())) {
+            this.setOnline(true);
+            deviceBizCode.setValueOld(false);
+            deviceBizCode.setValue(true);
+        }else if ("offline".equals(deviceBizCode.getBizCode())) {
+            this.setOnline(false);
+            deviceBizCode.setValueOld(true);
+            deviceBizCode.setValue(false);
+        }
+        log.info("Device: [{}] time: -> [{}] parameter bizCode: [{}] valueOld: [{}]  valueNew: [{}] ",
+                this.getName(), formatter.format(new Date(this.getUpdate_time())), deviceBizCode.getBizCode(),
+                deviceBizCode.getValueOld(), deviceBizCode.getValue());
     }
 
     private void setStatus(String code, DeviceStatus status) {
