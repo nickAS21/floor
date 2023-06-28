@@ -76,10 +76,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     try {
                         if (bmsSocNew < solarmanStationsService.getSolarmanDataSource().getBmsSocMin()) {    // 87%
                             // Reducing electricity consumption
-                            this.setReducingElectricityConsumption(bmsSocNew);
-                        } else {
+                            this.setReducingElectricityConsumption(bmsSocNew,
+                                    this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin(), "TempSetMin");
+                        } else if (bmsSocNew >= solarmanStationsService.getSolarmanDataSource().getBmsSocMax()) {
+                            this.setReducingElectricityConsumption(bmsSocNew,
+                                    this.tuyaDeviceService.getConnectionConfiguration().getTempSetMax(), "TempSetMax");
+                        }else {
                             // Battery charge/discharge analysis program
-                            this.batteryChargeDischarge(bmsSocNew, (powerValueRealTimeData.getTotalSolarPower() - powerValueRealTimeData.getTotalConsumptionPower()));
+                            this.batteryChargeDischarge(bmsSocNew, (powerValueRealTimeData.getTotalSolarPower() -
+                                    powerValueRealTimeData.getTotalConsumptionPower()));
                         }
                     } catch (Exception e) {
                         log.error("", e);
@@ -103,9 +108,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         }
     }
 
-    private void setReducingElectricityConsumption(double bmsSocNew) throws Exception {
-        log.info("Reducing electricity consumption, TempSetMin,  bmsSocNew [{}].", bmsSocNew);
-        this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin(),
+    private void setReducingElectricityConsumption(double bmsSocNew, Integer temp, String tempSet) throws Exception {
+        log.info("Reducing electricity consumption, [{}],  bmsSocNew [{}].", tempSet, bmsSocNew);
+        this.tuyaDeviceService.updateAllThermostat(temp,
                 this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
     }
 

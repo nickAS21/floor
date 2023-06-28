@@ -6,11 +6,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
-import org.nickas21.smart.tuya.tuyaEntity.DeviceStatus;
-import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaToken;
+import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.tuya.tuyaEntity.Device;
+import org.nickas21.smart.tuya.tuyaEntity.DeviceStatus;
 import org.nickas21.smart.tuya.tuyaEntity.Devices;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.JacksonUtil;
@@ -50,12 +50,12 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.POST_DEVICE_COMMANDS_URL_
 import static org.nickas21.smart.tuya.constant.TuyaApi.TOKEN_GRANT_TYPE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.VALUE;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
+import static org.nickas21.smart.util.HttpUtil.formatter;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
-import static org.nickas21.smart.util.HttpUtil.formatter;
 
 @Slf4j
 @Service
@@ -172,12 +172,13 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
             Device v = entry.getValue();
             for (String f : filters) {
                 if (f.equals(v.getCategory())) {
+                    tempSet = tempSet == this.getConnectionConfiguration().getTempSetMin() ? tempSet : v.getTempSetMax();
                     if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
                         sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
                     } else {
-                        String stateBmsSoc = tempSet == this.getConnectionConfiguration().getTempSetMax() ? "Max bmsSoc" : "Min bmsSoc";
+                        String tempSetValueStr = tempSet == this.getConnectionConfiguration().getTempSetMin() ? "Min temp" :  "Max temp";
                         log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
-                                v.getName(), stateBmsSoc, tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
+                                v.getName(), tempSetValueStr, tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
                     }
                 }
             }
@@ -188,10 +189,10 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
     public void updateThermostatBatteryCharge(int deltaPower, String... filters) throws Exception {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(true, filters);
-        Integer tempSet = this.getConnectionConfiguration().getTempSetMax();
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
             String k = entry.getKey();
             Device v = entry.getValue();
+            Integer tempSet = v.getTempSetMax();
             if ((atomicDeltaPower.get() - v.getConsumptionPower()) > 0) {
                 if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
                     sendPostRequestCommand(k, tempSetKey, tempSet, this.devices.getDevIds().get(k).getName());
@@ -395,15 +396,17 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
             try {
                 String[] devId = deviceIdWithPower.split(":");
                 String deviceId = devId[0];
-                int consumptionPower = Integer.parseInt(devId[1]);
-                initDeviceTuya (deviceId, consumptionPower);
+                int [] devParams = new int[2];
+                devParams[0] = Integer.parseInt(devId[1]);
+                devParams[1] = devId.length == 3 ? Integer.parseInt(devId[2]) : this.connectionConfiguration.getTempSetMax();
+                initDeviceTuya (deviceId, devParams);
             } catch (Exception e) {
                 log.error("Failed init device with id [{}] [{}]", deviceIdWithPower, e.getMessage());
             }
         }
     }
 
-    private Device initDeviceTuya(String deviceId, int... consumptionPower) throws Exception {
+    private Device initDeviceTuya(String deviceId, int... devParams) throws Exception {
         Device device = null;
         String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
         RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
@@ -418,8 +421,9 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
             if (responseEntity != null) {
                 result = responseEntity.getBody().get("result");
                 devices.getDevIds().get(deviceId).setStatus(result);
-                if (consumptionPower.length > 0) {
-                    devices.getDevIds().get(deviceId).setConsumptionPower(consumptionPower[0]);
+                if (devParams.length > 0) {
+                    devices.getDevIds().get(deviceId).setConsumptionPower(devParams[0]);
+                    devices.getDevIds().get(deviceId).setTempSetMax(devParams[1]);
                 } else if ("wk".equals(device.getCategory())) {
                     devices.getDevIds().get(deviceId).setConsumptionPower(2000);
                 }

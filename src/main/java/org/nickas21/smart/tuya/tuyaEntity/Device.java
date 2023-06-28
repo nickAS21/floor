@@ -21,6 +21,7 @@ public class Device {
     private String id;
         // unit = w
     private int consumptionPower;
+    private int tempSetMax;
     private Map<String, DeviceStatus> status;
     private Long active_time;
         // cz,          wsdcg,                              wk

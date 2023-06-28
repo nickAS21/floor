@@ -10,6 +10,7 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_APP_ID;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_ALARM_ERROR;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_ALARM_WARN;
+import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_MAX;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_BMS_SOC_MIN;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_LOGGER_SN;
 import static org.nickas21.smart.util.EnvConstant.ENV_SOLARMAN_PASS;
@@ -52,6 +53,9 @@ public class ApiSolarmanDataSource {
     @Value("${smart.solarman.bms_soc.min:87.0}")
     private double solarmanBmsSocMin;
 
+    @Value("${smart.solarman.bms_soc.max:95.0}")
+    private double solarmanBmsSocMax;
+
     @Value("${smart.solarman.bms_soc.alarm_warn:80.0}")
     private double solarmanBmsSocAlarmWarn;
 
@@ -83,6 +87,8 @@ public class ApiSolarmanDataSource {
                 Long soTimeOutSecConf = StringUtils.isBlank(soTimeOutSecConfStr) ? this.solarmanTimeOutSec : Long.valueOf(soTimeOutSecConfStr);
                 String soBmsSocMinConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_MIN);
                 double soBmsSocMinConf = StringUtils.isBlank(soBmsSocMinConfStr) ? this.solarmanBmsSocMin : Double.valueOf(soBmsSocMinConfStr);
+                String soBmsSocMaxConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_MAX);
+                double soBmsSocMaxConf = StringUtils.isBlank(soBmsSocMaxConfStr) ? this.solarmanBmsSocMax : Double.valueOf(soBmsSocMaxConfStr);
                 String soBmsSocAlarmWarnConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_ALARM_WARN);
                 double soBmsSocAlarmWarnConf = StringUtils.isBlank(soBmsSocAlarmWarnConfStr) ? this.solarmanBmsSocAlarmWarn : Double.valueOf(soBmsSocAlarmWarnConfStr);
                 String soBmsSocAlarmErrorConfStr = envSystem.get(ENV_SOLARMAN_BMS_SOC_ALARM_ERROR);
@@ -102,6 +108,7 @@ public class ApiSolarmanDataSource {
                             .passWord(soPassConf)
                             .timeOutSec(soTimeOutSecConf)
                             .bmsSocMin(soBmsSocMinConf)
+                            .bmsSocMax(soBmsSocMaxConf)
                             .bmsSocAlarmWarn(soBmsSocAlarmWarnConf)
                             .bmsSocAlarmError(soBmsSocAlarmErrorConf)
                             .build();
