@@ -170,7 +170,7 @@ public class DefaultSolarmanStationsService implements SolarmanStationsService {
                 Communication communication = treeToValue(communicationNode, Communication.class);
                 communications.put(this.solarmanDataSource.getLoggerSn(), communication);
                 boolean isLoggerInverterError = false;
-                if (StringUtils.isNoneBlank(communications.get(loggerSn).getChildList().get(0).getDeviceSn())) {
+                if (StringUtils.isNotBlank(communications.get(loggerSn).getChildList().get(0).getDeviceSn())) {
                     solarmanDataSource.setInverterSn(communications.get(loggerSn).getChildList().get(0).getDeviceSn());
                 } else {
                     isLoggerInverterError = true;

@@ -69,7 +69,7 @@ public class ApiSolarmanDataSource {
             try {
                 String soRegionConf = envSystem.get(ENV_SOLARMAN_REGION);
                 soRegionConf = StringUtils.isBlank(soRegionConf) ? this.solarmanRegion : soRegionConf;
-                SolarmanRegion region = StringUtils.isNoneBlank(soRegionConf) ? SolarmanRegion.valueOf(soRegionConf) : null;
+                SolarmanRegion region = StringUtils.isNotBlank(soRegionConf) ? SolarmanRegion.valueOf(soRegionConf) : null;
                 String soAppIdConf = envSystem.get(ENV_SOLARMAN_APP_ID);
                 soAppIdConf = StringUtils.isBlank(soAppIdConf) ? this.solarmanAppId :  soAppIdConf;
                 String soSecretConf = envSystem.get(ENV_SOLARMAN_SECRET);
@@ -95,6 +95,8 @@ public class ApiSolarmanDataSource {
                 double soBmsSocAlarmErrorConf = StringUtils.isBlank(soBmsSocAlarmErrorConfStr) ? this.solarmanBmsSocAlarmError : Double.valueOf(soBmsSocAlarmErrorConfStr);
                 if (StringUtils.isBlank(soAppIdConf) || StringUtils.isBlank(soLogSnConf) || StringUtils.isBlank(soSecretConf)
                         || soPassHashConf.equals(EMPTY_HASH) || region == null) {
+                    log.error("Incorrect or null parameters when processing Solarman. {}:[{}], {}:[{}], {}:[{}], {}:[{}], {}:[{}]", ENV_SOLARMAN_APP_ID, soAppIdConf,
+                            ENV_SOLARMAN_LOGGER_SN, soLogSnConf, ENV_SOLARMAN_SECRET, soSecretConf, ENV_SOLARMAN_PASS_HASH, soPassHashConf, ENV_SOLARMAN_REGION, region);
                     log.error("During processing Solarman connection data source error. One of parameters is null");
                     return null;
                 } else {

@@ -75,7 +75,6 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         try {
             if (getTuyaToken() != null) {
                 sendInitRequest();
-                log.info("Init tuya successful: [{}] devices", devices.getDevIds().size());
             }
         } catch (ExecutionException | InterruptedException e) {
             log.error("Init tuya error. Tuya token required, not null.", e);
@@ -404,6 +403,7 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                 log.error("Failed init device with id [{}] [{}]", deviceIdWithPower, e.getMessage());
             }
         }
+        log.info("Init tuya Devices successful: [{}], from [{}]", devices.getDevIds().size(), this.connectionConfiguration.getDeviceIds().length);
     }
 
     private Device initDeviceTuya(String deviceId, int... devParams) throws Exception {
@@ -427,6 +427,8 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                 } else if ("wk".equals(device.getCategory())) {
                     devices.getDevIds().get(deviceId).setConsumptionPower(2000);
                 }
+            } else {
+               log.error ("Init tuya Device with Id [{}}] failed... ", deviceId);
             }
         } else {
             log.warn("Device with id [{}] is not available", deviceId);

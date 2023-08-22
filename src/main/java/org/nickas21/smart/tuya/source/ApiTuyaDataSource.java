@@ -26,7 +26,7 @@ public class ApiTuyaDataSource {
      * connector.sk=
      * connector.region=
      */
-    @Value("${connector.tuya.region:}")
+    @Value("${connector.tuya.region:EU}")
     private String tuyaRegion;
 
     @Value("${connector.tuya.ak:}")
@@ -47,7 +47,7 @@ public class ApiTuyaDataSource {
     @Value("${smart.tuya.temp_set.max:24}")
     private int tuyaTempSetMax;
 
-    @Value("${smart.tuya.category_for_control_powers:}")
+    @Value("${smart.tuya.category_for_control_powers:wk}")
     private String tuyaCategoryForControlPowers;
 
     private TuyaMessageDataSource tuyaMessageDataSource;
@@ -76,7 +76,7 @@ public class ApiTuyaDataSource {
 
                 String devIdsConf = envSystem.get(ENV_TUYA_DEVICE_IDS);
                 devIdsConf = StringUtils.isNotBlank(devIdsConf) ?devIdsConf : this.tuyaDeviceIds;
-                deviceIds = StringUtils.isNotBlank(devIdsConf) ? StringUtils.split(devIdsConf, ",     ") : null;
+                deviceIds = StringUtils.isNotBlank(devIdsConf) ? devIdsConf.split( ",") : null;
 
                 String tempSetMinConfStr = envSystem.get(ENV_TUYA_TEMP_SET_MIN);
                 Integer tempSetMinConf = StringUtils.isBlank(tempSetMinConfStr) ? this.tuyaTempSetMin : Integer.valueOf(tempSetMinConfStr);
@@ -86,7 +86,7 @@ public class ApiTuyaDataSource {
 
                 String categoryForControlPowersConf = envSystem.get(ENV_TUYA_CATEGORY_FOR_CONTROL_POWERS);
                 categoryForControlPowersConf = StringUtils.isNotBlank(categoryForControlPowersConf) ? categoryForControlPowersConf : this.tuyaCategoryForControlPowers;
-                String [] categoryForControlPowers = StringUtils.isNotBlank(categoryForControlPowersConf) ? StringUtils.split(categoryForControlPowersConf, ",") : null;
+                String [] categoryForControlPowers = StringUtils.isNotBlank(categoryForControlPowersConf) ? categoryForControlPowersConf.split(",")  : new String[0];
 
                 if (StringUtils.isNotBlank(akConf) && StringUtils.isNotBlank(skConf)
                         && StringUtils.isArrayNoneBlank(deviceIds) && region != null) {
@@ -102,8 +102,8 @@ public class ApiTuyaDataSource {
                             .build();
                     return tuyaMessageDataSource;
                 } else {
-                    log.error("Incorrect or null parameters when processing Tuya. {}:[{}], {}:[{}], {}:[{}], {}:[{}], {}:[{}]", ENV_TUYA_AK, akConf,
-                            ENV_TUYA_SK, skConf, ENV_TUYA_DEVICE_IDS, deviceIds, ENV_TUYA_USER_UID, userUidConf, ENV_REGION, region);
+                    log.error("Incorrect or null parameters when processing Tuya. {}:[{}], {}:[{}], {}:[{}], {}:[{}]", ENV_TUYA_AK, akConf,
+                            ENV_TUYA_SK, skConf, ENV_TUYA_DEVICE_IDS, deviceIds, ENV_REGION, region);
                     return null;
                 }
             } catch (Exception e) {
