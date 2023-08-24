@@ -86,13 +86,6 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
         this.connectionConfiguration = connectionConfiguration;
     }
 
-    public void destroy() throws Exception {
-        if (this.getConnectionConfiguration() != null) {
-            this.updateAllThermostat(this.getConnectionConfiguration().getTempSetMin(),
-                    this.getConnectionConfiguration().getCategoryForControlPowers());
-        }
-    }
-
     public void devicesFromUpDateStatusValue(TuyaConnectionMsg msg) throws Exception {
         String deviceId = msg.getJson().get("devId").asText();
         JsonNode deviceStatus = msg.getJson().get("status");
@@ -166,21 +159,25 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
 
     @Override
     public void updateAllThermostat(Integer tempSet, String... filters) throws Exception {
-        for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-            String k = entry.getKey();
-            Device v = entry.getValue();
-            for (String f : filters) {
-                if (f.equals(v.getCategory())) {
-                    tempSet = tempSet == this.getConnectionConfiguration().getTempSetMin() ? tempSet : v.getTempSetMax();
-                    if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
-                        sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
-                    } else {
-                        String tempSetValueStr = tempSet == this.getConnectionConfiguration().getTempSetMin() ? "Min temp" :  "Max temp";
-                        log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
-                                v.getName(), tempSetValueStr, tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
+        if (this.devices != null) {
+            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                String k = entry.getKey();
+                Device v = entry.getValue();
+                for (String f : filters) {
+                    if (f.equals(v.getCategory())) {
+                        tempSet = tempSet == this.getConnectionConfiguration().getTempSetMin() ? tempSet : v.getTempSetMax();
+                        if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
+                            sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
+                        } else {
+                            String tempSetValueStr = tempSet == this.getConnectionConfiguration().getTempSetMin() ? "Min temp" : "Max temp";
+                            log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
+                                    v.getName(), tempSetValueStr, tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
+                        }
                     }
                 }
             }
+        } else {
+            log.error("Devices is null, Devices not Update.");
         }
     }
 
@@ -403,7 +400,11 @@ public class DefaultTuyaDeviceService implements TuyaDeviceService {
                 log.error("Failed init device with id [{}] [{}]", deviceIdWithPower, e.getMessage());
             }
         }
-        log.info("Init tuya Devices successful: [{}], from [{}]", devices.getDevIds().size(), this.connectionConfiguration.getDeviceIds().length);
+        if (devices != null) {
+            log.info("Init tuya Devices successful: [{}], from [{}]", devices.getDevIds().size(), this.connectionConfiguration.getDeviceIds().length);
+        } else {
+            log.error("Init tuya Devices failed All from [{}]", this.connectionConfiguration.getDeviceIds().length);
+        }
     }
 
     private Device initDeviceTuya(String deviceId, int... devParams) throws Exception {

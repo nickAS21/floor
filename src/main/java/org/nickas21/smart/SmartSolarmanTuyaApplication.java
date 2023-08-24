@@ -24,7 +24,6 @@ public class SmartSolarmanTuyaApplication {
             SmartSolarmanTuyaServiceInstall solarmanTuyaServiceInstall = context.getBean(SmartSolarmanTuyaServiceInstall.class);
             TuyaMessageDataSource tuyaMessageDataSource = solarmanTuyaServiceInstall.performInstall();
             if (tuyaMessageDataSource == null) {
-//                solarmanTuyaServiceInstall.destroy();
                 System.exit(1);
             }
         } catch (Exception e) {

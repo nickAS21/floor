@@ -32,20 +32,12 @@ package org.nickas21.smart.tuya.mq;
 
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.shade.org.apache.commons.codec.digest.DigestUtils;
-
-import java.io.IOException;
-import java.util.Map;
-
-import static org.apache.pulsar.common.util.SecurityUtility.CONSCRYPT_PROVIDER_CLASS;
 
 @Builder
 @Slf4j
@@ -69,12 +61,23 @@ public class MqPulsarConsumer {
         while (!stopped) {
             try {
                 if (!connected) {
-                    connect(true);
+                    connectConsumer(true);
                 }
                 processMessages();
             } catch (Exception ignored) {
                 Thread.sleep(5 * 1000);
             }
+        }
+    }
+
+    public void connectConsumer(boolean sleep) throws Exception {
+        connect(sleep);
+        if (checkConnection()) {
+            String consumerMsg = clientConsumer();
+            connected = true;
+            resultHandler.onResult("CONNECT", consumerMsg, null);
+        } else {
+
         }
     }
 
@@ -86,35 +89,48 @@ public class MqPulsarConsumer {
                         .serviceUrl(serviceUrl)
                         .allowTlsInsecureConnection(true)
                         .authentication(new MqAuthentication(accessId, accessKey))
-//                        .sslProvider(CONSCRYPT_PROVIDER_CLASS)
+                        .connectionsPerBroker(3)
                         .build();
-                consumer = client.newConsumer()
-                        .topic(String.format("%s/out/%s", accessId, "event"))
-                        .subscriptionName(String.format("%s-sub", accessId))
-                        .subscriptionType(SubscriptionType.Failover)
-//                        .subscriptionType(SubscriptionType.Exclusive)
-                        .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
-                        .autoUpdatePartitions(Boolean.FALSE)
-                        .subscribe();
                 if (!checkConnection()) {
                     throw new RuntimeException("Cannot connect to message producer.");
                 }
             }
-            connected = true;
-            resultHandler.onResult("CONNECT", "", null);
         } catch (Exception e) {
             connected = false;
             client.shutdown();
             resultHandler.onResult("CONNECT", "", e);
-            if(sleep) {
+            if (sleep) {
                 Thread.sleep(60 * 1000);
             }
         }
     }
 
-    private void processMessages() throws Exception {
+    private String clientConsumer() {
+        String result = "";
         try {
-            Message<?> message = consumer.receive();
+            long connectionTimeoutTs = System.currentTimeMillis() + 6_000;
+//            do {
+                ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer()
+                        .topic(String.format("%s/out/%s", accessId, "event"))
+                        .subscriptionName(String.format("%s-sub", accessId))
+                        .subscriptionType(SubscriptionType.Failover)
+//                        .subscriptionType(SubscriptionType.Exclusive)
+                        .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
+                        .autoUpdatePartitions(Boolean.FALSE);
+                consumer = consumerBuilder.subscribe();
+//            } while(!consumer.isConnected() && (System.currentTimeMillis() < connectionTimeoutTs) ) ;
+            if (!consumer.isConnected()) {
+                result = "Failed subscription...";
+            }
+        } catch (Exception e){
+            result = e.getMessage();
+        }
+        return result;
+    }
+
+        private void processMessages() throws Exception {
+        try {
+            Message<?> message = consumer != null ? consumer.receive() : null;
             messageListener.onMessageArrived(message);
             consumer.acknowledge(message);
         } catch (Exception e) {
@@ -136,8 +152,8 @@ public class MqPulsarConsumer {
 
     public void stop() throws Exception {
         stopped = true;
-        if (consumer != null) {
-            consumer.unsubscribe();
+        if (consumer != null && consumer.isConnected()) {
+            consumer.close();
         }
         if (!client.isClosed()) {
             client.close();
@@ -147,7 +163,7 @@ public class MqPulsarConsumer {
     private boolean checkConnection() {
         long connectionTimeoutTs = System.currentTimeMillis() + 60_000;
         while (System.currentTimeMillis() < connectionTimeoutTs) {
-            if (consumer.isConnected()) {
+            if (client != null && !client.isClosed()) {
                 return true;
             }
         }

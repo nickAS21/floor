@@ -93,8 +93,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     log.info("Reducing electricity consumption, TempSetMin,  SunSet start: [{}].", this.sunSetDate);
                     isDay = false;
                     try {
-                        this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin(),
-                                this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+                        if (this.bmsSocCur > 0) {
+                            this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin(),
+                                    this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+                        }
                     } catch (Exception e) {
                         log.error("SunSet, updateAllThermostat to min.", e);
                     }

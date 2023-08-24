@@ -65,9 +65,11 @@ public class SmartSolarmanTuyaServiceInstall {
     }
 
     @PreDestroy
-    public void destroy() throws Exception {
-        this.tuyaConnection.destroy();
+    public void preDestroy() throws Exception {
+        if (this.tuyaConnection != null) {
+            this.tuyaConnection.preDestroy();
+        }
         List<Runnable> runnableList = submitExecutor.shutdownNow();
-        log.error("Stopped executor service, list of returned runnables: {}", runnableList);
+        log.debug("Stopped executor service, list of returned runnables: {}", runnableList);
     }
 }

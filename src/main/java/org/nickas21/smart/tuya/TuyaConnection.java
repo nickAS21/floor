@@ -31,7 +31,7 @@ public class TuyaConnection implements TuyaConnectionIn {
         this.tuyaConnectionConfiguration = tuyaConnectionConfiguration;
         tuyaDeviceService.setConnectionConfiguration(this.tuyaConnectionConfiguration);
         mqPulsarConsumer = createMqConsumer(this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk());
-        mqPulsarConsumer.connect(false);
+//        mqPulsarConsumer.connectConsumer(false);
         this.executor.submit(() -> {
             try {
                 mqPulsarConsumer.start();
@@ -41,11 +41,15 @@ public class TuyaConnection implements TuyaConnectionIn {
         });
     }
 
-
-    public void destroy() throws Exception {
-        tuyaDeviceService.destroy();
+    public void preDestroy() throws Exception {
+        log.info("Start destroy tuyaDeviceService [{}]!", tuyaDeviceService);
+        if (tuyaDeviceService.getConnectionConfiguration() != null) {
+            tuyaDeviceService.updateAllThermostat(tuyaDeviceService.getConnectionConfiguration().getTempSetMin(),
+                    tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+        }
         if (mqPulsarConsumer != null) {
             try {
+                log.info("Start destroy tuyaPulsarConsumer [{}]",  mqPulsarConsumer);
                 mqPulsarConsumer.stop();
             } catch (Exception e) {
                 log.error("Cannot stop message queue consumer!", e);

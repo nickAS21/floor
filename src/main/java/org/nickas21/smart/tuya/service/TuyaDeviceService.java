@@ -24,6 +24,4 @@ public interface TuyaDeviceService {
 
    void setConnectionConfiguration(TuyaMessageDataSource connectionConfiguration);
 
-   void destroy() throws Exception;
-
 }
