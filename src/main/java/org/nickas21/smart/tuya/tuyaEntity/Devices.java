@@ -1,6 +1,7 @@
 package org.nickas21.smart.tuya.tuyaEntity;
 
 import lombok.Data;
+
 import java.util.HashMap;
 import java.util.Map;
 

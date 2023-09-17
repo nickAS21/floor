@@ -2,7 +2,7 @@ package org.nickas21.smart;
 
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.SolarmanStationsService;
-import org.nickas21.smart.solarman.mq.RealTimeData;
+import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.tuya.service.TuyaDeviceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -49,7 +49,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         this.bmsSocCur = 0;
         this.powerValueRealTimeData = PowerValueRealTimeData.builder().build();
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-        executorService.scheduleAtFixedRate(this::setBmsSocCur, 0, solarmanStationsService.getSolarmanDataSource().getTimeOutSec(), TimeUnit.SECONDS);
+        executorService.scheduleAtFixedRate(this::setBmsSocCur, 0, solarmanStationsService.getSolarmanStation().getTimeoutSec(), TimeUnit.SECONDS);
     }
 
     private void setBmsSocCur() {
@@ -74,11 +74,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         this.curDate.getTime() <= (this.sunSetDate.getTime() - 3600000)) {
                     isDay = true;
                     try {
-                        if (bmsSocNew < solarmanStationsService.getSolarmanDataSource().getBmsSocMin()) {    // 87%
+                        if (bmsSocNew < solarmanStationsService.getSolarmanStation().getBmsSocMin()) {    // 87%
                             // Reducing electricity consumption
                             this.setReducingElectricityConsumption(bmsSocNew,
                                     this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin(), "TempSetMin");
-                        } else if (bmsSocNew >= solarmanStationsService.getSolarmanDataSource().getBmsSocMax()) {
+                        } else if (bmsSocNew >= solarmanStationsService.getSolarmanStation().getBmsSocMax()) {
                             this.setReducingElectricityConsumption(bmsSocNew,
                                     this.tuyaDeviceService.getConnectionConfiguration().getTempSetMax(), "TempSetMax");
                         }else {
@@ -180,8 +180,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         String curSunSetDateDMY = this.curDate == null ? null : formatter_D_M_Y.format(this.sunSetDate);
         if (curSunSetDateDMY == null || !curTimeDateDMY.equals(curSunSetDateDMY)) {
             Date[] sunRiseSunSetDate;
-            sunRiseSunSetDate = getSunRiseSunset(solarmanStationsService.getSolarmanDataSource().getLocationLat(),
-                    solarmanStationsService.getSolarmanDataSource().getLocationLng());
+            sunRiseSunSetDate = getSunRiseSunset(solarmanStationsService.getSolarmanStation().getLocationLat(),
+                    solarmanStationsService.getSolarmanStation().getLocationLng());
             curSunSetDateDMY = formatter_D_M_Y.format(sunRiseSunSetDate[0]);
             if (curTimeDateDMY.equals(curSunSetDateDMY)) {
                 this.sunRiseDate = sunRiseSunSetDate[0];

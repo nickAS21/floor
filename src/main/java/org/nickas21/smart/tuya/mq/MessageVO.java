@@ -4,7 +4,6 @@ package org.nickas21.smart.tuya.mq;
 import lombok.Data;
 import org.nickas21.smart.util.JacksonUtil;
 
-
 import java.io.Serializable;
 
 @Data

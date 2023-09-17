@@ -9,10 +9,12 @@ import org.nickas21.smart.tuya.mq.TuyaMessageUtil;
 import org.nickas21.smart.tuya.service.TuyaDeviceService;
 import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.util.JacksonUtil;
+import org.nickas21.smart.util.SmartSolarmanTuyaThreadFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 @Slf4j
@@ -26,8 +28,8 @@ public class TuyaConnection implements TuyaConnectionIn {
     @Autowired()
     private TuyaDeviceService tuyaDeviceService;
 
-    public void init(TuyaMessageDataSource tuyaConnectionConfiguration, ExecutorService executor) throws Exception {
-        this.executor = executor;
+    public void init(TuyaMessageDataSource tuyaConnectionConfiguration) throws Exception {
+        this.executor = Executors.newFixedThreadPool(3, SmartSolarmanTuyaThreadFactory.forName("smart_S_T"));;
         this.tuyaConnectionConfiguration = tuyaConnectionConfiguration;
         tuyaDeviceService.setConnectionConfiguration(this.tuyaConnectionConfiguration);
         mqPulsarConsumer = createMqConsumer(this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk());

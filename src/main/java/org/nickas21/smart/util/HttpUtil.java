@@ -1,7 +1,7 @@
 package org.nickas21.smart.util;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.binary.Hex;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -10,6 +10,7 @@ import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
@@ -42,13 +43,14 @@ public class HttpUtil {
         return pathWithQueries;
     }
 
-    public static String getBodyHash(String body) throws Exception {
+    @SneakyThrows
+    public static String getBodyHash(String body) {
         if (StringUtils.isBlank(body)) {
             return EMPTY_HASH;
         } else {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
             messageDigest.update(body.getBytes(StandardCharsets.UTF_8));
-            return Hex.encodeHexString(messageDigest.digest());
+            return HexFormat.of().formatHex(messageDigest.digest());
         }
     }
 
