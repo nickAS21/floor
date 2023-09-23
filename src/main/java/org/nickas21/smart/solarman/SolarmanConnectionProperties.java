@@ -1,6 +1,5 @@
 package org.nickas21.smart.solarman;
 
-import lombok.Builder;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
@@ -8,10 +7,8 @@ import org.springframework.util.StringUtils;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 
 @Data
-@Builder
 @ConfigurationProperties("connector.solarman")
 public class SolarmanConnectionProperties {
-    @Builder.Default
     private SolarmanRegion region = SolarmanRegion.IN;
     private String appid;
     private String secret;

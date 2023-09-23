@@ -1,40 +1,34 @@
 package org.nickas21.smart.tuya;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.tuya.mq.MessageVO;
 import org.nickas21.smart.tuya.mq.MqPulsarConsumer;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaMessageUtil;
-import org.nickas21.smart.tuya.service.TuyaDeviceService;
-import org.nickas21.smart.tuya.source.TuyaMessageDataSource;
 import org.nickas21.smart.util.JacksonUtil;
-import org.nickas21.smart.util.SmartSolarmanTuyaThreadFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class TuyaConnection implements TuyaConnectionIn {
-    private ExecutorService executor;
+    private final TaskExecutor executor;
     private MqPulsarConsumer mqPulsarConsumer;
-    private TuyaMessageDataSource tuyaConnectionConfiguration;
+    private final TuyaConnectionProperties tuyaConnectionConfiguration;
 
 
     @Autowired()
     private TuyaDeviceService tuyaDeviceService;
 
-    public void init(TuyaMessageDataSource tuyaConnectionConfiguration) throws Exception {
-        this.executor = Executors.newFixedThreadPool(3, SmartSolarmanTuyaThreadFactory.forName("smart_S_T"));;
-        this.tuyaConnectionConfiguration = tuyaConnectionConfiguration;
-        tuyaDeviceService.setConnectionConfiguration(this.tuyaConnectionConfiguration);
+    public void init() {
         mqPulsarConsumer = createMqConsumer(this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk());
 //        mqPulsarConsumer.connectConsumer(false);
-        this.executor.submit(() -> {
+        this.executor.execute(() -> {
             try {
                 mqPulsarConsumer.start();
             } catch (Exception e) {
@@ -46,8 +40,8 @@ public class TuyaConnection implements TuyaConnectionIn {
     public void preDestroy() throws Exception {
         log.info("Start destroy tuyaDeviceService [{}]!", tuyaDeviceService);
         if (tuyaDeviceService.getConnectionConfiguration() != null) {
-            tuyaDeviceService.updateAllThermostat(tuyaDeviceService.getConnectionConfiguration().getTempSetMin(),
-                    tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+            tuyaDeviceService.updateAllThermostat(tuyaDeviceService.getDeviceProperties().getTempSetMin(),
+                    tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
         }
         if (mqPulsarConsumer != null) {
             try {
@@ -75,7 +69,7 @@ public class TuyaConnection implements TuyaConnectionIn {
                 mqPulsarConsumer.stop();
             } catch (Exception ignored) {
             }
-            this.executor.submit(() -> {
+            this.executor.execute(() -> {
                 try {
                     mqPulsarConsumer.start();
                 } catch (Exception e) {
@@ -88,7 +82,7 @@ public class TuyaConnection implements TuyaConnectionIn {
             // Ok connect
             log.debug("Tuya Type: [{}], Status: [SUCCESS], msg: [{}]", type, msg);
             // Init devices and accessToken
-            tuyaDeviceService.init(this.executor);
+            tuyaDeviceService.init();
         } else {
             log.error("Tuya Type: [{}], Status: [FAILURE], msg: [{}]", type, msg, exception);
         }

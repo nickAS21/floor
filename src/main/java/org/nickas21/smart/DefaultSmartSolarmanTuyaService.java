@@ -3,7 +3,7 @@ package org.nickas21.smart;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
-import org.nickas21.smart.tuya.service.TuyaDeviceService;
+import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -77,10 +77,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         if (bmsSocNew < solarmanStationsService.getSolarmanStation().getBmsSocMin()) {    // 87%
                             // Reducing electricity consumption
                             this.setReducingElectricityConsumption(bmsSocNew,
-                                    this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin(), "TempSetMin");
+                                    this.tuyaDeviceService.getDeviceProperties().getTempSetMin(), "TempSetMin");
                         } else if (bmsSocNew >= solarmanStationsService.getSolarmanStation().getBmsSocMax()) {
                             this.setReducingElectricityConsumption(bmsSocNew,
-                                    this.tuyaDeviceService.getConnectionConfiguration().getTempSetMax(), "TempSetMax");
+                                    this.tuyaDeviceService.getDeviceProperties().getTempSetMax(), "TempSetMax");
                         }else {
                             // Battery charge/discharge analysis program
                             this.batteryChargeDischarge(bmsSocNew, (powerValueRealTimeData.getTotalSolarPower() -
@@ -94,8 +94,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     isDay = false;
                     try {
                         if (this.bmsSocCur > 0) {
-                            this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getConnectionConfiguration().getTempSetMin(),
-                                    this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+                            this.tuyaDeviceService.updateAllThermostat(tuyaDeviceService.getDeviceProperties().getTempSetMin(),
+                                    tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
                         }
                     } catch (Exception e) {
                         log.error("SunSet, updateAllThermostat to min.", e);
@@ -112,8 +112,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     private void setReducingElectricityConsumption(double bmsSocNew, Integer temp, String tempSet) throws Exception {
         log.info("Reducing electricity consumption, [{}],  bmsSocNew [{}].", tempSet, bmsSocNew);
-        this.tuyaDeviceService.updateAllThermostat(temp,
-                this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+        tuyaDeviceService.updateAllThermostat(temp,
+                tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
     }
 
     private void batteryChargeDischarge(double bmsSocNew, int deltaPower) throws Exception {
@@ -121,11 +121,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         String stateBmsSoc = isCharge ? "charge" : "discharge";
         log.info("Battery analysis -> [{}].", stateBmsSoc);
         if (isCharge) {     // Battery charge
-            this.tuyaDeviceService.updateThermostatBatteryCharge(deltaPower,
-                    this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+            tuyaDeviceService.updateThermostatBatteryCharge(deltaPower,
+                    tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
         } else {     // Battery discharge
-            this.tuyaDeviceService.updateThermostatBatteryDischarge(deltaPower,
-                    this.tuyaDeviceService.getConnectionConfiguration().getCategoryForControlPowers());
+            tuyaDeviceService.updateThermostatBatteryDischarge(deltaPower,
+                    tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
         }
     }
 
