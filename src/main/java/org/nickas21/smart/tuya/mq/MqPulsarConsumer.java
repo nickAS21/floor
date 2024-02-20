@@ -65,7 +65,7 @@ public class MqPulsarConsumer {
                 }
                 processMessages();
             } catch (Exception ignored) {
-                Thread.sleep(5 * 1000);
+                log.warn("Shutting down tuyaPulsarConsumer [{}]",  ignored.getMessage());
             }
         }
     }
@@ -155,7 +155,7 @@ public class MqPulsarConsumer {
         if (consumer != null && consumer.isConnected()) {
             consumer.close();
         }
-        if (!client.isClosed()) {
+        if (client != null && !client.isClosed()) {
             client.close();
         }
     }

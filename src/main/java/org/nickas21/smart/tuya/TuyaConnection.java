@@ -38,7 +38,7 @@ public class TuyaConnection implements TuyaConnectionIn {
     }
 
     public void preDestroy() throws Exception {
-        log.info("Start destroy tuyaDeviceService [{}]!", tuyaDeviceService);
+        log.warn("Start destroy tuyaDeviceService [{}]!", tuyaDeviceService);
         if (tuyaDeviceService.getConnectionConfiguration() != null) {
             tuyaDeviceService.updateAllThermostat(tuyaDeviceService.getDeviceProperties().getTempSetMin(),
                     tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
