@@ -108,7 +108,7 @@ public class SolarmanStationsService {
     }
 
     private void initAfterTokenSuccess() {
-        getStaionList();
+        getStationList();
         if (stations.size() > 0) {
             Long stationId = Long.valueOf(stations.keySet().toArray()[0].toString());
             String stationName = stations.get(stationId).getName();
@@ -123,7 +123,7 @@ public class SolarmanStationsService {
     }
 
     @SneakyThrows
-    private void getStaionList() {
+    private void getStationList() {
         stations = new ConcurrentHashMap<>();
         var stationResponse = webClient.post()
                 .uri(uriBuilder -> uriBuilder
