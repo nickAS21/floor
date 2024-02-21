@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -21,6 +19,8 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 public class HttpUtil {
     public static final SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
     public static final SimpleDateFormat formatter_D_M_Y = new SimpleDateFormat("dd/MM/yyyy");
+
+    public static final String offOnKey = "switch";
     public static final String tempSetKey = "temp_set";
     public static final String tempCurrentKey = "temp_current";
     public static final String bmsSocKey = "BMS_SOC";
@@ -33,6 +33,12 @@ public class HttpUtil {
     public static final String totalGridPowerKey = "PG_Pt1";
     public static final String gridRelayStatusKey = "GRID_RELAY_ST1";
     public static final String gridStatusKey = "ST_PG1";
+    // battery
+    public static final String batteryStatusKey = "B_ST1";
+    public static final String batteryPowerKey = "B_P1";           // W
+    public static final String batteryCurrentKey = "B_C1";         // A
+    public static final String batteryVoltageKey = "B_V1";         // V
+    public static final String batterySocKey = "B_left_cap1";      // %
 
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;
@@ -52,32 +58,6 @@ public class HttpUtil {
             messageDigest.update(body.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(messageDigest.digest());
         }
-    }
-
-    public static String get_SHA_256_SecurePassword(String passwordToHash) {
-        String generatedPassword = null;
-        try {
-            String salt = getSalt();
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            md.update(salt.getBytes());
-            byte[] bytes = md.digest(passwordToHash.getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < bytes.length; i++) {
-                sb.append(Integer.toString((bytes[i] & 0xff) + 0x100, 16)
-                        .substring(1));
-            }
-            generatedPassword = sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        return generatedPassword;
-    }
-
-    private static String getSalt() throws NoSuchAlgorithmException {
-        SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
-        byte[] salt = new byte[16];
-        sr.nextBytes(salt);
-        return salt.toString();
     }
 
     public static Date[] getSunRiseSunset(double locationLat, double locationLng) {

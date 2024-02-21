@@ -40,8 +40,7 @@ public class TuyaConnection implements TuyaConnectionIn {
     public void preDestroy() throws Exception {
         log.warn("Start destroy tuyaDeviceService [{}]!", tuyaDeviceService);
         if (tuyaDeviceService.getConnectionConfiguration() != null) {
-            tuyaDeviceService.updateAllThermostat(tuyaDeviceService.getDeviceProperties().getTempSetMin(),
-                    tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
+            tuyaDeviceService.updateAllDevicePreDestroy();
         }
         if (mqPulsarConsumer != null) {
             try {
@@ -62,7 +61,7 @@ public class TuyaConnection implements TuyaConnectionIn {
         }
     }
 
-    private void resultHandler(String type, String msg, Exception exception) throws Exception {
+    private void resultHandler(String type, String msg, Exception exception) {
         if ("CONNECT".equals(type) && exception != null) {
             // Reconnect
             try {

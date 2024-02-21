@@ -53,6 +53,7 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.VALUE;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
 import static org.nickas21.smart.util.HttpUtil.formatter;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
+import static org.nickas21.smart.util.HttpUtil.offOnKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
@@ -81,7 +82,7 @@ public class TuyaDeviceService {
                         (ClientRequest request) -> Mono.just(ClientRequest.from(request)
                                 .headers(httpHeaders -> httpHeaders.setBearerAuth(getTuyaToken().getAccessToken()))
                                 .build())))
-                .build();;
+                .build();
     }
 
     public void init() {
@@ -116,13 +117,13 @@ public class TuyaDeviceService {
             device.setStatus(deviceStatus);
             String nameField = deviceStatus.get(0).get("code").asText();
             DeviceStatus devStatus = device.getStatus().get(nameField);
-            if (device.getCategory() != null && Arrays.stream(deviceProperties.getCategoryForControlPowers()).anyMatch(device.getCategory()::equals)) {
+            if (device.getCategory() != null && Arrays.asList(deviceProperties.getCategoryForControlPowers()).contains(device.getCategory())) {
                 log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
-                        device.getName(), formatter.format(new Date(Long.valueOf(String.valueOf(deviceStatus.get(0).get("t"))))),
+                        device.getName(), formatter.format(new Date(Long.parseLong(String.valueOf(deviceStatus.get(0).get("t"))))),
                         nameField, devStatus.getValueOld(), devStatus.getValue());
             }
         }
-        if (bizCode != null) {
+        if (bizCode != null && device != null) {
             device.setBizCode((ObjectNode) msg.getJson());
         }
     }
@@ -144,45 +145,51 @@ public class TuyaDeviceService {
         sendPostRequest(path, commandsNode, deviceName);
     }
 
-    @SneakyThrows
-    public void sendGetRequestLogs(String deviceId, Long start_time, Long end_time, Integer size) {
-//    public void sendGetRequestLogs(String deviceId) {
-//        Long end_time = 1682328116777L;
-//        Long start_time = 1682344439506L;
-////        String path = String.format(GET_LOGS_URL_PATH, deviceId, start_time, end_time);
-//        String path = String.format(GET_LOGS_URL_PATH, deviceId);
-//        Map<String, Object> queries = new HashMap<>();
-//
-//        queries.put("start_time", start_time);
-//        queries.put("end_time", end_time);
-//        queries.put("last_row_key", "");
-//        queries.put("event_types", "publish");
-//        queries.put("size", 20);
-//        path = creatPathWithQueries(path, queries);
-//        RequestEntity<Object> requestEntity = createGetRequest(path, false);
-//        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity, HttpMethod.GET);
-//        if (responseEntity != null) {
-//            JsonNode result = responseEntity.getBody().get("result");
-//            log.warn("result: [{}]", result);
-//        }
-
-//        sendGetRequest(path);
-    }
-
-    public void updateAllThermostat(Integer tempSet, String... filters) throws Exception {
+    public void updateAllThermostat(Integer tempSet) throws Exception {
+        tempSet = tempSet == null ? getDeviceProperties().getTempSetMin() : tempSet;
+        String[] filters = getDeviceProperties().getCategoryForControlPowers();
         if (this.devices != null) {
             for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
                 String k = entry.getKey();
                 Device v = entry.getValue();
                 for (String f : filters) {
                     if (f.equals(v.getCategory())) {
-                        tempSet = tempSet == deviceProperties.getTempSetMin() ? tempSet : v.getTempSetMax();
-                        if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
+                        tempSet = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? tempSet : v.getTempSetMax();
+                        if (!Objects.equals(v.getStatus().get(tempSetKey).getValue(), tempSet)) {
                             sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
                         } else {
-                            String tempSetValueStr = tempSet == deviceProperties.getTempSetMin() ? "Min temp" : "Max temp";
+                            String tempSetValueStr = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? "Min temp" : "Max temp";
                             log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
                                     v.getName(), tempSetValueStr, tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
+                        }
+                    }
+                }
+            }
+        } else {
+            log.error("Devices is null, Devices not Update.");
+        }
+    }
+
+    public void updateAllDevicePreDestroy() throws Exception {
+        Integer tempSet = getDeviceProperties().getTempSetMin();
+        String[] filters = getDeviceProperties().getCategoryForControlPowers();
+        if (this.devices != null) {
+            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                String k = entry.getKey();
+                Device v = entry.getValue();
+                for (String f : filters) {
+                    if (f.equals(v.getCategory())) {
+                        if (v.getName().equals("Boyler_WiFi")) {
+                            sendPostRequestCommand(k, offOnKey, false, v.getName());
+                        } else {
+                            tempSet = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? tempSet : v.getTempSetMax();
+                            if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
+                                sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
+                            } else {
+                                String tempSetValueStr = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? "Min temp" : "Max temp";
+                                log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
+                                        v.getName(), tempSetValueStr, tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
+                            }
                         }
                     }
                 }
@@ -279,7 +286,7 @@ public class TuyaDeviceService {
         String path = creatHttpPathWithQueries(GET_TUYA_TOKEN_URL_PATH, queries);
         RequestEntity<Object> requestEntity = createGetTuyaRequest(path, true);
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null) {
+        if (responseEntity != null && responseEntity.getBody() != null) {
             JsonNode result = responseEntity.getBody().get("result");
             Long expireAt = responseEntity.getBody().get("t").asLong() + result.get("expire_time").asLong() * 1000;
             return TuyaToken.builder()
@@ -311,7 +318,7 @@ public class TuyaDeviceService {
         return token;
     }
 
-    private RequestEntity<Object> createGetTuyaRequest(String path, boolean isGetToken) throws Exception {
+    private RequestEntity<Object> createGetTuyaRequest(String path, boolean isGetToken) {
         HttpMethod httpMethod = HttpMethod.GET;
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createTuyaHeaders(ts);
@@ -324,7 +331,8 @@ public class TuyaDeviceService {
         return new RequestEntity<>(httpHeaders, httpMethod, uri);
     }
 
-    private RequestEntity<Object> createRequestWithBody(String path, ObjectNode body, HttpMethod httpMethod) throws Exception {
+    private RequestEntity<Object> createRequestWithBody(String path, ObjectNode body) {
+        HttpMethod httpMethod =  HttpMethod.POST;
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createTuyaHeaders(ts);
         httpHeaders.add("access_token", getTuyaToken().getAccessToken());
@@ -382,15 +390,15 @@ public class TuyaDeviceService {
     }
 
     private void sendPostRequest(String path, ObjectNode commandsNode, String... deviceName) throws Exception {
-        RequestEntity<Object> requestEntity = createRequestWithBody(path, commandsNode, HttpMethod.POST);
+        RequestEntity<Object> requestEntity = createRequestWithBody(path, commandsNode);
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null) {
+        if (responseEntity != null && responseEntity.getBody() != null) {
             JsonNode result = responseEntity.getBody().get("result");
             JsonNode success = responseEntity.getBody().get("success");
             if (deviceName.length > 0) {
-                log.info("Device: [{}] POST result [{}], body [{}]", deviceName[0], result.booleanValue() & success.booleanValue(), requestEntity.getBody().toString());
+                log.info("Device: [{}] POST result [{}], body [{}]", deviceName[0], result.booleanValue() & success.booleanValue(), requestEntity.getBody());
             } else {
-                log.info("POST result [{}], body [{}]", result.booleanValue() & success.booleanValue(), requestEntity.getBody().toString());
+                log.info("POST result [{}], body [{}]", result.booleanValue() & success.booleanValue(), requestEntity.getBody());
             }
         }
     }
@@ -420,7 +428,7 @@ public class TuyaDeviceService {
         String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
         RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null) {
+        if (responseEntity != null && responseEntity.getBody() != null) {
             JsonNode result = responseEntity.getBody().get("result");
             device = treeToValue(result, Device.class);
             devices.getDevIds().put(deviceId, device);
@@ -428,7 +436,6 @@ public class TuyaDeviceService {
             requestEntity = createGetTuyaRequest(path, false);
             responseEntity = sendRequest(requestEntity);
             if (responseEntity != null) {
-                result = responseEntity.getBody().get("result");
                 devices.getDevIds().get(deviceId).setStatus(result);
                 if (devParams.length > 0) {
                     devices.getDevIds().get(deviceId).setConsumptionPower(devParams[0]);
@@ -448,9 +455,9 @@ public class TuyaDeviceService {
     //    https://openapi.tuyaeu.com/v1.0/iot-03/devices/bfa715581477683002qb4l/freeze-state
     private ResponseEntity<ObjectNode> sendRequest(RequestEntity<Object> requestEntity) throws Exception {
         try {
-            ResponseEntity<ObjectNode> responseEntity = httpClient.exchange(requestEntity.getUrl(), requestEntity.getMethod(), requestEntity, ObjectNode.class);
+            ResponseEntity<ObjectNode> responseEntity = httpClient.exchange(requestEntity.getUrl(), Objects.requireNonNull(requestEntity.getMethod()), requestEntity, ObjectNode.class);
             if (!HttpStatus.OK.equals(responseEntity.getStatusCode())) {
-                throw new RuntimeException(String.format("No response for device command request! Reason code from Tuya Cloud: %s", responseEntity.getStatusCode().toString()));
+                throw new RuntimeException(String.format("No response for device command request! Reason code from Tuya Cloud: %s", responseEntity.getStatusCode()));
             } else {
                 if (Objects.requireNonNull(responseEntity.getBody()).get("success").asBoolean()) {
                     return responseEntity;

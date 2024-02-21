@@ -13,14 +13,14 @@ connector:
 smart:
   tuya:
     temp-set-min: 5
-    temo-set-max: 24
+    temp-set-max: 24
     category-for-control-powers: wk
   solarman:
-    timeout-sec: "${SOLARMAN_TIMEOUT_SEC:600}"
-    bms-soc-min: "${SOLARMAN_BMS_SOC_MIN:87.0}"
-    bms-soc-max: "${SOLARMAN_BMS_SOC_MAX:95.0}"
-    bms-soc-alarm-warn: "${SOLARMAN_BMS_SOC_ALARM_WARN:80.0}"
-    bms-soc-alarm-error: "${SOLARMAN_BMS_SOC_ALARM_ERROR:59.0}"
+    timeout-sec: "${SOLARMAN_TIMEOUT_SEC:300}"
+    bat-soc-min: "${SOLARMAN_BAT_SOC_MIN:75.0}"
+    bat-soc-max: "${SOLARMAN_BAT_SOC_MAX:85.0}"
+    bat-soc-alarm-warn: "${SOLARMAN_BAT_SOC_ALARM_WARN:70.0}"
+    bat-soc-alarm-error: "${SOLARMAN_BAT_SOC_ALARM_ERROR:50.0}"
 
 logging.level:
   ch.qos.logback: OFF

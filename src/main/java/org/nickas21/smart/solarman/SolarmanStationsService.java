@@ -53,10 +53,10 @@ public class SolarmanStationsService {
     public void init() {
         solarmanStation = SolarmanStation.builder()
                 .timeoutSec(stationProperties.getTimeoutSec())
-                .bmsSocMin(stationProperties.getBmsSocMin())
-                .bmsSocMax(stationProperties.getBmsSocMax())
-                .bmsSocAlarmWarn(stationProperties.getBmsSocAlarmWarn())
-                .bmsSocAlarmError(stationProperties.getBmsSocAlarmError())
+                .batSocMin(stationProperties.getBatSocMin())
+                .batSocMax(stationProperties.getBatSocMax())
+                .batSocAlarmWarn(stationProperties.getBatSocAlarmWarn())
+                .batSocAlarmError(stationProperties.getBatSocAlarmError())
                 .build();
         initAfterTokenSuccess();
         if (stations.size() == 0) {

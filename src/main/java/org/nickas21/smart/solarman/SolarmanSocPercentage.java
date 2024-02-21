@@ -14,29 +14,28 @@ public enum SolarmanSocPercentage {
      *     25% (51,300) regardless of time
      *     if current Time == 01:00 Discharge depth: 50% (52,200);
      */
-
-    PERCENTAGE_00(00.00, 40.0,"Percentage_00"),
-    PERCENTAGE_05(05.00, 44.0,"Percentage_05"),
-    PERCENTAGE_10(10.00, 48.0,"Percentage_10"),
-    PERCENTAGE_15(15.00, 49.6,"Percentage_15"),
-    PERCENTAGE_20(20.00, 51.2,"Percentage_20"),
-    PERCENTAGE_25(25.00, 51.35,"Percentage_25"),
-    PERCENTAGE_30(30.00, 51.5,"Percentage_30"),
-    PERCENTAGE_35(35.00, 51.75,"Percentage_35"),
-    PERCENTAGE_40(40.00, 52.0,"Percentage_40"),
-    PERCENTAGE_45(45.00, 52.1,"Percentage_45"),
-    PERCENTAGE_50(50.00, 52.2,"Percentage_50"),
-    PERCENTAGE_55(55.00, 52.25,"Percentage_55"),
-    PERCENTAGE_60(60.00, 52.3,"Percentage_60"),
-    PERCENTAGE_65(65.00, 52.55,"Percentage_65"),
-    PERCENTAGE_70(70.00, 52.8,"Percentage_70"),
-    PERCENTAGE_75(75.00, 52.95,"Percentage_75"),
-    PERCENTAGE_80(80.00, 53.1,"Percentage_80"),
-    PERCENTAGE_85(85.00, 53.35,"Percentage_85"),
-    PERCENTAGE_90(90.00, 53.6,"Percentage_90"),
-    PERCENTAGE_95(95.00, 54.0,"Percentage_95"),
+    CHARGE_MAX(100.00, 55.6, "Charge_Max"),
     REST_FLOAT(100.00, 54.4, "Rest_Float"),
-    CHARGE_MAX(100.00, 55.6, "Charge_Max");
+    PERCENTAGE_95(95.00, 54.0,"Percentage_95"),
+    PERCENTAGE_90(90.00, 53.6,"Percentage_90"),
+    PERCENTAGE_85(85.00, 53.35,"Percentage_85"),
+    PERCENTAGE_80(80.00, 53.1,"Percentage_80"),
+    PERCENTAGE_75(75.00, 52.95,"Percentage_75"),
+    PERCENTAGE_70(70.00, 52.8,"Percentage_70"),
+    PERCENTAGE_65(65.00, 52.55,"Percentage_65"),
+    PERCENTAGE_60(60.00, 52.3,"Percentage_60"),
+    PERCENTAGE_55(55.00, 52.25,"Percentage_55"),
+    PERCENTAGE_50(50.00, 52.2,"Percentage_50"),
+    PERCENTAGE_45(45.00, 52.1,"Percentage_45"),
+    PERCENTAGE_40(40.00, 52.0,"Percentage_40"),
+    PERCENTAGE_35(35.00, 51.75,"Percentage_35"),
+    PERCENTAGE_30(30.00, 51.5,"Percentage_30"),
+    PERCENTAGE_25(25.00, 51.35,"Percentage_25"),
+    PERCENTAGE_20(20.00, 51.2,"Percentage_20"),
+    PERCENTAGE_15(15.00, 49.6,"Percentage_15"),
+    PERCENTAGE_10(10.00, 48.0,"Percentage_10"),
+    PERCENTAGE_05(05.00, 44.0,"Percentage_05"),
+    PERCENTAGE_00(00.00, 40.0,"Percentage_00");
 
     @Getter
     private final double percentage;
@@ -61,17 +60,18 @@ public enum SolarmanSocPercentage {
         return null;
     }
 
-    public static SolarmanSocPercentage fromPercentage(float voltage) {
+
+    public static SolarmanSocPercentage fromPercentage(double voltage) {
         for (SolarmanSocPercentage to : SolarmanSocPercentage.values()) {
-            if (to.voltage == voltage) {
+            if (to.voltage <= voltage) {
                 return to;
             }
         }
         return null;
     }
-    public static SolarmanSocPercentage fromVoltage(float percentage) {
+    public static SolarmanSocPercentage fromVoltage(double percentage) {
         for (SolarmanSocPercentage to : SolarmanSocPercentage.values()) {
-            if (to.percentage == percentage) {
+            if (to.percentage <= percentage) {
                 return to;
             }
         }

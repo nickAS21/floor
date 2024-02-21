@@ -6,27 +6,27 @@ import lombok.Data;
 @Data
 @Builder
 public class PowerValueRealTimeData {
-        // Update real time data
-    Long collectionTime;
-        // ubit %
-    double bmsSocValue;
-        // unit W
-    int totalSolarPower;
-        // unit W
-    int totalConsumptionPower;
-         // unit W
-    int totalGridPower;
-        // unit kWh
-    double totalEnergySell;
-        // unit kWh
-    double totalEnergyBuy;
-        // unit kWh
-    double dailyEnergySell;
-        // unit kWh
-    double dailyEnergyBuy;
-        // Pull-in, Break
-    String gridRelayStatus;
-        // Purchasing energy, Grid connected, Static
-    String gridStatus;
+
+    Long collectionTime;        // Update real time data
+
+    int totalSolarPower;        // unit W
+
+    double bmsSocValue;         // unit %
+        // battery
+    String batteryStatusValue;
+    int batteryPowerValue;       // unit W
+    double batteryCurrentValue;  // unit A
+    double batteryVoltageValue;  // unit V
+    double batterySocValue;      // unit %
+
+    int totalConsumptionPower;  // unit W
+    int totalGridPower;         // unit W
+    double totalEnergySell;     // unit kWh
+    double totalEnergyBuy;      // unit kWh
+    double dailyEnergySell;     // unit kWh
+    double dailyEnergyBuy;      // unit kWh
+
+    String gridRelayStatus;     // Pull-in, Break
+    String gridStatus;          // Purchasing energy, Grid connected, Static
 }
 

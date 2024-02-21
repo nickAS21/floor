@@ -14,13 +14,13 @@ public class SolarmanStation {
     @Builder.Default
     private Long timeoutSec = 600L;
     @Builder.Default
-    private double bmsSocMin = 87.0;
+    private double batSocMin = 87.0;
     @Builder.Default
-    private double bmsSocMax = 95.0;
+    private double batSocMax = 95.0;
     @Builder.Default
-    private double bmsSocAlarmWarn = 80.0;
+    private double batSocAlarmWarn = 80.0;
     @Builder.Default
-    private double bmsSocAlarmError = 59.0;
+    private double batSocAlarmError = 59.0;
     private double locationLat;   //": 50.31023634165624,
     private double locationLng;
 }
