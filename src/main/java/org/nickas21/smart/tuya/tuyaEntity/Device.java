@@ -22,7 +22,7 @@ public class Device {
         // unit = w
     private int consumptionPower;
     private int tempSetMax;
-    private Map<String, DeviceStatus> status;
+    private Map<String, DeviceStatus> status = new HashMap<>();
     private Long active_time;
         // cz,          wsdcg,                              wk
     private String category;
@@ -98,7 +98,6 @@ public class Device {
     }
 
     private void setStatus(String code, DeviceStatus status) {
-        this.status = this.status == null ? new HashMap<>() : this.status;
         this.status.put(code, status);
     }
 }

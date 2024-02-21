@@ -154,14 +154,7 @@ public class TuyaDeviceService {
                 Device v = entry.getValue();
                 for (String f : filters) {
                     if (f.equals(v.getCategory())) {
-                        tempSet = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? tempSet : v.getTempSetMax();
-                        if (!Objects.equals(v.getStatus().get(tempSetKey).getValue(), tempSet)) {
-                            sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
-                        } else {
-                            String tempSetValueStr = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? "Min temp" : "Max temp";
-                            log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
-                                    v.getName(), tempSetValueStr, tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
-                        }
+                        updateDeviceThermostat(k, tempSet, v);
                     }
                 }
             }
@@ -182,20 +175,25 @@ public class TuyaDeviceService {
                         if (v.getName().equals("Boyler_WiFi")) {
                             sendPostRequestCommand(k, offOnKey, false, v.getName());
                         } else {
-                            tempSet = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? tempSet : v.getTempSetMax();
-                            if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
-                                sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
-                            } else {
-                                String tempSetValueStr = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? "Min temp" : "Max temp";
-                                log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
-                                        v.getName(), tempSetValueStr, tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
-                            }
+                            updateDeviceThermostat(k, tempSet, v);
                         }
                     }
                 }
             }
         } else {
             log.error("Devices is null, Devices not Update.");
+        }
+    }
+
+    private void updateDeviceThermostat (String k, Integer tempSet, Device v) throws Exception {
+        tempSet = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? tempSet : v.getTempSetMax();
+        DeviceStatus devStatus = v.getStatus().get(tempSetKey);
+        if (devStatus == null || !devStatus.getValue().equals(tempSet)) {
+            sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
+        } else {
+            String tempSetValueStr = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? "Min temp" : "Max temp";
+            log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
+                    v.getName(), tempSetValueStr, tempSetKey, tempSet, devStatus.getValue().toString());
         }
     }
 
