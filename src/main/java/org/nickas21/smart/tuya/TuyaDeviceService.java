@@ -153,7 +153,7 @@ public class TuyaDeviceService {
                 String k = entry.getKey();
                 Device v = entry.getValue();
                 for (String f : filters) {
-                    if (f.equals(v.getCategory())) {
+                    if (f.equals(v.getCategory()) && !v.getName().equals("Boyler_WiFi")) {
                         updateDeviceThermostat(k, tempSet, v);
                     }
                 }
