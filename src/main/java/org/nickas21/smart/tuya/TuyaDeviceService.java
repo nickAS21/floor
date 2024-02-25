@@ -5,13 +5,16 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaToken;
 import org.nickas21.smart.tuya.tuyaEntity.Device;
 import org.nickas21.smart.tuya.tuyaEntity.DeviceStatus;
+import org.nickas21.smart.tuya.tuyaEntity.DeviceUpdate;
 import org.nickas21.smart.tuya.tuyaEntity.Devices;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.JacksonUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -25,6 +28,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
@@ -65,13 +69,16 @@ import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 public class TuyaDeviceService {
 
     private TuyaToken accessTuyaToken;
-    private Devices devices;
+    public Devices devices;
 
     private final TuyaConnectionProperties connectionConfiguration;
     private final TuyaDeviceProperties deviceProperties;
     private final RestTemplate httpClient = new RestTemplate();
     private final WebClient authClient = WebClient.builder().build();
     private final WebClient webClient;
+
+    @Autowired
+    SolarmanStationsService solarmanStationsService;
 
     public TuyaDeviceService(TuyaConnectionProperties connectionConfiguration, TuyaDeviceProperties deviceProperties) {
         this.connectionConfiguration = connectionConfiguration;
@@ -146,14 +153,13 @@ public class TuyaDeviceService {
     }
 
     public void updateAllThermostat(Integer tempSet) throws Exception {
-        tempSet = tempSet == null ? getDeviceProperties().getTempSetMin() : tempSet;
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
         if (this.devices != null) {
             for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
                 String k = entry.getKey();
                 Device v = entry.getValue();
                 for (String f : filters) {
-                    if (f.equals(v.getCategory()) && !v.getName().equals("Boyler_WiFi")) {
+                    if (f.equals(v.getCategory())) {
                         updateDeviceThermostat(k, tempSet, v);
                     }
                 }
@@ -172,11 +178,7 @@ public class TuyaDeviceService {
                 Device v = entry.getValue();
                 for (String f : filters) {
                     if (f.equals(v.getCategory())) {
-                        if (v.getName().equals("Boyler_WiFi")) {
-                            sendPostRequestCommand(k, offOnKey, false, v.getName());
-                        } else {
-                            updateDeviceThermostat(k, tempSet, v);
-                        }
+                        updateDeviceThermostat(k, tempSet, v);
                     }
                 }
             }
@@ -185,16 +187,28 @@ public class TuyaDeviceService {
         }
     }
 
-    private void updateDeviceThermostat (String k, Integer tempSet, Device v) throws Exception {
-        tempSet = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? tempSet : v.getTempSetMax();
-        DeviceStatus devStatus = v.getStatus().get(tempSetKey);
-        if (devStatus == null || !devStatus.getValue().equals(tempSet)) {
-            sendPostRequestCommand(k, tempSetKey, tempSet, v.getName());
+    private void updateDeviceThermostat (String k, Object valueNew, Device v) throws Exception {
+        DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
+        if (deviceUpdate.isUpdate()) {
+            sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
         } else {
-            String tempSetValueStr = Objects.equals(tempSet, deviceProperties.getTempSetMin()) ? "Min temp" : "Max temp";
-            log.info("Device: [{}] not Update. [{}] [{}] changeValue [{}] currentValue [{}]",
-                    v.getName(), tempSetValueStr, tempSetKey, tempSet, devStatus.getValue().toString());
+            log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                    v.getName(),  deviceUpdate.getFieldNameValueUpdate(), valueNew, deviceUpdate.getValueOld());
         }
+    }
+
+    private DeviceUpdate getDeviceUpdate(Object valueNew, Device v) {
+        String fieldNameValueUpdate;
+        Object valueOld;
+        if (valueNew instanceof Boolean) {
+            fieldNameValueUpdate = offOnKey;
+            valueOld = v.getStatusValue(fieldNameValueUpdate, false);
+        } else {
+            fieldNameValueUpdate = tempSetKey;
+            valueNew = Objects.equals(valueNew, deviceProperties.getTempSetMin()) ? valueNew : v.getValueSetMaxOn();
+            valueOld = v.getStatusValue(fieldNameValueUpdate, deviceProperties.getTempSetMin());
+        }
+        return new DeviceUpdate(fieldNameValueUpdate, valueNew, valueOld);
     }
 
     public void updateThermostatBatteryCharge(int deltaPower, String... filters) throws Exception {
@@ -203,18 +217,19 @@ public class TuyaDeviceService {
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
             String k = entry.getKey();
             Device v = entry.getValue();
-            Integer tempSet = v.getTempSetMax();
+            Object valueNew = v.getValueSetMaxOn();
+            DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             if ((atomicDeltaPower.get() - v.getConsumptionPower()) > 0) {
-                if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
-                    sendPostRequestCommand(k, tempSetKey, tempSet, this.devices.getDevIds().get(k).getName());
+                if (deviceUpdate.isUpdate()){
+                    sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
                     atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
                 } else {
                     log.info("Device: [{}] not Update. Charge left power [{}], [{}] changeValue [{}] lastValue [{}]",
-                            v.getName(), atomicDeltaPower.get(), tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
+                            v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
                 }
             } else {
                 log.info("Device: [{}] not Update. Charge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
-                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), tempSet, v.getStatus().get(tempSetKey).getValue());
+                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
             }
         }
     }
@@ -222,21 +237,22 @@ public class TuyaDeviceService {
     public void updateThermostatBatteryDischarge(int deltaPower, String... filters) throws Exception {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(false, filters);
-        Integer tempSet = deviceProperties.getTempSetMin();
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
             String k = entry.getKey();
             Device v = entry.getValue();
+            Object valueNew = v.getValueSetMaxOn() instanceof Boolean ? false : deviceProperties.getTempSetMin();
+            DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             if (atomicDeltaPower.get() < 0) {
-                if (v.getStatus().get(tempSetKey).getValue() != tempSet) {
-                    sendPostRequestCommand(k, tempSetKey, deviceProperties.getTempSetMin(), v.getName());
+                if (deviceUpdate.isUpdate()){
+                    sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
                     atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
                 } else {
                     log.info("Device: [{}] not Update. Discharge left power [{}], [{}] changeValue [{}] lastValue [{}]",
-                            v.getName(), atomicDeltaPower.get(), tempSetKey, tempSet, v.getStatus().get(tempSetKey).getValue());
+                            v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
                 }
             } else {
-                log.info("Device: [{}] not Update. Discharge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
-                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), tempSet, v.getStatus().get(tempSetKey).getValue());
+                log.info("Device: [{}] not Update. Discharge left power [{}], [{}] changeValue [{}] lastValue [{}]",
+                        v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
             }
         }
     }
@@ -247,7 +263,7 @@ public class TuyaDeviceService {
         this.devices.getDevIds().forEach((k, v) -> {
             for (String f : filters) {
                 if (v.getCategory().equals(f)) {
-                    devicesPowerNotSort.put(k, (Integer) v.getStatus().get(tempCurrentKey).getValue());
+                    devicesPowerNotSort.put(k, (Integer) v.getStatusValue(tempCurrentKey, deviceProperties.getTempSetMin()));
                 }
             }
         });
@@ -268,58 +284,69 @@ public class TuyaDeviceService {
     }
 
     private TuyaToken createTuyaToken() throws Exception {
-
-
-
-        var createToken = createGetTuyaToken();
+        Map<String, Object> queries = new HashMap<>();
+        queries.put("grant_type", TOKEN_GRANT_TYPE);
+        String path = creatHttpPathWithQueries(GET_TUYA_TOKEN_URL_PATH, queries);
+        var createToken = createGetTuyaToken(path);
         if (Objects.isNull(createToken)) {
             log.error("Create token required, not null.");
         }
         return createToken;
     }
 
-    private TuyaToken createGetTuyaToken() throws Exception {
-        Map<String, Object> queries = new HashMap<>();
-        queries.put("grant_type", TOKEN_GRANT_TYPE);
-        String path = creatHttpPathWithQueries(GET_TUYA_TOKEN_URL_PATH, queries);
+    private TuyaToken createGetTuyaToken(String path) throws Exception {
         RequestEntity<Object> requestEntity = createGetTuyaRequest(path, true);
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null && responseEntity.getBody() != null) {
+        if (validateResponse(responseEntity)) {
             JsonNode result = responseEntity.getBody().get("result");
-            Long expireAt = responseEntity.getBody().get("t").asLong() + result.get("expire_time").asLong() * 1000;
-            return TuyaToken.builder()
-                    .accessToken(result.get("access_token").asText())
-                    .refreshToken(result.get("refresh_token").asText())
-                    .uid(result.get("uid").asText())
-                    .expireAt(expireAt)
-                    .build();
+            Long t = responseEntity.getBody().get("t").asLong();
+            String tid = responseEntity.getBody().get("tid").asText();
+           return getExpireTuyaToken (result, t,  tid);
         }
         return null;
     }
 
+    private TuyaToken getExpireTuyaToken (JsonNode result, Long t, String tid) {
+        Long expireTime = t +  result.get("expire_time").asLong() * 1000;
+         return TuyaToken.builder()
+                .accessToken(result.get("access_token").asText())
+                .refreshToken(result.get("refresh_token").asText())
+                .uid(result.get("uid").asText())
+                .tid(tid)
+                .expireTime(expireTime)
+                .t(t)
+                .build();
+    }
+
+    private boolean validateResponse(ResponseEntity<ObjectNode> responseEntity) {
+        return responseEntity != null
+                && HttpStatus.OK.equals(responseEntity.getStatusCode())
+                && responseEntity.getBody() != null;
+    }
+
     private TuyaToken refreshTuyaToken() {
-        var path = String.format(GET_TUYA_REFRESH_TOKEN_URL_PATH, this.accessTuyaToken.getRefreshToken());
-        var ts = String.valueOf(System.currentTimeMillis());
-        var signature = sign(this.connectionConfiguration.getAk() + ts +
+        String path = String.format(GET_TUYA_REFRESH_TOKEN_URL_PATH, this.accessTuyaToken.getRefreshToken());
+        String ts = String.valueOf(System.currentTimeMillis());
+        String signature = sign(this.connectionConfiguration.getAk() + ts +
                 stringToSign(path, getBodyHash(null), HttpMethod.GET), this.connectionConfiguration.getSk());
-        var tokenOpt = authClient.get()
+        ResponseSpec responseSpec = authClient.get()
                 .uri(connectionConfiguration.getRegion().getApiUrl(),
                         uriBuilder -> uriBuilder
                                 .path(path)
                                 .build())
                 .headers(httpHeaders -> pupulateHeaders(httpHeaders, ts, signature))
-                .retrieve()
-                .bodyToMono(TuyaToken.class)
-                .blockOptional();
-        var token = tokenOpt.orElseThrow();
-        token.setExpireAt(token.getT() + token.getExpireAt() * 1000);
-        return token;
+                .retrieve();
+        ObjectNode responseEntityNode = responseSpec.bodyToMono(ObjectNode.class).block();
+        JsonNode result = responseEntityNode.get("result");
+        Long t = responseEntityNode.get("t").asLong();
+        String tid = responseEntityNode.get("tid").asText();
+        return getExpireTuyaToken (result, t, tid);
     }
 
     private RequestEntity<Object> createGetTuyaRequest(String path, boolean isGetToken) {
         HttpMethod httpMethod = HttpMethod.GET;
         String ts = String.valueOf(System.currentTimeMillis());
-        MultiValueMap<String, String> httpHeaders = createTuyaHeaders(ts);
+        MultiValueMap<String, String> httpHeaders = createHeaders(ts);
         if (!isGetToken) httpHeaders.add("access_token", getTuyaToken().getAccessToken());
         String strToSign = isGetToken ? this.connectionConfiguration.getAk() + ts + stringToSign(path, getBodyHash(null), httpMethod) :
                 this.connectionConfiguration.getAk() + accessTuyaToken.getAccessToken() + ts + stringToSign(path, getBodyHash(null), httpMethod);
@@ -332,7 +359,7 @@ public class TuyaDeviceService {
     private RequestEntity<Object> createRequestWithBody(String path, ObjectNode body) {
         HttpMethod httpMethod =  HttpMethod.POST;
         String ts = String.valueOf(System.currentTimeMillis());
-        MultiValueMap<String, String> httpHeaders = createTuyaHeaders(ts);
+        MultiValueMap<String, String> httpHeaders = createHeaders(ts);
         httpHeaders.add("access_token", getTuyaToken().getAccessToken());
         String strToSign = this.connectionConfiguration.getAk() + getTuyaToken().getAccessToken() +
                 ts + stringToSign(path, getBodyHash(body.toString()), httpMethod);
@@ -342,7 +369,7 @@ public class TuyaDeviceService {
         return new RequestEntity<>(body.toString(), httpHeaders, httpMethod, uri);
     }
 
-    private HttpHeaders createTuyaHeaders(String ts) {
+    private HttpHeaders createHeaders(String ts) {
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.add("client_id", this.connectionConfiguration.getAk());
         httpHeaders.add("t", ts);
@@ -363,11 +390,9 @@ public class TuyaDeviceService {
 
     @SneakyThrows
     private TuyaToken getTuyaToken() {
-        if (this.accessTuyaToken == null) {
+        if (!hasValidAccessToken()) {
+            log.info("Create Tuya token: currentDate [{}]", formatter.format(new Date()));
             this.accessTuyaToken = this.createTuyaToken();
-        } else if (!hasValidAccessToken()) {
-            log.info("Refresh Tuya token: expireAt [{}] currentDate [{}]", formatter.format(new Date(this.accessTuyaToken.getExpireAt() + 20_000)), formatter.format(new Date()));
-            this.accessTuyaToken = this.refreshTuyaToken();
         }
         return this.accessTuyaToken;
     }
@@ -408,7 +433,15 @@ public class TuyaDeviceService {
                 String deviceId = devId[0];
                 int [] devParams = new int[2];
                 devParams[0] = Integer.parseInt(devId[1]);
-                devParams[1] = devId.length == 3 ? Integer.parseInt(devId[2]) : deviceProperties.getTempSetMax();
+                if (devId.length == 3) {
+                    if ("false".equals(devId[2]) || "true".equals(devId[2])) {
+                        devParams[1] = "false".equals(devId[2]) ? 0 : -1;
+                    } else {
+                        devParams[1] = Integer.parseInt(devId[2]);
+                    }
+                } else {
+                    devParams[1] = deviceProperties.getTempSetMax();
+                }
                 initDeviceTuya (deviceId, devParams);
             } catch (Exception e) {
                 log.error("Failed init device with id [{}] [{}]", deviceIdWithPower, e.getMessage());
@@ -437,7 +470,12 @@ public class TuyaDeviceService {
                 devices.getDevIds().get(deviceId).setStatus(result);
                 if (devParams.length > 0) {
                     devices.getDevIds().get(deviceId).setConsumptionPower(devParams[0]);
-                    devices.getDevIds().get(deviceId).setTempSetMax(devParams[1]);
+                    if (devParams[1] <= 0) {
+                        devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1] !=0);
+                    } else {
+                        devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1]);
+                    }
+
                 } else if ("wk".equals(device.getCategory())) {
                     devices.getDevIds().get(deviceId).setConsumptionPower(2000);
                 }
@@ -473,6 +511,6 @@ public class TuyaDeviceService {
     }
 
     private boolean hasValidAccessToken() {
-        return this.accessTuyaToken.getExpireAt() + 20_000 > System.currentTimeMillis();
+        return this.accessTuyaToken != null && this.accessTuyaToken.getExpireTime() + 20_000 > System.currentTimeMillis();
     }
 }

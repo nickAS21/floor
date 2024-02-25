@@ -17,10 +17,10 @@ smart:
     category-for-control-powers: wk
   solarman:
     timeout-sec: "${SOLARMAN_TIMEOUT_SEC:300}"
-    bat-soc-min: "${SOLARMAN_BAT_SOC_MIN:75.0}"
-    bat-soc-max: "${SOLARMAN_BAT_SOC_MAX:85.0}"
+    bat-soc-min: "${SOLARMAN_BAT_SOC_MIN:60.0}"
+    bat-soc-max: "${SOLARMAN_BAT_SOC_MAX:95.0}"
     bat-soc-alarm-warn: "${SOLARMAN_BAT_SOC_ALARM_WARN:70.0}"
-    bat-soc-alarm-error: "${SOLARMAN_BAT_SOC_ALARM_ERROR:50.0}"
+    bat-soc-alarm-error: "${SOLARMAN_BAT_SOC_ALARM_ERROR:40.0}"
 
 logging.level:
   ch.qos.logback: OFF

@@ -68,7 +68,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             double batterySocNew = percentage != null ? percentage.getPercentage() : 0;
             int batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
-
             updateSunRiseSunSetDate();
             String updateTimeData = formatter.format(new Date(powerValueRealTimeData.getCollectionTime() * 1000));
             String deltaPower = -batteryPowerNew + " W";
@@ -93,16 +92,18 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         this.curDate.getTime() <= (this.sunSetDate.getTime() - 3600000)) {
                     isDay = true;
                     try {
-                        if (batterySocNew < solarmanStationsService.getSolarmanStation().getBatSocMin()) {
-                            // Reducing electricity consumption
-                            this.setReducingElectricityConsumption(batterySocNew,
-                                    this.tuyaDeviceService.getDeviceProperties().getTempSetMin(), "TempSetMin");
-                        } else if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
-                            this.setReducingElectricityConsumption(batterySocNew,
-                                    this.tuyaDeviceService.getDeviceProperties().getTempSetMax(), "TempSetMax");
-                        }else {
-                            // Battery charge/discharge analysis program
-                            this.batteryChargeDischarge(batteryStatusNew, -batteryPowerNew);
+                        if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
+                            if (batterySocNew < solarmanStationsService.getSolarmanStation().getBatSocMin()) {
+                                // Reducing electricity consumption
+                                this.setReducingElectricityConsumption(batterySocNew,
+                                        this.tuyaDeviceService.getDeviceProperties().getTempSetMin(), "TempSetMin");
+                            } else if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
+                                this.setReducingElectricityConsumption(batterySocNew,
+                                        this.tuyaDeviceService.getDeviceProperties().getTempSetMax(), "TempSetMax");
+                            } else {
+                                // Battery charge/discharge analysis program
+                                this.batteryChargeDischarge(batteryStatusNew, -batteryPowerNew);
+                            }
                         }
                     } catch (Exception e) {
                         log.error("", e);
@@ -112,7 +113,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     isDay = false;
                     try {
                         if (this.batterySocCur > 0) {
-                            this.tuyaDeviceService.updateAllThermostat(null);
+                            this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                         }
                     } catch (Exception e) {
                         log.error("SunSet, updateAllThermostat to min.", e);

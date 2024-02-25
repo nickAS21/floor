@@ -21,7 +21,7 @@ public class Device {
     private String id;
         // unit = w
     private int consumptionPower;
-    private int tempSetMax;
+    private Object valueSetMaxOn;
     private Map<String, DeviceStatus> status = new HashMap<>();
     private Long active_time;
         // cz,          wsdcg,                              wk
@@ -95,6 +95,12 @@ public class Device {
         log.info("Device: [{}] time: -> [{}] parameter bizCode: [{}] valueOld: [{}]  valueNew: [{}] ",
                 this.getName(), formatter.format(new Date(this.getUpdate_time())), deviceBizCode.getBizCode(),
                 deviceBizCode.getValueOld(), deviceBizCode.getValue());
+    }
+    public Object getStatusValue (String key, Object valueDef){
+        return this.status.get(key) == null ? valueDef : this.status.get(key).getValue();
+    }
+    public Object getStatusValue (String key){
+        return this.status.get(key) == null ? null : this.status.get(key).getValue();
     }
 
     private void setStatus(String code, DeviceStatus status) {

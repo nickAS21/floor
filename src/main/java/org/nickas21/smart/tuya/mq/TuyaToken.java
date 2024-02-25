@@ -41,6 +41,7 @@ public class TuyaToken implements Serializable {
     private String accessToken;
     private String refreshToken;
     private String uid;
-    private Long expireAt;
+    private String tid;
+    private Long expireTime;
     private Long t;
 }
