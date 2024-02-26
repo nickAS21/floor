@@ -170,18 +170,8 @@ public class TuyaDeviceService {
     }
 
     public void updateAllDevicePreDestroy() throws Exception {
-        Integer tempSet = getDeviceProperties().getTempSetMin();
-        String[] filters = getDeviceProperties().getCategoryForControlPowers();
         if (this.devices != null) {
-            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-                String k = entry.getKey();
-                Device v = entry.getValue();
-                for (String f : filters) {
-                    if (f.equals(v.getCategory())) {
-                        updateDeviceThermostat(k, tempSet, v);
-                    }
-                }
-            }
+            updateThermostatBatteryDischargePreDestroy(getDeviceProperties().getCategoryForControlPowers());
         } else {
             log.error("Devices is null, Devices not Update.");
         }
@@ -193,20 +183,21 @@ public class TuyaDeviceService {
             sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
         } else {
             log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
-                    v.getName(),  deviceUpdate.getFieldNameValueUpdate(), valueNew, deviceUpdate.getValueOld());
+                    v.getName(),  deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
         }
     }
 
     private DeviceUpdate getDeviceUpdate(Object valueNew, Device v) {
         String fieldNameValueUpdate;
         Object valueOld;
-        if (valueNew instanceof Boolean) {
+        if (valueNew instanceof Boolean || (v.getValueSetMaxOn()!= null && v.getValueSetMaxOn() instanceof Boolean)) {
             fieldNameValueUpdate = offOnKey;
-            valueOld = v.getStatusValue(fieldNameValueUpdate, false);
+            valueOld = v.getStatusValue(fieldNameValueUpdate);
+            valueNew = valueNew instanceof Boolean ? valueNew : deviceProperties.getTempSetMin() != valueNew;
         } else {
             fieldNameValueUpdate = tempSetKey;
             valueNew = Objects.equals(valueNew, deviceProperties.getTempSetMin()) ? valueNew : v.getValueSetMaxOn();
-            valueOld = v.getStatusValue(fieldNameValueUpdate, deviceProperties.getTempSetMin());
+            valueOld = v.getStatusValue(fieldNameValueUpdate);
         }
         return new DeviceUpdate(fieldNameValueUpdate, valueNew, valueOld);
     }
@@ -225,11 +216,11 @@ public class TuyaDeviceService {
                     atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
                 } else {
                     log.info("Device: [{}] not Update. Charge left power [{}], [{}] changeValue [{}] lastValue [{}]",
-                            v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                            v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
                 }
             } else {
                 log.info("Device: [{}] not Update. Charge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
-                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
             }
         }
     }
@@ -240,7 +231,7 @@ public class TuyaDeviceService {
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
             String k = entry.getKey();
             Device v = entry.getValue();
-            Object valueNew = v.getValueSetMaxOn() instanceof Boolean ? false : deviceProperties.getTempSetMin();
+            Object valueNew = deviceProperties.getTempSetMin();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             if (atomicDeltaPower.get() < 0) {
                 if (deviceUpdate.isUpdate()){
@@ -248,11 +239,26 @@ public class TuyaDeviceService {
                     atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
                 } else {
                     log.info("Device: [{}] not Update. Discharge left power [{}], [{}] changeValue [{}] lastValue [{}]",
-                            v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                            v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
                 }
             } else {
                 log.info("Device: [{}] not Update. Discharge left power [{}], [{}] changeValue [{}] lastValue [{}]",
-                        v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                        v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
+            }
+        }
+    }
+    public void updateThermostatBatteryDischargePreDestroy(String... filters) throws Exception {
+        LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(false, filters);
+        for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
+            String k = entry.getKey();
+            Device v = entry.getValue();
+            Object valueNew = deviceProperties.getTempSetMin();
+            DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
+                if (deviceUpdate.isUpdate()){
+                sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
+            } else {
+                log.info("Device: [{}] not Update. [{}] changeValue [{}] lastValue [{}]",
+                        v.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
             }
         }
     }
@@ -307,13 +313,12 @@ public class TuyaDeviceService {
     }
 
     private TuyaToken getExpireTuyaToken (JsonNode result, Long t, String tid) {
-        Long expireTime = t +  result.get("expire_time").asLong() * 1000;
          return TuyaToken.builder()
                 .accessToken(result.get("access_token").asText())
                 .refreshToken(result.get("refresh_token").asText())
                 .uid(result.get("uid").asText())
                 .tid(tid)
-                .expireTime(expireTime)
+                .expireTime(result.get("expire_time").asLong())
                 .t(t)
                 .build();
     }
@@ -390,7 +395,12 @@ public class TuyaDeviceService {
 
     @SneakyThrows
     private TuyaToken getTuyaToken() {
-        if (!hasValidAccessToken()) {
+        if (hasValidAccessToken()) {
+            if (hasRefreshAccessToken()) {
+                log.info("Refresh Tuya token: currentDate [{}]", formatter.format(new Date()));
+                this.accessTuyaToken = refreshTuyaToken();
+            }
+        } else {
             log.info("Create Tuya token: currentDate [{}]", formatter.format(new Date()));
             this.accessTuyaToken = this.createTuyaToken();
         }
@@ -511,6 +521,10 @@ public class TuyaDeviceService {
     }
 
     private boolean hasValidAccessToken() {
-        return this.accessTuyaToken != null && this.accessTuyaToken.getExpireTime() + 20_000 > System.currentTimeMillis();
+        return this.accessTuyaToken != null && this.accessTuyaToken.getExpireTimeFinish() > System.currentTimeMillis();
+    }
+    private boolean hasRefreshAccessToken() {
+        Long deltaRefresh = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 1000;
+        return (System.currentTimeMillis() - this.accessTuyaToken.getT()) > (this.accessTuyaToken.getExpireTimeMilli() - deltaRefresh);
     }
 }

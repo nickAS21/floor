@@ -44,4 +44,13 @@ public class TuyaToken implements Serializable {
     private String tid;
     private Long expireTime;
     private Long t;
+
+    public Long getExpireTimeFinish() {
+        return t + getExpireTimeMilli();
+    }
+    public Long getExpireTimeMilli() {
+        return expireTime * 1000;
+    }
+
+
 }

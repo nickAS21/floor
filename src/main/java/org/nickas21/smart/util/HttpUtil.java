@@ -38,7 +38,9 @@ public class HttpUtil {
     public static final String batteryPowerKey = "B_P1";           // W
     public static final String batteryCurrentKey = "B_C1";         // A
     public static final String batteryVoltageKey = "B_V1";         // V
-    public static final String batterySocKey = "B_left_cap1";      // %
+    public static final String batterySocKey = "B_left_cap1";            // %
+    public static final String batteryDailyChargeKey = "Etdy_cg1";       // kWh
+    public static final String batteryDailyDischargeKey = "Etdy_dcg1";   // kWh
 
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;

@@ -13,6 +13,6 @@ public class DeviceUpdate {
     Object valueOld;
 
     public boolean isUpdate() {
-        return !valueNew.equals(valueOld);
+        return valueNew != null && !valueNew.equals(valueOld);
     }
 }

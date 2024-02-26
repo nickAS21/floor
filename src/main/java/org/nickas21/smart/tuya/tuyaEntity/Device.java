@@ -22,7 +22,7 @@ public class Device {
         // unit = w
     private int consumptionPower;
     private Object valueSetMaxOn;
-    private Map<String, DeviceStatus> status = new HashMap<>();
+    private Map<String, DeviceStatus> status;
     private Long active_time;
         // cz,          wsdcg,                              wk
     private String category;
@@ -97,13 +97,16 @@ public class Device {
                 deviceBizCode.getValueOld(), deviceBizCode.getValue());
     }
     public Object getStatusValue (String key, Object valueDef){
-        return this.status.get(key) == null ? valueDef : this.status.get(key).getValue();
+        return this.status == null || this.status.get(key) == null ? valueDef : this.status.get(key).getValue();
     }
     public Object getStatusValue (String key){
-        return this.status.get(key) == null ? null : this.status.get(key).getValue();
+        return this.status == null || this.status.get(key) == null ? null : this.status.get(key).getValue();
     }
 
     private void setStatus(String code, DeviceStatus status) {
+        if (this.status == null) {
+            this.status = new HashMap<>();
+        }
         this.status.put(code, status);
     }
 }

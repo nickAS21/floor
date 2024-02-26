@@ -18,6 +18,8 @@ public class PowerValueRealTimeData {
     double batteryCurrentValue;  // unit A
     double batteryVoltageValue;  // unit V
     double batterySocValue;      // unit %
+    double batteryDailyCharge;   // unit kWh
+    double batteryDailyDischarge;// unit kWh
 
     int totalConsumptionPower;  // unit W
     int totalGridPower;         // unit W
