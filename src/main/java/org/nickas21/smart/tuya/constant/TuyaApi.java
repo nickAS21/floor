@@ -7,6 +7,7 @@ public class TuyaApi {
     public  final static int TOKEN_GRANT_TYPE = 1;
     public  final static String GET_TUYA_TOKEN_URL_PATH = "/v1.0/token";
     public  final static String GET_TUYA_REFRESH_TOKEN_URL_PATH = "/v1.0/token/%s";
+    public  final static int  GET_TUYA_REFRESH_TOKEN_ERROR_1010 = 1010; // "token is expired"
     public  final static String GET_DEVICES_ID_URL_PATH = "/v1.1/iot-03/devices/%s";
 //    public  final static String GET_DEVICES_IDS_URL_PATH = "/v1.3/iot-03/devices";
 //    public  final static String GET_DEVICES_IDS_URL_PATH = "/v1.3/iot-03/devices?category=xx&product_id=xx&name=xx&device_ids=xx&last_row_key=xx&page_size=xx";

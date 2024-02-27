@@ -49,6 +49,7 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.CODE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.COMMANDS;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_DEVICES_ID_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_DEVICE_STATUS_URL_PATH;
+import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_REFRESH_TOKEN_ERROR_1010;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_REFRESH_TOKEN_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_TUYA_TOKEN_URL_PATH;
 import static org.nickas21.smart.tuya.constant.TuyaApi.POST_DEVICE_COMMANDS_URL_PATH;
@@ -285,6 +286,21 @@ public class TuyaDeviceService {
         return sortedMap;
     }
 
+    @SneakyThrows
+    private TuyaToken getTuyaToken() {
+        if (hasValidAccessToken()) {
+            if (hasRefreshAccessToken()) {
+                log.info("Refresh Tuya token: currentDate [{}]", formatter.format(new Date()));
+                this.accessTuyaToken = refreshTuyaToken();
+            }
+        } else {
+            log.info("Create Tuya token: currentDate [{}]", formatter.format(new Date()));
+            this.accessTuyaToken = this.createTuyaToken();
+        }
+        return this.accessTuyaToken;
+    }
+
+
     public TuyaConnectionProperties getConnectionConfiguration() {
         return this.connectionConfiguration;
     }
@@ -329,7 +345,7 @@ public class TuyaDeviceService {
                 && responseEntity.getBody() != null;
     }
 
-    private TuyaToken refreshTuyaToken() {
+    private TuyaToken refreshTuyaToken() throws Exception {
         String path = String.format(GET_TUYA_REFRESH_TOKEN_URL_PATH, this.accessTuyaToken.getRefreshToken());
         String ts = String.valueOf(System.currentTimeMillis());
         String signature = sign(this.connectionConfiguration.getAk() + ts +
@@ -342,10 +358,18 @@ public class TuyaDeviceService {
                 .headers(httpHeaders -> pupulateHeaders(httpHeaders, ts, signature))
                 .retrieve();
         ObjectNode responseEntityNode = responseSpec.bodyToMono(ObjectNode.class).block();
-        JsonNode result = responseEntityNode.get("result");
-        Long t = responseEntityNode.get("t").asLong();
-        String tid = responseEntityNode.get("tid").asText();
-        return getExpireTuyaToken (result, t, tid);
+        if (responseEntityNode.get("success").asBoolean()) {
+            JsonNode result = responseEntityNode.get("result");
+            Long t = responseEntityNode.get("t").asLong();
+            String tid = responseEntityNode.get("tid").asText();
+            return getExpireTuyaToken(result, t, tid);
+        } else {
+            if (responseEntityNode.get("code").asInt() == GET_TUYA_REFRESH_TOKEN_ERROR_1010) {;
+                log.error("{}", responseEntityNode.get("msg").asText());
+                return createTuyaToken();
+            }
+            return null;
+        }
     }
 
     private RequestEntity<Object> createGetTuyaRequest(String path, boolean isGetToken) {
@@ -391,20 +415,6 @@ public class TuyaDeviceService {
         headers.add("nonce", "");
         headers.add("sign", signature);
         headers.setContentType(MediaType.APPLICATION_JSON);
-    }
-
-    @SneakyThrows
-    private TuyaToken getTuyaToken() {
-        if (hasValidAccessToken()) {
-            if (hasRefreshAccessToken()) {
-                log.info("Refresh Tuya token: currentDate [{}]", formatter.format(new Date()));
-                this.accessTuyaToken = refreshTuyaToken();
-            }
-        } else {
-            log.info("Create Tuya token: currentDate [{}]", formatter.format(new Date()));
-            this.accessTuyaToken = this.createTuyaToken();
-        }
-        return this.accessTuyaToken;
     }
 
     private String stringToSign(String path, String bodyHash, HttpMethod httpMethod) {

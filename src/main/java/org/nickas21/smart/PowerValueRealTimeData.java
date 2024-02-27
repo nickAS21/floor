@@ -21,6 +21,8 @@ public class PowerValueRealTimeData {
     double batteryDailyCharge;   // unit kWh
     double batteryDailyDischarge;// unit kWh
 
+    double productionTotalSolarPowerValue;             // unit kWh
+
     int totalConsumptionPower;  // unit W
     int totalGridPower;         // unit W
     double totalEnergySell;     // unit kWh
