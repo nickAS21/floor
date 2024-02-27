@@ -290,12 +290,12 @@ public class TuyaDeviceService {
     private TuyaToken getTuyaToken() {
         if (hasValidAccessToken()) {
             if (hasRefreshAccessToken()) {
-                log.info("Refresh Tuya token: currentDate [{}]", formatter.format(new Date()));
                 this.accessTuyaToken = refreshTuyaToken();
+                log.info("Refresh Tuya token: start [{}] expireTimeFinish [{}}]", formatter.format(new Date(this.accessTuyaToken.getT())), formatter.format(new Date(this.accessTuyaToken.getExpireTimeFinish())));
             }
         } else {
-            log.info("Create Tuya token: currentDate [{}]", formatter.format(new Date()));
             this.accessTuyaToken = this.createTuyaToken();
+            log.info("Create Tuya token: start [{}] expireTimeFinish [{}}]", formatter.format(new Date(this.accessTuyaToken.getT())), formatter.format(new Date(this.accessTuyaToken.getExpireTimeFinish())));
         }
         return this.accessTuyaToken;
     }
