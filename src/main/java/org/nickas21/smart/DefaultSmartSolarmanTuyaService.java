@@ -121,7 +121,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                         this.tuyaDeviceService.getDeviceProperties().getTempSetMax(), "TempSetMax");
                             } else {
                                 // Battery charge/discharge analysis program
-                                this.batteryChargeDischarge(batteryStatusNew, -batteryPowerNew);
+                                int freePower = (int)(powerValueRealTimeData.getProductionTotalSolarPowerValue() -
+                                                   powerValueRealTimeData.getConsumptionTotalPowerValue() -
+                                                   powerValueRealTimeData.getDeyeStationTotalPowerValue());
+
+                                        this.batteryChargeDischarge(batteryStatusNew, freePower);
                             }
                         }
                     } catch (Exception e) {
