@@ -78,7 +78,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             String batteryPowerNewStr = -batteryPowerNew + " W";
             log.info("\nCurrent real time data: [{}], -Update real time data: [{}], " +
                             "\n-batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], " +
-                            "\n-batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A], -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], " +
+                            "\n-batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A], " +
+                            "\n-batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W], " +
                             "\n-batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh], " +
                             "\n-relayStatus: [{}], -gridStatus: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].",
                     formatter.format(new Date()),
@@ -94,6 +95,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     batteryPowerNewStr,
                     powerValueRealTimeData.getProductionTotalSolarPowerValue(),
                     powerValueRealTimeData.getConsumptionTotalPowerValue(),
+                    powerValueRealTimeData.getDeyeStationTotalPowerValue(),
 
                     powerValueRealTimeData.getBatteryDailyCharge(),
                     powerValueRealTimeData.getBatteryDailyDischarge(),
