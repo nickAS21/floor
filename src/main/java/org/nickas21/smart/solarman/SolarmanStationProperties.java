@@ -11,4 +11,5 @@ public class SolarmanStationProperties {
     private double batSocMax;
     private double batSocAlarmWarn;
     private double batSocAlarmError;
+    private double stationConsumptionPower;
 }

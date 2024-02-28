@@ -21,6 +21,8 @@ public class SolarmanStation {
     private double batSocAlarmWarn = 70.0;
     @Builder.Default
     private double batSocAlarmError = 40.0;
+    @Builder.Default
+    private double stationConsumptionPower = 75.0;
     private double locationLat;   //": 50.31023634165624,
     private double locationLng;
 }

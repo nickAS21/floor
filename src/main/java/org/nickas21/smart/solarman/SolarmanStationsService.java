@@ -57,6 +57,7 @@ public class SolarmanStationsService {
                 .batSocMax(stationProperties.getBatSocMax())
                 .batSocAlarmWarn(stationProperties.getBatSocAlarmWarn())
                 .batSocAlarmError(stationProperties.getBatSocAlarmError())
+                .stationConsumptionPower(stationProperties.getStationConsumptionPower())
                 .build();
         initAfterTokenSuccess();
         if (stations.size() == 0) {

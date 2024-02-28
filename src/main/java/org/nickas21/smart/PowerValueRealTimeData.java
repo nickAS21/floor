@@ -23,7 +23,6 @@ public class PowerValueRealTimeData {
 
     double productionTotalSolarPowerValue;             // unit kWh
     double consumptionTotalPowerValue;                 // unit kWh
-    final double deyeStationTotalPowerValue = 75;      // unit W
 
     int totalConsumptionPower;  // unit W
     int totalGridPower;         // unit W

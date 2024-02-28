@@ -21,6 +21,7 @@ smart:
     bat-soc-max: "${SOLARMAN_BAT_SOC_MAX:95.0}"
     bat-soc-alarm-warn: "${SOLARMAN_BAT_SOC_ALARM_WARN:70.0}"
     bat-soc-alarm-error: "${SOLARMAN_BAT_SOC_ALARM_ERROR:40.0}"
+    station-consumption-power:  "${SOLARMAN_STATION_CONSUMPTION_POWER:75.0}"
 
 logging.level:
   ch.qos.logback: OFF

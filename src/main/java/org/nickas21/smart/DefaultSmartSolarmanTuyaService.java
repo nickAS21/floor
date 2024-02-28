@@ -42,6 +42,7 @@ import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
 @Service
 public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService {
     private double batterySocCur;
+    private double stationConsumptionPower;
     private PowerValueRealTimeData powerValueRealTimeData;
     private boolean isDay;
     private Date curDate;
@@ -58,6 +59,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     public void solarmanRealTimeDataStart() {
         this.isDay = true;
         this.batterySocCur = 0;
+        this.stationConsumptionPower = solarmanStationsService.getSolarmanStation().getStationConsumptionPower();
         this.powerValueRealTimeData = PowerValueRealTimeData.builder().build();
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         executorService.scheduleAtFixedRate(this::setBmsSocCur, 0, solarmanStationsService.getSolarmanStation().getTimeoutSec(), TimeUnit.SECONDS);
@@ -95,7 +97,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     batteryPowerNewStr,
                     powerValueRealTimeData.getProductionTotalSolarPowerValue(),
                     powerValueRealTimeData.getConsumptionTotalPowerValue(),
-                    powerValueRealTimeData.getDeyeStationTotalPowerValue(),
+                    stationConsumptionPower,
 
                     powerValueRealTimeData.getBatteryDailyCharge(),
                     powerValueRealTimeData.getBatteryDailyDischarge(),
@@ -123,7 +125,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                 // Battery charge/discharge analysis program
                                 int freePower = (int)(powerValueRealTimeData.getProductionTotalSolarPowerValue() -
                                                    powerValueRealTimeData.getConsumptionTotalPowerValue() -
-                                                   powerValueRealTimeData.getDeyeStationTotalPowerValue());
+                                                   stationConsumptionPower);
 
                                         this.batteryChargeDischarge(batteryStatusNew, freePower);
                             }
