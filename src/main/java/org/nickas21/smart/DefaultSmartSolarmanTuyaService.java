@@ -23,6 +23,7 @@ import static org.nickas21.smart.util.HttpUtil.batterySocKey;
 import static org.nickas21.smart.util.HttpUtil.batteryStatusKey;
 import static org.nickas21.smart.util.HttpUtil.batteryVoltageKey;
 import static org.nickas21.smart.util.HttpUtil.bmsSocKey;
+import static org.nickas21.smart.util.HttpUtil.consumptionTotalPowerKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.formatter;
@@ -67,36 +68,36 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         try {
             updatePowerValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
-            double batCurrentNew = powerValueRealTimeData.getBatteryCurrentValue();
             SolarmanSocPercentage percentage = SolarmanSocPercentage.fromPercentage(batVolNew);
             double batterySocNew = percentage != null ? percentage.getPercentage() : 0;
             int batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
-            double batDailyChargeNew = powerValueRealTimeData.getBatteryDailyCharge();
-            double batDailyDischargeNew = powerValueRealTimeData.getBatteryDailyDischarge();
-            double productionTotalSolarPowerNew = powerValueRealTimeData.getProductionTotalSolarPowerValue();
 
             updateSunRiseSunSetDate();
-            String updateTimeData = formatter.format(new Date(powerValueRealTimeData.getCollectionTime() * 1000));
 
             String batteryPowerNewStr = -batteryPowerNew + " W";
             log.info("\nCurrent real time data: [{}], -Update real time data: [{}], " +
                             "\n-batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], " +
-                            "\n-batVolNew: [{} V], -batCurrentNew: [{} A], -batteryPower: [{}], -solarPower: [{} W], " +
-                            "\n-batteryStatus: [{}], -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh], " +
+                            "\n-batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A], -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], " +
+                            "\n-batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh], " +
                             "\n-relayStatus: [{}], -gridStatus: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].",
                     formatter.format(new Date()),
-                    updateTimeData,
+                    formatter.format(new Date(powerValueRealTimeData.getCollectionTime() * 1000)),
+
                     this.batterySocCur,
                     batterySocNew,
                     (batterySocNew - this.batterySocCur),
-                    batVolNew,
-                    batCurrentNew,
-                    batteryPowerNewStr,
-                    productionTotalSolarPowerNew,
+
                     batteryStatusNew,
-                    batDailyChargeNew,
-                    batDailyDischargeNew,
+                    batVolNew,
+                    powerValueRealTimeData.getBatteryCurrentValue(),
+                    batteryPowerNewStr,
+                    powerValueRealTimeData.getProductionTotalSolarPowerValue(),
+                    powerValueRealTimeData.getConsumptionTotalPowerValue(),
+
+                    powerValueRealTimeData.getBatteryDailyCharge(),
+                    powerValueRealTimeData.getBatteryDailyDischarge(),
+
                     powerValueRealTimeData.getGridRelayStatus(),
                     powerValueRealTimeData.getGridStatus(),
                     powerValueRealTimeData.getDailyEnergyBuy(),
@@ -183,6 +184,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
         double productionTotalSolarPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(productionTotalSolarPowerKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+        double consumptionTotalPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(consumptionTotalPowerKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
 
 
         int totalSolarPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalSolarPowerKey)).findFirst()
@@ -222,6 +225,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         powerValueRealTimeData.setBatteryDailyCharge(batteryDailyChargeValue);
         powerValueRealTimeData.setBatteryDailyDischarge(batteryDailyDischargeValue);
         powerValueRealTimeData.setProductionTotalSolarPowerValue(productionTotalSolarPowerValue);
+        powerValueRealTimeData.setConsumptionTotalPowerValue(consumptionTotalPowerValue);
 
         powerValueRealTimeData.setTotalSolarPower(totalSolarPower);
         powerValueRealTimeData.setTotalConsumptionPower(totalConsumptionPower);

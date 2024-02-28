@@ -16,9 +16,9 @@ public enum SolarmanSocPercentage {
      */
     CHARGE_MAX(100.00, 55.6, "Charge_Max"),
     REST_FLOAT(100.00, 54.4, "Rest_Float"),
-    PERCENTAGE_99(99.00, 53.10,"Percentage_99"),
-    PERCENTAGE_95(95.00, 52.80,"Percentage_95"),
-    PERCENTAGE_90(90.00, 52.50,"Percentage_90"),
+    PERCENTAGE_99(99.00, 53.50,"Percentage_99"),
+    PERCENTAGE_95(95.00, 53.15,"Percentage_95"),
+    PERCENTAGE_90(90.00, 53.00,"Percentage_90"),
     PERCENTAGE_85(85.00, 52.45,"Percentage_85"),
     PERCENTAGE_80(80.00, 52.40,"Percentage_80"),
     PERCENTAGE_75(75.00, 52.35,"Percentage_75"),
