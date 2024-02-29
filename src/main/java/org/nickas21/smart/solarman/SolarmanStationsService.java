@@ -53,7 +53,8 @@ public class SolarmanStationsService {
     public void init() {
         solarmanStation = SolarmanStation.builder()
                 .timeoutSec(stationProperties.getTimeoutSec())
-                .batSocMin(stationProperties.getBatSocMin())
+                .batSocMinMin(stationProperties.getBatSocMinMin())
+                .batSocMinMax(stationProperties.getBatSocMinMax())
                 .batSocMax(stationProperties.getBatSocMax())
                 .batSocAlarmWarn(stationProperties.getBatSocAlarmWarn())
                 .batSocAlarmError(stationProperties.getBatSocAlarmError())

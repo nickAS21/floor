@@ -14,7 +14,9 @@ public class SolarmanStation {
     @Builder.Default
     private Long timeoutSec = 600L;
     @Builder.Default
-    private double batSocMin = 60.0;
+    private double batSocMinMin = 50.0;
+    @Builder.Default
+    private double batSocMinMax = 80.0;
     @Builder.Default
     private double batSocMax = 95.0;
     @Builder.Default

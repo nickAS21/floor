@@ -7,7 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("smart.solarman")
 public class SolarmanStationProperties {
     private Long timeoutSec;
-    private double batSocMin;
+    private double batSocMinMin;
+    private double batSocMinMax;
     private double batSocMax;
     private double batSocAlarmWarn;
     private double batSocAlarmError;

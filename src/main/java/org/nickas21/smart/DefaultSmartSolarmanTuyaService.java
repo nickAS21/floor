@@ -48,6 +48,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private Date curDate;
     private Date sunRiseDate;
     private Date sunSetDate;
+    private Long sunRiseMax;
+    private Long sunSetMin;
+    private double batSocMinInMilliSec; // %
 
     @Autowired
     SolarmanStationsService solarmanStationsService;
@@ -72,24 +75,28 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
             SolarmanSocPercentage percentage = SolarmanSocPercentage.fromPercentage(batVolNew);
             double batterySocNew = percentage != null ? percentage.getPercentage() : 0;
+            double batterySocMin = getBatSocMin();
             int batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
 
             updateSunRiseSunSetDate();
 
             String batteryPowerNewStr = -batteryPowerNew + " W";
-            log.info("\nCurrent real time data: [{}], -Update real time data: [{}], " +
-                            "\n-batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], " +
-                            "\n-batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A], " +
-                            "\n-batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W], " +
-                            "\n-batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh], " +
-                            "\n-relayStatus: [{}], -gridStatus: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].",
+            log.info("""
+                            Current data:\s
+                            Current real time data: [{}], -Update real time data: [{}],\s
+                            -batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], -batterySocMin: [{} %],\s
+                            -batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A],\s
+                            -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],\s
+                            -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
+                            -relayStatus: [{}], -gridStatus: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].""",
                     formatter.format(new Date()),
                     formatter.format(new Date(powerValueRealTimeData.getCollectionTime() * 1000)),
 
                     this.batterySocCur,
                     batterySocNew,
                     (batterySocNew - this.batterySocCur),
+                    String.format( "%.2f", batterySocMin),
 
                     batteryStatusNew,
                     batVolNew,
@@ -110,11 +117,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             if (this.sunRiseDate != null && this.sunSetDate != null) {
                 if (this.batterySocCur > 0 &&
                         this.curDate.getTime() > this.sunRiseDate.getTime() &&
-                        this.curDate.getTime() <= (this.sunSetDate.getTime() - 3600000)) {
+                        this.curDate.getTime() <= this.sunSetMin) {
                     isDay = true;
                     try {
                         if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
-                            if (batterySocNew < solarmanStationsService.getSolarmanStation().getBatSocMin()) {
+                            if (batterySocNew < batterySocMin) {
                                 // Reducing electricity consumption
                                 this.setReducingElectricityConsumption(batterySocNew,
                                         this.tuyaDeviceService.getDeviceProperties().getTempSetMin(), "TempSetMin");
@@ -133,7 +140,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     } catch (Exception e) {
                         log.error("", e);
                     }
-                } else if (isDay && this.curDate.getTime() > (this.sunSetDate.getTime() - 3600000)) {
+                } else if (isDay && this.curDate.getTime() > this.sunSetMin) {
                     log.info("Reducing electricity consumption, TempSetMin,  SunSet start: [{}].", this.sunSetDate);
                     isDay = false;
                     try {
@@ -258,12 +265,36 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             if (curTimeDateDMY.equals(curSunSetDateDMY)) {
                 this.sunRiseDate = sunRiseSunSetDate[0];
                 this.sunSetDate = sunRiseSunSetDate[1];
+                this.sunRiseMax = this.sunRiseDate.getTime() + ((this.sunSetDate.getTime() - this.sunRiseDate.getTime())/2);
+                this.sunSetMin = this.sunSetDate.getTime() - 3600000;   // - 1 hour
+                this.batSocMinInMilliSec = getBatSocMinInMilliSec();    // %/milliSec
+
             } else {
                 this.sunRiseDate = null;
                 this.sunSetDate = null;
+                this.sunRiseMax = null;
+                this.sunSetMin = null;
+                this.batSocMinInMilliSec = solarmanStationsService.getSolarmanStation().getBatSocMinMin();
             }
         }
         this.curDate = curTimeDate;
+    }
+
+    private Double getBatSocMin(){
+        double deltaBatSocMinMin = 0;
+        if (this.sunRiseMax != null && this.sunSetMin != null) {
+            if (this.sunRiseMax < this.curDate.getTime()) {
+                long deltaSunRise = this.curDate.getTime() - this.sunRiseMax;
+                deltaBatSocMinMin = deltaSunRise * this.batSocMinInMilliSec;
+            }
+        }
+        return solarmanStationsService.getSolarmanStation().getBatSocMinMin() + deltaBatSocMinMin;
+    }
+
+    private double getBatSocMinInMilliSec() {
+        long sunRisePeriod = this.sunSetMin - this.sunRiseMax;
+        double deltaBatSocMin = solarmanStationsService.getSolarmanStation().getBatSocMinMax() - solarmanStationsService.getSolarmanStation().getBatSocMinMin();
+        return deltaBatSocMin / sunRisePeriod;
     }
 }
 
