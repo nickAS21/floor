@@ -214,7 +214,13 @@ public class TuyaDeviceService {
             if ((atomicDeltaPower.get() - v.getConsumptionPower()) > 0) {
                 if (deviceUpdate.isUpdate()){
                     sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
-                    atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
+                    log.info("Device: [{}] Update. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
+                            v.getName(),
+                            atomicDeltaPower.get(),  v.getConsumptionPower(), atomicDeltaPower.get()- v.getConsumptionPower(),
+                            deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
+                            v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
+                   atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
+
                 } else {
                     log.info("Device: [{}] not Update. Charge left power [{}], [{}] changeValue [{}] lastValue [{}]",
                             v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
@@ -291,7 +297,9 @@ public class TuyaDeviceService {
         if (hasValidAccessToken()) {
             if (hasRefreshAccessToken()) {
                 this.accessTuyaToken = refreshTuyaToken();
-                log.info("Refresh Tuya token: start [{}] expireTimeFinish [{}}]", formatter.format(new Date(this.accessTuyaToken.getT())), formatter.format(new Date(this.accessTuyaToken.getExpireTimeFinish())));
+                String tokenStart = this.accessTuyaToken != null && this.accessTuyaToken.getT() != null ? formatter.format(new Date(this.accessTuyaToken.getT())) : null;
+                String expireTimeFinish = this.accessTuyaToken != null && this.accessTuyaToken.getExpireTimeFinish() != null ? formatter.format(new Date(this.accessTuyaToken.getExpireTimeFinish())) : null;
+                log.info("Refresh Tuya token: start [{}] expireTimeFinish [{}}]", tokenStart, expireTimeFinish);
             }
         } else {
             this.accessTuyaToken = this.createTuyaToken();
@@ -319,7 +327,7 @@ public class TuyaDeviceService {
     private TuyaToken createGetTuyaToken(String path) throws Exception {
         RequestEntity<Object> requestEntity = createGetTuyaRequest(path, true);
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (validateResponse(responseEntity)) {
+        if (validateResponse(responseEntity) && responseEntity.getBody().has("result")) {
             JsonNode result = responseEntity.getBody().get("result");
             Long t = responseEntity.getBody().get("t").asLong();
             String tid = responseEntity.getBody().get("tid").asText();
@@ -358,13 +366,13 @@ public class TuyaDeviceService {
                 .headers(httpHeaders -> pupulateHeaders(httpHeaders, ts, signature))
                 .retrieve();
         ObjectNode responseEntityNode = responseSpec.bodyToMono(ObjectNode.class).block();
-        if (responseEntityNode.get("success").asBoolean()) {
+        if (responseEntityNode.has("success") && responseEntityNode.get("success").asBoolean()) {
             JsonNode result = responseEntityNode.get("result");
             Long t = responseEntityNode.get("t").asLong();
             String tid = responseEntityNode.get("tid").asText();
             return getExpireTuyaToken(result, t, tid);
         } else {
-            if (responseEntityNode.get("code").asInt() == GET_TUYA_REFRESH_TOKEN_ERROR_1010) {;
+            if (responseEntityNode.get("code").asInt() == GET_TUYA_REFRESH_TOKEN_ERROR_1010) {
                 log.error("{}", responseEntityNode.get("msg").asText());
                 return createTuyaToken();
             }

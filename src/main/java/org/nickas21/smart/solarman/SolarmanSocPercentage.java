@@ -17,7 +17,8 @@ public enum SolarmanSocPercentage {
     CHARGE_MAX(100.00, 55.6, "Charge_Max"),
     REST_FLOAT(100.00, 54.4, "Rest_Float"),
     PERCENTAGE_99(99.00, 53.50,"Percentage_99"),
-    PERCENTAGE_95(95.00, 53.15,"Percentage_95"),
+    PERCENTAGE_97(97.00, 53.35,"Percentage_97"),
+    PERCENTAGE_95(95.00, 53.20,"Percentage_95"),
     PERCENTAGE_90(90.00, 53.00,"Percentage_90"),
     PERCENTAGE_85(85.00, 52.45,"Percentage_85"),
     PERCENTAGE_80(80.00, 52.40,"Percentage_80"),
@@ -53,27 +54,9 @@ public enum SolarmanSocPercentage {
         this.type = type;
     }
 
-    public static SolarmanSocPercentage fromType(String type) {
-        for (SolarmanSocPercentage to : SolarmanSocPercentage.values()) {
-            if (to.type.equals(type)) {
-                return to;
-            }
-        }
-        return null;
-    }
-
-
     public static SolarmanSocPercentage fromPercentage(double voltage) {
         for (SolarmanSocPercentage to : SolarmanSocPercentage.values()) {
             if (to.voltage <= voltage) {
-                return to;
-            }
-        }
-        return null;
-    }
-    public static SolarmanSocPercentage fromVoltage(double percentage) {
-        for (SolarmanSocPercentage to : SolarmanSocPercentage.values()) {
-            if (to.percentage <= percentage) {
                 return to;
             }
         }

@@ -123,11 +123,21 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
                             if (batterySocNew < batterySocMin) {
                                 // Reducing electricity consumption
-                                this.setReducingElectricityConsumption(batterySocNew,
-                                        this.tuyaDeviceService.getDeviceProperties().getTempSetMin(), "TempSetMin");
+                                log.info("Reducing electricity consumption, [{}],  action [{}].",
+                                        this.tuyaDeviceService.getDeviceProperties().getTempSetMin(),
+                                        "TempSetMin");
+                                tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                             } else if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
-                                this.setReducingElectricityConsumption(batterySocNew,
-                                        this.tuyaDeviceService.getDeviceProperties().getTempSetMax(), "TempSetMax");
+                                int freePower = (int)(powerValueRealTimeData.getProductionTotalSolarPowerValue() -
+                                        powerValueRealTimeData.getConsumptionTotalPowerValue() -
+                                        stationConsumptionPower + solarmanStationsService.getSolarmanStation().getDopPowerToMax());
+                                log.info("Reducing electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
+                                        batteryStatusNew,
+                                        freePower,
+                                        "TempSetMax");
+                                this.batteryChargeDischarge(batteryStatusNew, freePower);
+//                                this.setReducingElectricityConsumption(batterySocNew,
+//                                        this.tuyaDeviceService.getDeviceProperties().getTempSetMax(), "TempSetMax");
                             } else {
                                 // Battery charge/discharge analysis program
                                 int freePower = (int)(powerValueRealTimeData.getProductionTotalSolarPowerValue() -
@@ -158,11 +168,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         } catch (Exception e) {
             log.error("Failed updatePower or SunRiseSunSetDate or updateThermostat, [{}]", e.getMessage());
         }
-    }
-
-    private void setReducingElectricityConsumption(double bmsSocNew, Integer temp, String tempSet) throws Exception {
-        log.info("Reducing electricity consumption, [{}],  bmsSocNew [{}].", tempSet, bmsSocNew);
-        tuyaDeviceService.updateAllThermostat(temp);
     }
 
     private void batteryChargeDischarge(String batteryStatusNew, int batteryPower) throws Exception {
@@ -281,14 +286,19 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     }
 
     private Double getBatSocMin(){
-        double deltaBatSocMinMin = 0;
-        if (this.sunRiseMax != null && this.sunSetMin != null) {
-            if (this.sunRiseMax < this.curDate.getTime()) {
+        if (this.curDate != null) {
+            if (this.sunRiseMax != null && this.sunSetMin != null
+                    && this.curDate.getTime() > this.sunRiseMax && this.curDate.getTime() <= this.sunSetMin){
                 long deltaSunRise = this.curDate.getTime() - this.sunRiseMax;
-                deltaBatSocMinMin = deltaSunRise * this.batSocMinInMilliSec;
+                double deltaBatSocMinMin = deltaSunRise * this.batSocMinInMilliSec;
+                double batSocMin = solarmanStationsService.getSolarmanStation().getBatSocMinMin() + deltaBatSocMinMin;
+                return batSocMin < solarmanStationsService.getSolarmanStation().getBatSocMinMax() ?  batSocMin :
+                        solarmanStationsService.getSolarmanStation().getBatSocMinMax();
+            } else if (this.curDate.getTime() > this.sunRiseDate.getTime() && this.sunRiseMax != null && this.curDate.getTime() <= this.sunRiseMax) {
+                return solarmanStationsService.getSolarmanStation().getBatSocMinMin();
             }
         }
-        return solarmanStationsService.getSolarmanStation().getBatSocMinMin() + deltaBatSocMinMin;
+        return solarmanStationsService.getSolarmanStation().getBatSocMinMax();
     }
 
     private double getBatSocMinInMilliSec() {
