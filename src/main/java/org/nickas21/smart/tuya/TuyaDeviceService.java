@@ -243,6 +243,11 @@ public class TuyaDeviceService {
             if (atomicDeltaPower.get() < 0) {
                 if (deviceUpdate.isUpdate()){
                     sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
+                    log.info("Device: [{}] Update. Discharge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
+                            v.getName(),
+                            atomicDeltaPower.get(),  v.getConsumptionPower(), atomicDeltaPower.get() + v.getConsumptionPower(),
+                            deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
+                            v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
                     atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
                 } else {
                     log.info("Device: [{}] not Update. Discharge left power [{}], [{}] changeValue [{}] lastValue [{}]",
