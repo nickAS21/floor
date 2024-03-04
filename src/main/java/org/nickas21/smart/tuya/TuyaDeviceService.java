@@ -193,12 +193,12 @@ public class TuyaDeviceService {
         Object valueOld;
         if (valueNew instanceof Boolean || (v.getValueSetMaxOn()!= null && v.getValueSetMaxOn() instanceof Boolean)) {
             fieldNameValueUpdate = offOnKey;
-            valueOld = v.getStatusValue(fieldNameValueUpdate);
+            valueOld = v.getStatusValue(fieldNameValueUpdate, false);
             valueNew = valueNew instanceof Boolean ? valueNew : deviceProperties.getTempSetMin() != valueNew;
         } else {
             fieldNameValueUpdate = tempSetKey;
             valueNew = Objects.equals(valueNew, deviceProperties.getTempSetMin()) ? valueNew : v.getValueSetMaxOn();
-            valueOld = v.getStatusValue(fieldNameValueUpdate);
+            valueOld = v.getStatusValue(fieldNameValueUpdate, deviceProperties.getTempSetMin());
         }
         return new DeviceUpdate(fieldNameValueUpdate, valueNew, valueOld);
     }
@@ -211,23 +211,24 @@ public class TuyaDeviceService {
             Device v = entry.getValue();
             Object valueNew = v.getValueSetMaxOn();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
-            if ((atomicDeltaPower.get() - v.getConsumptionPower()) > 0) {
+            Object valueOld = v.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
+            if ((atomicDeltaPower.get() - v.getConsumptionPower()) > 0 && deviceUpdate.getValueNew() != deviceUpdate.getValueOld()) {
                 if (deviceUpdate.isUpdate()){
                     sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
                     log.info("Device: [{}] Update. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
                             v.getName(),
                             atomicDeltaPower.get(),  v.getConsumptionPower(), atomicDeltaPower.get()- v.getConsumptionPower(),
                             deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
-                            v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
+                            valueOld);
                    atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
 
                 } else {
                     log.info("Device: [{}] not Update. Charge left power [{}], [{}] changeValue [{}] lastValue [{}]",
-                            v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
+                            v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), valueOld);
                 }
             } else {
                 log.info("Device: [{}] not Update. Charge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
-                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
+                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), deviceUpdate.getValueNew(), valueOld);
             }
         }
     }
