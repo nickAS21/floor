@@ -37,6 +37,7 @@ import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.totalGridPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
+import static org.nickas21.smart.util.StringUtils.printMsgWithProgressBar;
 
 @Slf4j
 @Service
@@ -82,6 +83,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             updateSunRiseSunSetDate();
 
             String batteryPowerNewStr = -batteryPowerNew + " W";
+            Date curDate = new Date();
+            printMsgWithProgressBar(formatter.format(curDate) + ". Next update: " + formatter.format(new Date(curDate.getTime() + solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000)) + ",  after [" + solarmanStationsService.getSolarmanStation().getTimeoutSec()/60 + "] min: ",
+                    solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000);
             log.info("""
                             Current data:\s
                             Current real time data: [{}], -Update real time data: [{}],\s
