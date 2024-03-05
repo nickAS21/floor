@@ -132,9 +132,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                         "TempSetMin");
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                             } else if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
-                                int freePower = (int)(powerValueRealTimeData.getProductionTotalSolarPowerValue() -
-                                        powerValueRealTimeData.getConsumptionTotalPowerValue() -
-                                        stationConsumptionPower + solarmanStationsService.getSolarmanStation().getDopPowerToMax());
+                                int freePower = getFreePower();
                                 log.info("Reducing electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
                                         batteryStatusNew,
                                         freePower,
@@ -174,14 +172,14 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         }
     }
 
-    private void batteryChargeDischarge(String batteryStatusNew, int batteryPower) throws Exception {
-        boolean isCharge = batteryPower >= 0 && BatteryStatus.CHARGING.getType().equals(batteryStatusNew);
-        log.info("Battery: status -> [{}], power [{}], state: [{}]", batteryStatusNew, batteryPower, isCharge);
+    private void batteryChargeDischarge(String batteryStatusNew, int freeBatteryPower) throws Exception {
+        boolean isCharge = freeBatteryPower >= 0 && BatteryStatus.CHARGING.getType().equals(batteryStatusNew);
+        log.info("Battery: status -> [{}], freePower [{}], state: [{}]", batteryStatusNew, freeBatteryPower, isCharge);
         if (isCharge) {     // Battery charge
-            tuyaDeviceService.updateThermostatBatteryCharge(batteryPower,
+            tuyaDeviceService.updateThermostatBatteryCharge(freeBatteryPower,
                     tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
         } else {     // Battery discharge
-            tuyaDeviceService.updateThermostatBatteryDischarge(batteryPower,
+            tuyaDeviceService.updateThermostatBatteryDischarge(freeBatteryPower,
                     tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
         }
     }
@@ -309,6 +307,16 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         long sunRisePeriod = this.sunSetMin - this.sunRiseMax;
         double deltaBatSocMin = solarmanStationsService.getSolarmanStation().getBatSocMinMax() - solarmanStationsService.getSolarmanStation().getBatSocMinMin();
         return deltaBatSocMin / sunRisePeriod;
+    }
+
+    private int getFreePower(){
+        int freePower = (int)(powerValueRealTimeData.getProductionTotalSolarPowerValue() -
+                powerValueRealTimeData.getConsumptionTotalPowerValue() -
+                stationConsumptionPower);
+        if (this.sunRiseMax != null && this.sunRiseMax > System.currentTimeMillis()) {
+            freePower += solarmanStationsService.getSolarmanStation().getDopPowerToMax();
+        }
+        return freePower;
     }
 }
 
