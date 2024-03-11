@@ -125,28 +125,28 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     isDay = true;
                     try {
                         if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
+                            int freePower = getFreePower();
                             if (batterySocNew < batterySocMin) {
                                 // Reducing electricity consumption
-                                log.info("Reducing electricity consumption, [{}],  action [{}].",
-                                        this.tuyaDeviceService.getDeviceProperties().getTempSetMin(),
-                                        "TempSetMin");
-                                tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
-                            } else if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
-                                int freePower = getFreePower();
                                 log.info("Reducing electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
                                         batteryStatusNew,
                                         freePower,
+                                        "TempSetMin");
+                                tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                            } else if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
+                                // Increase electricity consumption
+                                log.info("Increase in electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
+                                        batteryStatusNew,
+                                        freePower,
                                         "TempSetMax");
-                                this.batteryChargeDischarge(batteryStatusNew, freePower);
-//                                this.setReducingElectricityConsumption(batterySocNew,
-//                                        this.tuyaDeviceService.getDeviceProperties().getTempSetMax(), "TempSetMax");
+                                tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
                             } else {
                                 // Battery charge/discharge analysis program
-                                int freePower = (int)(powerValueRealTimeData.getProductionTotalSolarPowerValue() -
-                                                   powerValueRealTimeData.getConsumptionTotalPowerValue() -
-                                                   stationConsumptionPower);
-
-                                        this.batteryChargeDischarge(batteryStatusNew, freePower);
+                                log.info("Change in electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
+                                        batteryStatusNew,
+                                        freePower,
+                                        "TempSet_Min/Max");
+                                this.batteryChargeDischarge(batteryStatusNew, freePower);
                             }
                         }
                     } catch (Exception e) {
@@ -173,7 +173,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     }
 
     private void batteryChargeDischarge(String batteryStatusNew, int freeBatteryPower) throws Exception {
-        boolean isCharge = freeBatteryPower >= 0 && BatteryStatus.CHARGING.getType().equals(batteryStatusNew);
+        boolean isCharge = freeBatteryPower >= 0 && (BatteryStatus.CHARGING.getType().equals(batteryStatusNew) || BatteryStatus.STATIC.getType().equals(batteryStatusNew));
         log.info("Battery: status -> [{}], freePower [{}], state: [{}]", batteryStatusNew, freeBatteryPower, isCharge);
         if (isCharge) {     // Battery charge
             tuyaDeviceService.updateThermostatBatteryCharge(freeBatteryPower,

@@ -58,20 +58,24 @@ public class Device {
                 if (statusNode.has("code")) {
                     String code = statusNode.get("code").asText();
                     DeviceStatus statusNew = treeToValue(statusNode, DeviceStatus.class);
-                    DeviceStatus statusOld = this.status != null ? this.status.get(code) : null;
-                    if (statusNew != null) {
-                        statusNew.setEventTime(System.currentTimeMillis());
-                        statusNew.setName(code);
-                        if (statusOld != null) {
-                            statusNew.setValueOld(statusOld.getValue());
-                            statusNew.setName(code);
-                        }
-                        setStatus(code, statusNew);
-                        log.trace("Init: devId [{}] devName [{}], status: [{}] -> old=[{}], new=[{}]",
-                                this.id, this.name, code, statusNew.getValueOld(), statusNew.getValue());
-                    }
+                    setStatus (statusNew, code);
                 }
             }
+        }
+    }
+
+    public void setStatus (DeviceStatus statusNew, String code) {
+        DeviceStatus statusOld = this.status != null ? this.status.get(code) : null;
+        if (statusNew != null) {
+            statusNew.setEventTime(System.currentTimeMillis());
+            statusNew.setName(code);
+            if (statusOld != null) {
+                statusNew.setValueOld(statusOld.getValue());
+                statusNew.setName(code);
+            }
+            setStatus(code, statusNew);
+            log.trace("Init: devId [{}] devName [{}], status: [{}] -> old=[{}], new=[{}]",
+                    this.id, this.name, code, statusNew.getValueOld(), statusNew.getValue());
         }
     }
 

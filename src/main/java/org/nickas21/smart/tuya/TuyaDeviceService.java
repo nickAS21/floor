@@ -63,6 +63,7 @@ import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
+import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
 
 @Slf4j
 @Service
@@ -194,7 +195,7 @@ public class TuyaDeviceService {
         if (valueNew instanceof Boolean || (v.getValueSetMaxOn()!= null && v.getValueSetMaxOn() instanceof Boolean)) {
             fieldNameValueUpdate = offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
-            valueNew = valueNew instanceof Boolean ? valueNew : deviceProperties.getTempSetMin() != valueNew;
+            valueNew = valueNew instanceof Boolean ? valueNew : v.getValueSetMaxOn();
         } else {
             fieldNameValueUpdate = tempSetKey;
             valueNew = Objects.equals(valueNew, deviceProperties.getTempSetMin()) ? valueNew : v.getValueSetMaxOn();
@@ -267,12 +268,9 @@ public class TuyaDeviceService {
             Device v = entry.getValue();
             Object valueNew = deviceProperties.getTempSetMin();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
-                if (deviceUpdate.isUpdate()){
-                sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
-            } else {
-                log.info("Device: [{}] not Update. [{}] changeValue [{}] lastValue [{}]",
-                        v.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
-            }
+            log.info("Device: [{}] Update (PreDestroy). [{}] changeValue [{}] lastValue [{}]",
+                    v.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
+            sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
         }
     }
 
@@ -451,11 +449,27 @@ public class TuyaDeviceService {
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
         if (responseEntity != null && responseEntity.getBody() != null) {
             JsonNode result = responseEntity.getBody().get("result");
-            JsonNode success = responseEntity.getBody().get("success");
-            if (deviceName.length > 0) {
-                log.info("Device: [{}] POST result [{}], body [{}]", deviceName[0], result.booleanValue() & success.booleanValue(), requestEntity.getBody());
+            if (responseEntity.getBody().has("success")) {
+                JsonNode success = responseEntity.getBody().get("success");
+                if (deviceName.length > 0) {
+                    log.info("Device: [{}] POST result [{}], body [{}]", deviceName[0], result.booleanValue() & success.booleanValue(), requestEntity.getBody());
+                    Device device =  devices.getDeviceByName(deviceName[0]);
+                    if (device != null) {
+                        ArrayNode commands = (ArrayNode)toJsonNode(commandsNode.get("commands").toString());
+                        DeviceStatus statusNew = new DeviceStatus();
+                        Object val = commands.get(0).get("value").getNodeType().name().equals("NUMBER") ? commands.get(0).get("value").asInt() :
+                                commands.get(0).get("value").getNodeType().name().equals("BOOLEAN") ? commands.get(0).get("value").asBoolean() : commands.get(0).get("value");
+                        statusNew.setValue(val);
+                        device.setStatus(statusNew, commands.get(0).get("code").asText());
+                        log.info("Device (sendPostRequest): [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
+                                device.getName(), formatter.format(new Date(statusNew.getEventTime())),
+                                statusNew.getName(), statusNew.getValueOld(), statusNew.getValue());
+                    }
+                } else {
+                    log.info("POST result [{}], body [{}]", result.booleanValue() & success.booleanValue(), requestEntity.getBody());
+                }
             } else {
-                log.info("POST result [{}], body [{}]", result.booleanValue() & success.booleanValue(), requestEntity.getBody());
+                log.error("POST result [{}], body [{}] failed", result.booleanValue(), requestEntity.getBody());
             }
         }
     }
