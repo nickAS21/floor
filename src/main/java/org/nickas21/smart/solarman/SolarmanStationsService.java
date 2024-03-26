@@ -6,6 +6,7 @@ import org.nickas21.smart.solarman.api.Communication;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.SolarmanToken;
 import org.nickas21.smart.solarman.api.Station;
+import org.nickas21.smart.util.HttpUtil;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -15,7 +16,7 @@ import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,7 +25,7 @@ import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_COMMUNICATION;
 import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_CURRENT_DATA;
 import static org.nickas21.smart.solarman.api.ApiPath.STATION_LIST;
 import static org.nickas21.smart.solarman.api.ApiPath.TOKEN;
-import static org.nickas21.smart.util.HttpUtil.formatter;
+import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 
 @Slf4j
 @Service
@@ -76,7 +77,8 @@ public class SolarmanStationsService {
     private SolarmanToken getSolarmanToken() {
         if (accessSolarmanToken != null) {
             if (!hasValidAccessToken()) {
-                log.info("ReCreate Solarman token: expireIn [{}] currentDate [{}]", formatter.format(new Date(this.accessSolarmanToken.getExpiresIn() + 20_000)), formatter.format(new Date()));
+                log.info("ReCreate Solarman token: expireIn [{}] currentDate [{}]", Instant.ofEpochMilli(this.accessSolarmanToken.getExpiresIn() + 20_000).toString(),
+                        HttpUtil.toLocaleTimeString(Instant.now()));
                 accessSolarmanToken = createSolarmanToken();
             }
         } else {

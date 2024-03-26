@@ -33,6 +33,7 @@ import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -56,11 +57,11 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.POST_DEVICE_COMMANDS_URL_
 import static org.nickas21.smart.tuya.constant.TuyaApi.TOKEN_GRANT_TYPE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.VALUE;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
-import static org.nickas21.smart.util.HttpUtil.formatter;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 import static org.nickas21.smart.util.HttpUtil.offOnKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
+import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
@@ -128,7 +129,7 @@ public class TuyaDeviceService {
             DeviceStatus devStatus = device.getStatus().get(nameField);
             if (device.getCategory() != null && Arrays.asList(deviceProperties.getCategoryForControlPowers()).contains(device.getCategory())) {
                 log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
-                        device.getName(), formatter.format(new Date(Long.parseLong(String.valueOf(deviceStatus.get(0).get("t"))))),
+                        device.getName(), toLocaleTimeString(Long.parseLong(String.valueOf(deviceStatus.get(0).get("t")))),
                         nameField, devStatus.getValueOld(), devStatus.getValue());
             }
         }
@@ -301,13 +302,13 @@ public class TuyaDeviceService {
         if (hasValidAccessToken()) {
             if (hasRefreshAccessToken()) {
                 this.accessTuyaToken = refreshTuyaToken();
-                String tokenStart = this.accessTuyaToken != null && this.accessTuyaToken.getT() != null ? formatter.format(new Date(this.accessTuyaToken.getT())) : null;
-                String expireTimeFinish = this.accessTuyaToken != null && this.accessTuyaToken.getExpireTimeFinish() != null ? formatter.format(new Date(this.accessTuyaToken.getExpireTimeFinish())) : null;
+                String tokenStart = this.accessTuyaToken != null && this.accessTuyaToken.getT() != null ? Instant.ofEpochMilli(this.accessTuyaToken.getT()).toString() : null;
+                String expireTimeFinish = this.accessTuyaToken != null && this.accessTuyaToken.getExpireTimeFinish() != null ? Instant.ofEpochMilli(this.accessTuyaToken.getExpireTimeFinish()).toString() : null;
                 log.info("Refresh Tuya token: start [{}] expireTimeFinish [{}}]", tokenStart, expireTimeFinish);
             }
         } else {
             this.accessTuyaToken = this.createTuyaToken();
-            log.info("Create Tuya token: start [{}] expireTimeFinish [{}}]", formatter.format(new Date(this.accessTuyaToken.getT())), formatter.format(new Date(this.accessTuyaToken.getExpireTimeFinish())));
+            log.info("Create Tuya token: start [{}] expireTimeFinish [{}}]", toLocaleTimeString(this.accessTuyaToken.getT()), toLocaleTimeString(this.accessTuyaToken.getExpireTimeFinish()));
         }
         return this.accessTuyaToken;
     }
@@ -462,7 +463,7 @@ public class TuyaDeviceService {
                         statusNew.setValue(val);
                         device.setStatus(statusNew, commands.get(0).get("code").asText());
                         log.info("Device (sendPostRequest): [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
-                                device.getName(), formatter.format(new Date(statusNew.getEventTime())),
+                                device.getName(), toLocaleTimeString(statusNew.getEventTime()),
                                 statusNew.getName(), statusNew.getValueOld(), statusNew.getValue());
                     }
                 } else {

@@ -6,11 +6,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.nickas21.smart.util.HttpUtil.formatter;
+import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 
 @Slf4j
@@ -97,7 +97,7 @@ public class Device {
             deviceBizCode.setValue(false);
         }
         log.info("Device: [{}] time: -> [{}] parameter bizCode: [{}] valueOld: [{}]  valueNew: [{}] ",
-                this.getName(), formatter.format(new Date(this.getUpdate_time())), deviceBizCode.getBizCode(),
+                this.getName(), toLocaleTimeString(this.getUpdate_time()), deviceBizCode.getBizCode(),
                 deviceBizCode.getValueOld(), deviceBizCode.getValue());
     }
     public Object getStatusValue (String key, Object valueDef){

@@ -7,10 +7,11 @@ import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.util.HttpUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -26,12 +27,12 @@ import static org.nickas21.smart.util.HttpUtil.bmsSocKey;
 import static org.nickas21.smart.util.HttpUtil.consumptionTotalPowerKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergySellKey;
-import static org.nickas21.smart.util.HttpUtil.formatter;
-import static org.nickas21.smart.util.HttpUtil.formatter_D_M_Y;
 import static org.nickas21.smart.util.HttpUtil.getSunRiseSunset;
 import static org.nickas21.smart.util.HttpUtil.gridRelayStatusKey;
 import static org.nickas21.smart.util.HttpUtil.gridStatusKey;
 import static org.nickas21.smart.util.HttpUtil.productionTotalSolarPowerKey;
+import static org.nickas21.smart.util.HttpUtil.toLocaleDateString;
+import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.HttpUtil.totalConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
@@ -46,9 +47,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private double stationConsumptionPower;
     private PowerValueRealTimeData powerValueRealTimeData;
     private boolean isDay;
-    private Date curDate;
-    private Date sunRiseDate;
-    private Date sunSetDate;
+    private Instant curDate;
+    private Long sunRiseDate;
+    private Long sunSetDate;
     private Long sunRiseMax;
     private Long sunSetMin;
     private double batSocMinInMilliSec; // %
@@ -83,8 +84,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             updateSunRiseSunSetDate();
 
             String batteryPowerNewStr = -batteryPowerNew + " W";
-            Date curDate = new Date();
-            printMsgWithProgressBar(formatter.format(curDate) + ". Next update: " + formatter.format(new Date(curDate.getTime() + solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000)) + ",  after [" + solarmanStationsService.getSolarmanStation().getTimeoutSec()/60 + "] min: ",
+            Instant curInst = Instant.now();
+            String curInstStr = toLocaleTimeString(curInst);
+            printMsgWithProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000)) + ",  after [" + solarmanStationsService.getSolarmanStation().getTimeoutSec()/60 + "] min: ",
                     solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000);
             log.info("""
                             Current data:\s
@@ -94,8 +96,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],\s
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
                             -relayStatus: [{}], -gridStatus: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].""",
-                    formatter.format(new Date()),
-                    formatter.format(new Date(powerValueRealTimeData.getCollectionTime() * 1000)),
+                    curInstStr,
+                    toLocaleTimeString(powerValueRealTimeData.getCollectionTime() * 1000),
 
                     this.batterySocCur,
                     batterySocNew,
@@ -120,8 +122,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
             if (this.sunRiseDate != null && this.sunSetDate != null) {
                 if (this.batterySocCur > 0 &&
-                        this.curDate.getTime() > this.sunRiseDate.getTime() &&
-                        this.curDate.getTime() <= this.sunSetMin) {
+                        this.curDate.toEpochMilli() > this.sunRiseDate &&
+                        this.curDate.toEpochMilli() <= this.sunSetMin) {
                     isDay = true;
                     try {
                         if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
@@ -152,7 +154,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     } catch (Exception e) {
                         log.error("", e);
                     }
-                } else if (isDay && this.curDate.getTime() > this.sunSetMin) {
+                } else if (isDay && this.curDate.toEpochMilli() > this.sunSetMin) {
                     log.info("Reducing electricity consumption, TempSetMin,  SunSet start: [{}].", this.sunSetDate);
                     isDay = false;
                     try {
@@ -261,19 +263,19 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     }
 
     private void updateSunRiseSunSetDate() {
-        Date curTimeDate = new Date();
-        String curTimeDateDMY = formatter_D_M_Y.format(curTimeDate);
-        String curSunSetDateDMY = this.curDate == null ? null : formatter_D_M_Y.format(this.sunSetDate);
+        Instant curTimeDate = Instant.now();
+        String curTimeDateDMY = toLocaleDateString(curTimeDate);
+        String curSunSetDateDMY = this.curDate == null ? null : toLocaleDateString(this.sunSetDate);
         if (!curTimeDateDMY.equals(curSunSetDateDMY)) {
-            Date[] sunRiseSunSetDate;
+            Long[] sunRiseSunSetDate;
             sunRiseSunSetDate = getSunRiseSunset(solarmanStationsService.getSolarmanStation().getLocationLat(),
                     solarmanStationsService.getSolarmanStation().getLocationLng());
-            curSunSetDateDMY = formatter_D_M_Y.format(sunRiseSunSetDate[0]);
+            curSunSetDateDMY = toLocaleDateString(sunRiseSunSetDate[0]);
             if (curTimeDateDMY.equals(curSunSetDateDMY)) {
                 this.sunRiseDate = sunRiseSunSetDate[0];
                 this.sunSetDate = sunRiseSunSetDate[1];
-                this.sunRiseMax = this.sunRiseDate.getTime() + ((this.sunSetDate.getTime() - this.sunRiseDate.getTime())/2);
-                this.sunSetMin = this.sunSetDate.getTime() - 3600000;   // - 1 hour
+                this.sunRiseMax = this.sunRiseDate + ((this.sunSetDate - this.sunRiseDate)/2);
+                this.sunSetMin = this.sunSetDate - 3600000;   // - 1 hour
                 this.batSocMinInMilliSec = getBatSocMinInMilliSec();    // %/milliSec
 
             } else {
@@ -290,13 +292,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private Double getBatSocMin(){
         if (this.curDate != null) {
             if (this.sunRiseMax != null && this.sunSetMin != null
-                    && this.curDate.getTime() > this.sunRiseMax && this.curDate.getTime() <= this.sunSetMin){
-                long deltaSunRise = this.curDate.getTime() - this.sunRiseMax;
+                    && this.curDate.toEpochMilli() > this.sunRiseMax && this.curDate.toEpochMilli() <= this.sunSetMin){
+                long deltaSunRise = this.curDate.toEpochMilli() - this.sunRiseMax;
                 double deltaBatSocMinMin = deltaSunRise * this.batSocMinInMilliSec;
                 double batSocMin = solarmanStationsService.getSolarmanStation().getBatSocMinMin() + deltaBatSocMinMin;
                 return batSocMin < solarmanStationsService.getSolarmanStation().getBatSocMinMax() ?  batSocMin :
                         solarmanStationsService.getSolarmanStation().getBatSocMinMax();
-            } else if (this.curDate.getTime() > this.sunRiseDate.getTime() && this.sunRiseMax != null && this.curDate.getTime() <= this.sunRiseMax) {
+            } else if (this.curDate.toEpochMilli() > this.sunRiseDate && this.sunRiseMax != null && this.curDate.toEpochMilli() <= this.sunRiseMax) {
                 return solarmanStationsService.getSolarmanStation().getBatSocMinMin();
             }
         }
