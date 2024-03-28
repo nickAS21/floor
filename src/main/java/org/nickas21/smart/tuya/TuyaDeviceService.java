@@ -37,7 +37,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -155,7 +154,7 @@ public class TuyaDeviceService {
         sendPostRequest(path, commandsNode, deviceName);
     }
 
-    public void updateAllThermostat(Integer tempSet) throws Exception {
+    public void updateAllThermostat(Object tempSet) throws Exception {
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
         if (this.devices != null) {
             for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
@@ -193,10 +192,17 @@ public class TuyaDeviceService {
     private DeviceUpdate getDeviceUpdate(Object valueNew, Device v) {
         String fieldNameValueUpdate;
         Object valueOld;
-        if (valueNew instanceof Boolean || (v.getValueSetMaxOn()!= null && v.getValueSetMaxOn() instanceof Boolean)) {
+        if (valueNew instanceof Boolean) {
             fieldNameValueUpdate = offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
-            valueNew = valueNew instanceof Boolean ? valueNew : v.getValueSetMaxOn();
+        } else if (v.getValueSetMaxOn()!= null && v.getValueSetMaxOn() instanceof Boolean) {
+            fieldNameValueUpdate = offOnKey;
+            valueOld = v.getStatusValue(fieldNameValueUpdate, false);
+            if (valueNew == this.getDeviceProperties().getTempSetMin()) {
+                valueNew = false;
+            } else {
+                valueNew = v.getValueSetMaxOn();
+            }
         } else {
             fieldNameValueUpdate = tempSetKey;
             valueNew = Objects.equals(valueNew, deviceProperties.getTempSetMin()) ? valueNew : v.getValueSetMaxOn();
@@ -268,6 +274,9 @@ public class TuyaDeviceService {
             String k = entry.getKey();
             Device v = entry.getValue();
             Object valueNew = deviceProperties.getTempSetMin();
+            if (v.getValueSetMaxOn()!= null && v.getValueSetMaxOn() instanceof Boolean) {
+                valueNew = false;
+            }
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             log.info("Device: [{}] Update (PreDestroy). [{}] changeValue [{}] lastValue [{}]",
                     v.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
@@ -332,7 +341,7 @@ public class TuyaDeviceService {
     private TuyaToken createGetTuyaToken(String path) throws Exception {
         RequestEntity<Object> requestEntity = createGetTuyaRequest(path, true);
         ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (validateResponse(responseEntity) && responseEntity.getBody().has("result")) {
+        if (validateResponse(responseEntity) && responseEntity.getBody() != null && responseEntity.getBody().has("result")) {
             JsonNode result = responseEntity.getBody().get("result");
             Long t = responseEntity.getBody().get("t").asLong();
             String tid = responseEntity.getBody().get("tid").asText();
@@ -371,13 +380,13 @@ public class TuyaDeviceService {
                 .headers(httpHeaders -> pupulateHeaders(httpHeaders, ts, signature))
                 .retrieve();
         ObjectNode responseEntityNode = responseSpec.bodyToMono(ObjectNode.class).block();
-        if (responseEntityNode.has("success") && responseEntityNode.get("success").asBoolean()) {
+        if (responseEntityNode != null && responseEntityNode.has("success") && responseEntityNode.get("success").asBoolean()) {
             JsonNode result = responseEntityNode.get("result");
             Long t = responseEntityNode.get("t").asLong();
             String tid = responseEntityNode.get("tid").asText();
             return getExpireTuyaToken(result, t, tid);
         } else {
-            if (responseEntityNode.get("code").asInt() == GET_TUYA_REFRESH_TOKEN_ERROR_1010) {
+            if (responseEntityNode != null && responseEntityNode.get("code").asInt() == GET_TUYA_REFRESH_TOKEN_ERROR_1010) {
                 log.error("{}", responseEntityNode.get("msg").asText());
                 return createTuyaToken();
             }

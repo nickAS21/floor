@@ -7,7 +7,6 @@ import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
-import org.nickas21.smart.util.HttpUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -135,14 +134,16 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                         freePower,
                                         "TempSetMin");
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
-                            } else if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
-                                // Increase electricity consumption
-                                log.info("Increase in electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
-                                        batteryStatusNew,
-                                        freePower,
-                                        "TempSetMax");
-                                tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
-                            } else {
+                            }
+//                            else if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
+//                                // Increase electricity consumption
+//                                log.info("Increase in electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
+//                                        batteryStatusNew,
+//                                        freePower,
+//                                        "TempSetMax");
+//                                tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
+//                            }
+                            else {
                                 // Battery charge/discharge analysis program
                                 log.info("Change in electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
                                         batteryStatusNew,
