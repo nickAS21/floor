@@ -33,7 +33,6 @@ import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -220,7 +219,7 @@ public class TuyaDeviceService {
             Object valueNew = v.getValueSetMaxOn();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             Object valueOld = v.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
-            if (atomicDeltaPower.get() > 0 && deviceUpdate.getValueNew() != deviceUpdate.getValueOld()) {
+            if (atomicDeltaPower.get() > 0) {
                 if (deviceUpdate.isUpdate()){
                     sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
                     log.info("Device: [{}] Update. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
