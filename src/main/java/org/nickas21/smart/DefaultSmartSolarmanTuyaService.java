@@ -134,16 +134,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                         freePower,
                                         "TempSetMin");
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
-                            }
-//                            else if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
-//                                // Increase electricity consumption
-//                                log.info("Increase in electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
-//                                        batteryStatusNew,
-//                                        freePower,
-//                                        "TempSetMax");
-//                                tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
-//                            }
-                            else {
+                            } else {
                                 // Battery charge/discharge analysis program
                                 log.info("Change in electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
                                         batteryStatusNew,

@@ -220,7 +220,7 @@ public class TuyaDeviceService {
             Object valueNew = v.getValueSetMaxOn();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             Object valueOld = v.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
-            if ((atomicDeltaPower.get() - v.getConsumptionPower()) > 0 && deviceUpdate.getValueNew() != deviceUpdate.getValueOld()) {
+            if (atomicDeltaPower.get() > 0 && deviceUpdate.getValueNew() != deviceUpdate.getValueOld()) {
                 if (deviceUpdate.isUpdate()){
                     sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
                     log.info("Device: [{}] Update. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
