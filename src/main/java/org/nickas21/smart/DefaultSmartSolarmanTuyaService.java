@@ -170,7 +170,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         boolean isCharge = freeBatteryPower >= 0 && (BatteryStatus.CHARGING.getType().equals(batteryStatusNew) || BatteryStatus.STATIC.getType().equals(batteryStatusNew));
         log.info("Battery: status -> [{}], freePower [{}], state: [{}]", batteryStatusNew, freeBatteryPower, isCharge);
         if (isCharge) {     // Battery charge
-            tuyaDeviceService.updateThermostatBatteryCharge(freeBatteryPower,
+            tuyaDeviceService.updateThermostatBatteryCharge(freeBatteryPower, this.curDate.toEpochMilli(), this.sunSetMin,
                     tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
         } else {     // Battery discharge
             tuyaDeviceService.updateThermostatBatteryDischarge(freeBatteryPower,
