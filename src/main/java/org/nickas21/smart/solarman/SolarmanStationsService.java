@@ -25,7 +25,6 @@ import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_COMMUNICATION;
 import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_CURRENT_DATA;
 import static org.nickas21.smart.solarman.api.ApiPath.STATION_LIST;
 import static org.nickas21.smart.solarman.api.ApiPath.TOKEN;
-import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 
 @Slf4j
 @Service

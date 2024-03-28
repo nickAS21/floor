@@ -311,8 +311,8 @@ public class TuyaDeviceService {
         if (hasValidAccessToken()) {
             if (hasRefreshAccessToken()) {
                 this.accessTuyaToken = refreshTuyaToken();
-                String tokenStart = this.accessTuyaToken != null && this.accessTuyaToken.getT() != null ? Instant.ofEpochMilli(this.accessTuyaToken.getT()).toString() : null;
-                String expireTimeFinish = this.accessTuyaToken != null && this.accessTuyaToken.getExpireTimeFinish() != null ? Instant.ofEpochMilli(this.accessTuyaToken.getExpireTimeFinish()).toString() : null;
+                String tokenStart = this.accessTuyaToken != null && this.accessTuyaToken.getT() != null ? toLocaleTimeString(this.accessTuyaToken.getT()) : null;
+                String expireTimeFinish = this.accessTuyaToken != null && this.accessTuyaToken.getExpireTimeFinish() != null ? toLocaleTimeString(this.accessTuyaToken.getExpireTimeFinish()) : null;
                 log.info("Refresh Tuya token: start [{}] expireTimeFinish [{}}]", tokenStart, expireTimeFinish);
             }
         } else {
