@@ -147,7 +147,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         log.error("", e);
                     }
                 } else if (isDay && this.curDate.toEpochMilli() > this.sunSetMin) {
-                    log.info("Reducing electricity consumption, TempSetMin,  SunSet start: [{}].", this.sunSetDate);
+                    log.info("Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", toLocaleTimeString(this.sunSetDate));
                     isDay = false;
                     try {
                         if (this.batterySocCur > 0) {
