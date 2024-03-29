@@ -210,24 +210,16 @@ public class TuyaDeviceService {
         return new DeviceUpdate(fieldNameValueUpdate, valueNew, valueOld);
     }
 
-    public void updateThermostatBatteryCharge(int deltaPower, Long curDateEpochMilli, Long sunSetMin,  String... filters) throws Exception {
+    public void updateThermostatBatteryCharge(int deltaPower,  String... filters) throws Exception {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(true, filters);
-        boolean sunSetBeforeTwoHours = curDateEpochMilli <= (sunSetMin - 3600000);
-        if (sunSetBeforeTwoHours) {
-            log.info("More than two hours until sunset");
-        } else {
-            log.info("Less than two hours until sunset");
-        }
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
             String k = entry.getKey();
             Device v = entry.getValue();
             Object valueNew = v.getValueSetMaxOn();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             Object valueOld = v.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
-            boolean updateByDeltaPower = sunSetBeforeTwoHours ? atomicDeltaPower.get() > 0 : // 1 hour
-                    (atomicDeltaPower.get() - v.getConsumptionPower()) > 0;
-            if (updateByDeltaPower) {
+            if (atomicDeltaPower.get() - v.getConsumptionPower() > 0) {
                 if (deviceUpdate.isUpdate()){
                     sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
                     log.info("Device: [{}] Update. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
