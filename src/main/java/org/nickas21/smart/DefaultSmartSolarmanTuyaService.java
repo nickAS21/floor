@@ -309,9 +309,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 powerValueRealTimeData.getConsumptionTotalPowerValue() -
                 stationConsumptionPower);
         if (this.sunRiseMax != null && this.sunRiseMax > System.currentTimeMillis()) {
-            freePower += (powerValueRealTimeData.getProductionTotalSolarPowerValue()*0.3);
+            freePower += solarmanStationsService.getSolarmanStation().getDopPowerToMax();
         } else {
-            freePower -= (powerValueRealTimeData.getProductionTotalSolarPowerValue()*0.3);
+            freePower -= solarmanStationsService.getSolarmanStation().getDopPowerToMin();
         }
         return freePower;
     }
