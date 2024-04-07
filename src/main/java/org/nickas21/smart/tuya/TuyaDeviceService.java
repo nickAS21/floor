@@ -38,10 +38,15 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.nickas21.smart.tuya.constant.TuyaApi.CODE;
@@ -71,6 +76,8 @@ public class TuyaDeviceService {
 
     private TuyaToken accessTuyaToken;
     public Devices devices;
+
+    private Map<Device, DeviceUpdate> queueUpdateMax = new ConcurrentHashMap<>();
 
     private final TuyaConnectionProperties connectionConfiguration;
     private final TuyaDeviceProperties deviceProperties;
@@ -221,14 +228,13 @@ public class TuyaDeviceService {
             Object valueOld = v.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
             if (atomicDeltaPower.get() - v.getConsumptionPower() > 0) {
                 if (deviceUpdate.isUpdate()){
-                    sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
-                    log.info("Device: [{}] Update. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
+                    queueUpdateMax.put(v, deviceUpdate);
+                    log.info("Device: [{}] Add to Queue. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
                             v.getName(),
                             atomicDeltaPower.get(),  v.getConsumptionPower(), atomicDeltaPower.get()- v.getConsumptionPower(),
                             deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
                             valueOld);
                    atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
-
                 } else {
                     log.info("Device: [{}] not Update. Charge left power [{}], [{}] changeValue [{}] lastValue [{}]",
                             v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), valueOld);
@@ -237,6 +243,43 @@ public class TuyaDeviceService {
                 log.info("Device: [{}] not Update. Charge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
                         v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), deviceUpdate.getValueNew(), valueOld);
             }
+        }
+        updateThermostatsMax(30000);
+    }
+
+    private void updateThermostatsMax(int intervalMillis) {
+        if (queueUpdateMax.size()>0) {
+            AtomicInteger atomicTaskCnt = new AtomicInteger(0);
+            Iterator<Device> iteration = queueUpdateMax.keySet().iterator();
+            Timer timer = new Timer();
+            TimerTask task = new TimerTask() {
+                @Override
+                public void run() {
+                    if (iteration.hasNext()) {
+                        Device v = iteration.next();
+                        DeviceUpdate deviceUpdate = queueUpdateMax.get(v);
+                        try {
+                            sendPostRequestCommand(v.getId(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
+                            log.info("Device: [{}] Update. Parameter [{}] changeValue [{}] lastValue [{}]",
+                                    v.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
+                                    v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
+                            atomicTaskCnt.incrementAndGet();
+                        } catch (Exception e) {
+                            log.error("Device: [{}] not Update. [{}]", v.getName(), e.getMessage());
+                            queueUpdateMax.remove(v);
+                        }
+
+                    } else {
+                        // Stop the timer when maxIterations is reached
+                        log.info("Finish run timer: [{}] from [{}]", atomicTaskCnt.get(), queueUpdateMax.size());
+                        timer.cancel();
+                        queueUpdateMax.clear();
+                    }
+                }
+            };
+            // Schedule the task to run at fixed intervals
+            timer.scheduleAtFixedRate(task, 0, intervalMillis);
+
         }
     }
 
