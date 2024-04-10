@@ -87,6 +87,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             String curInstStr = toLocaleTimeString(curInst);
             printMsgWithProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000)) + ",  after [" + solarmanStationsService.getSolarmanStation().getTimeoutSec()/60 + "] min: ",
                     solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000);
+            if (this.batterySocCur == 0) {
+                try {
+                    this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                } catch (Exception e) {
+                    log.error("Start, updateAllThermostat to min.", e);
+                }
+            }
             log.info("""
                             Current data:\s
                             Current real time data: [{}], -Update real time data: [{}],\s
@@ -153,9 +160,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     log.info("Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", toLocaleTimeString(this.sunSetDate));
                     isDay = false;
                     try {
-                        if (this.batterySocCur > 0) {
-                            this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
-                        }
+                        this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                     } catch (Exception e) {
                         log.error("SunSet, updateAllThermostat to min.", e);
                     }
