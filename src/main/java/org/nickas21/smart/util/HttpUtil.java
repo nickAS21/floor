@@ -67,7 +67,7 @@ public class HttpUtil {
     public static String toLocaleDateTimeString(Instant curInst) {
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.MEDIUM)
-                .withLocale(Locale.forLanguageTag("uk-UA"))
+                .withLocale(Locale.forLanguageTag("en-US"))
                 .withZone(TimeZone.getTimeZone("Europe/Kyiv").toZoneId());
         return formatter.format(curInst);
     }
