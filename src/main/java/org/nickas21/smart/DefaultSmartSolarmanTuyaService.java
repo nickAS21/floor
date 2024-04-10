@@ -312,7 +312,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 if (batterySocNew >= 98.00) {
                     freePowerCorrect = Math.max(freePowerCorrect, 2000);
                 } else if (isCharge) {
-                    freePowerCorrect = freePowerCorrect >=2000 ? freePowerCorrect : (freePowerCorrect += solarmanStationsService.getSolarmanStation().getDopPowerToMax());
+                    if (freePowerCorrect < 2000) {
+                        if ((freePowerCorrect + solarmanStationsService.getSolarmanStation().getDopPowerToMax()) > 2000) {
+                            freePowerCorrect = 2000;
+                        } else {
+                            freePowerCorrect += solarmanStationsService.getSolarmanStation().getDopPowerToMax();
+                        }
+                    }
                 }
             } else {
 //            freePower -= solarmanStationsService.getSolarmanStation().getDopPowerToMin();

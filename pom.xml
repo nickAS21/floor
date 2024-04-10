@@ -12,7 +12,7 @@
 
     <groupId>org.nickas21.solar.pulsar.tuya</groupId>
     <artifactId>floor</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.3</version>
     <description>Smart home, underfloor heating control from solar panels</description>
     <packaging>jar</packaging>
 
