@@ -156,7 +156,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     } catch (Exception e) {
                         log.error("", e);
                     }
-                } else if (isDay && this.curDate.toEpochMilli() > this.sunSetMin) {
+                } else if (isDay && (this.curDate.toEpochMilli() > this.sunSetMin || this.curDate.toEpochMilli() < this.sunRiseDate)) {
                     log.info("Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", toLocaleTimeString(this.sunSetDate));
                     isDay = false;
                     try {
@@ -263,7 +263,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private void updateSunRiseSunSetDate() {
         Instant curTimeDate = Instant.now();
         String curTimeDateDMY = toLocaleDateString(curTimeDate);
-        String curSunSetDateDMY = this.curDate == null ? null : toLocaleDateString(this.sunSetDate);
+        String curSunSetDateDMY = this.curDate == null ? null : this.sunSetDate == null ? null : toLocaleDateString(this.sunSetDate);
         if (!curTimeDateDMY.equals(curSunSetDateDMY)) {
             Long[] sunRiseSunSetDate;
             sunRiseSunSetDate = getSunRiseSunset(solarmanStationsService.getSolarmanStation().getLocationLat(),
@@ -277,10 +277,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 this.batSocMinInMilliSec = getBatSocMinInMilliSec();    // %/milliSec
 
             } else {
-                this.sunRiseDate = null;
-                this.sunSetDate = null;
-                this.sunRiseMax = null;
-                this.sunSetMin = null;
+//                this.sunRiseDate = null;
+//                this.sunSetDate = null;
+//                this.sunRiseMax = null;
+//                this.sunSetMin = null;
                 this.batSocMinInMilliSec = solarmanStationsService.getSolarmanStation().getBatSocMinMin();
             }
         }
@@ -288,7 +288,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     }
 
     private Double getBatSocMin(){
-        if (this.curDate != null) {
+        if (this.curDate != null && this.sunRiseDate != null) {
             if (this.sunRiseMax != null && this.sunSetMin != null
                     && this.curDate.toEpochMilli() > this.sunRiseMax && this.curDate.toEpochMilli() <= this.sunSetMin){
                 long deltaSunRise = this.curDate.toEpochMilli() - this.sunRiseMax;
