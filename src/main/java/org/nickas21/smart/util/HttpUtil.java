@@ -44,14 +44,17 @@ public class HttpUtil {
     public static final String productionTotalSolarPowerKey = "S_P_T";   // kWh
     public static final String consumptionTotalPowerKey = "E_Puse_t1";   // kWh
 
+    public static final Locale locale = Locale.forLanguageTag("en-US");
+    public static final TimeZone timeZone = TimeZone.getTimeZone("Europe/Kyiv");
+
     public static String toLocaleTimeString(Long milliSec) {
         return toLocaleTimeString(Instant.ofEpochMilli(milliSec));
     }
     public static String toLocaleTimeString(Instant curInst) {
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofLocalizedTime(FormatStyle.MEDIUM)
-                .withLocale(Locale.forLanguageTag("uk-UA"))
-                .withZone(TimeZone.getTimeZone("Europe/Kyiv").toZoneId());
+                .withLocale(locale)
+                .withZone(timeZone.toZoneId());
         return formatter.format(curInst);
     }
     public static String toLocaleDateString(Long milliSec) {
@@ -60,15 +63,15 @@ public class HttpUtil {
     public static String toLocaleDateString(Instant curInst) {
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofLocalizedDate(FormatStyle.FULL)
-                .withLocale(Locale.forLanguageTag("uk-UA"))
-                .withZone(TimeZone.getTimeZone("Europe/Kyiv").toZoneId());
+                .withLocale(locale)
+                .withZone(timeZone.toZoneId());
         return formatter.format(curInst);
     }
     public static String toLocaleDateTimeString(Instant curInst) {
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.MEDIUM)
-                .withLocale(Locale.forLanguageTag("en-US"))
-                .withZone(TimeZone.getTimeZone("Europe/Kyiv").toZoneId());
+                .withLocale(locale)
+                .withZone(timeZone.toZoneId());
         return formatter.format(curInst);
     }
 
