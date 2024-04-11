@@ -37,6 +37,7 @@ import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.totalGridPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
+import static org.nickas21.smart.util.StringUtils.printMsgProgressBar;
 import static org.nickas21.smart.util.StringUtils.printMsgWithProgressBar;
 
 @Slf4j
@@ -85,8 +86,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             String batteryPowerNewStr = -batteryPowerNew + " W";
             Instant curInst = Instant.now();
             String curInstStr = toLocaleTimeString(curInst);
-            printMsgWithProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000)) + ",  after [" + solarmanStationsService.getSolarmanStation().getTimeoutSec()/60 + "] min: ",
+            printMsgProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000)) + ",  after [" + solarmanStationsService.getSolarmanStation().getTimeoutSec()/60 + "] min: ",
                     solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000);
+//            printMsgWithProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000)) + ",  after [" + solarmanStationsService.getSolarmanStation().getTimeoutSec()/60 + "] min: ",
+//                    solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000);
             if (this.batterySocCur == 0) {
                 try {
                     this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
