@@ -25,14 +25,17 @@ public class StringUtils {
         for (int i = 0; i < length; i++) {
             builder.replace(i, i + 1, String.valueOf(complete));
             builder.replace(i+1, i +2, String.valueOf(completeFinish));
-            String progressBar = "\r" + message + builder + "\r" ;
-            System.out.print(progressBar);
+//            String progressBar = "\r" + message + builder + "\r" ;
+            String progressBar =  "\r" + message + "[" + builder + "]" + "\r";
+//            System.out.print(progressBar);
+            log.info(progressBar);
             try {
                 Thread.sleep(timeInterval);
             } catch (InterruptedException ignored) {
                 log.error("", ignored);
             }
         }
+        log.info("Start update after progressBar");
     }
 
 }

@@ -277,10 +277,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 this.batSocMinInMilliSec = getBatSocMinInMilliSec();    // %/milliSec
 
             } else {
-//                this.sunRiseDate = null;
-//                this.sunSetDate = null;
-//                this.sunRiseMax = null;
-//                this.sunSetMin = null;
                 this.batSocMinInMilliSec = solarmanStationsService.getSolarmanStation().getBatSocMinMin();
             }
         }
