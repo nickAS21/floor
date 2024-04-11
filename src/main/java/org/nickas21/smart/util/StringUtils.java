@@ -2,8 +2,6 @@ package org.nickas21.smart.util;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.stream.Stream;
-
 @Slf4j
 public class StringUtils {
 
@@ -23,7 +21,7 @@ public class StringUtils {
             }
         }
         System.out.print("|" + "=".repeat(size) + "|\r");
-        log.info("Update after progressBar...");
+        log.info("Update after progressBar... ver: 2.3");
     }
 }
 

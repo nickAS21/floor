@@ -155,7 +155,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             }
                         }
                     } catch (Exception e) {
-                        log.error("", e);
+                        log.error("isDay: [{}] [{}]", isDay, e.getMessage());
                     }
                 } else if (isDay && (this.curDate.toEpochMilli() > this.sunSetMin || this.curDate.toEpochMilli() < this.sunRiseDate)) {
                     log.info("Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", toLocaleTimeString(this.sunSetDate));
@@ -264,8 +264,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private void updateSunRiseSunSetDate() {
         Instant curTimeDate = Instant.now();
         String curTimeDateDMY = toLocaleDateString(curTimeDate);
-        String curSunSetDateDMY = this.curDate == null ? null : this.sunSetDate == null ? null : toLocaleDateString(this.sunSetDate);
-        if (!curTimeDateDMY.equals(curSunSetDateDMY)) {
+        String curSunSetDateDMY = this.sunSetDate == null ? null : toLocaleDateString(this.sunSetDate);
+         if (!curTimeDateDMY.equals(curSunSetDateDMY)) {
+            log.info("curTimeDateDMY:  [{}]", curTimeDateDMY);
+            log.info("curSunSetDateDMY [{}]", curSunSetDateDMY);
             Long[] sunRiseSunSetDate;
             sunRiseSunSetDate = getSunRiseSunset(solarmanStationsService.getSolarmanStation().getLocationLat(),
                     solarmanStationsService.getSolarmanStation().getLocationLng());
