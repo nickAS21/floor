@@ -48,6 +48,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private double stationConsumptionPower;
     private PowerValueRealTimeData powerValueRealTimeData;
     private boolean isDay;
+    private boolean isUpdateAfterIsDayFalse;
     private Instant curDate;
     private Long sunRiseDate;
     private Long sunSetDate;
@@ -66,7 +67,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     @Override
     public void solarmanRealTimeDataStart() {
-        this.isDay = true;
         this.batterySocCur = 0;
         this.stationConsumptionPower = solarmanStationsService.getSolarmanStation().getStationConsumptionPower();
         this.powerValueRealTimeData = PowerValueRealTimeData.builder().build();
@@ -76,7 +76,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     }
 
     private void setBmsSocCur() {
-        log.info("Is Day [{}]", isDay);
         try {
             updatePowerValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
@@ -87,6 +86,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
 
             updateSunRiseSunSetDate();
+            setIsDay();
             setTimeoutSecUpdate();
 
             String batteryPowerNewStr = -batteryPowerNew + " W";
@@ -96,7 +96,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     this.timeoutSecUpdate*1000, this.version);
             if (this.batterySocCur == 0) {
                 try {
+                    log.info("Init parameters: Reducing electricity consumption, TempSetMin");
                     this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                    isUpdateAfterIsDayFalse = true;
                 } catch (Exception e) {
                     log.error("Start, updateAllThermostat to min.", e);
                 }
@@ -134,11 +136,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell());
 
-            if (this.sunRiseDate != null && this.sunSetDate != null) {
-                if (this.batterySocCur > 0 &&
-                        this.curDate.toEpochMilli() > this.sunRiseDate &&
-                        this.curDate.toEpochMilli() <= this.sunSetMin) {
-                    isDay = true;
+            if (isDay) {
+                isUpdateAfterIsDayFalse = false;
+                if (this.batterySocCur > 0) {
                     try {
                         if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
                             boolean isCharge = getIsCharge ();
@@ -156,28 +156,34 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                         batteryStatusNew,
                                         freePowerCorrect,
                                         "TempSet_Min/Max");
-                                log.info("Battery: status -> [{}], freePower [{}], state: [{}]", batteryStatusNew, freePowerCorrect, isCharge);
+                                log.info("Battery: status -> [{}], freePower [{}], isCharging: [{}]", batteryStatusNew, freePowerCorrect, isCharge);
                                 this.batteryChargeDischarge(isCharge, freePowerCorrect);
                             }
                         }
                     } catch (Exception e) {
                         log.error("isDay: [{}] [{}]", isDay, e.getMessage());
                     }
-                } else if (isDay && (this.curDate.toEpochMilli() > this.sunSetMin || this.curDate.toEpochMilli() < this.sunRiseDate)) {
-                    log.info("Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", toLocaleTimeString(this.sunSetDate));
-                    isDay = false;
+                }
+            } else {
+                if (!isUpdateAfterIsDayFalse) {
+                    log.info("Update parameters idDay [{}]: Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", this.isDay, toLocaleTimeString(this.sunSetDate));
+                    log.info("Night   at: [{}]", toLocaleTimeString(this.sunSetMin));
                     try {
                         this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                        isUpdateAfterIsDayFalse = true;
                     } catch (Exception e) {
-                        log.error("SunSet, updateAllThermostat to min.", e);
+                        log.error("Update parameters idDay [{}] UpdateAllThermostat to min. Error: [{}}]", this.isDay, e.getMessage());
                     }
                 }
-            } else if (this.batterySocCur > 0) {
-                log.info("Time out, update SunRiseDate and SunSetDate...");
             }
             batterySocCur = batterySocNew;
         } catch (Exception e) {
-            log.error("Failed updatePower or SunRiseSunSetDate or updateThermostat, [{}]", e.getMessage());
+            log.error("Update parameters idDay [{}] UpdateAllThermostat to min after Error: [{}}]", this.isDay, e.getMessage());
+            try {
+                this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+            } catch (Exception e1) {
+                log.error("Failed UpdateAllThermostat to min after -> Error. New Error: [{}}]", e1.getMessage());
+            }
         }
     }
 
@@ -283,6 +289,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 this.sunSetDate = sunRiseSunSetDate[1];
                 this.sunRiseMax = this.sunRiseDate + ((this.sunSetDate - this.sunRiseDate)/3*2);
                 this.sunSetMin = this.sunSetDate - 3600000;   // - 1 hour
+                log.info("Night   at: [{}]", toLocaleTimeString(this.sunSetMin));
                 this.batSocMinInMilliSec = getBatSocMinInMilliSec();    // %/milliSec
 
             } else {
@@ -355,6 +362,19 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         return  freePower >= 0 && (BatteryStatus.CHARGING.getType().equals(powerValueRealTimeData.getBatteryStatusValue())
                 || BatteryStatus.STATIC.getType().equals(powerValueRealTimeData.getBatteryStatusValue()));
 
+    }
+
+    private void setIsDay() {
+        if (this.curDate != null && this.sunSetMin != null && this.sunRiseDate != null) {
+            if (this.curDate.toEpochMilli() >= this.sunRiseDate && this.curDate.toEpochMilli() < this.sunSetMin) {
+                this.isDay = true;
+            } else {
+                this.isDay = false;
+            }
+        } else {
+            this.isDay = false;
+        }
+        log.info("Is Day [{}]", isDay);
     }
 }
 
