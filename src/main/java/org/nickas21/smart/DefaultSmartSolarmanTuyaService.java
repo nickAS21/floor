@@ -8,6 +8,7 @@ import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -55,6 +56,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private Long timeoutSecUpdate;
     private double batSocMinInMilliSec; // %
 
+    @Value("${app.version:unknown}")
+    String version;
     @Autowired
     SolarmanStationsService solarmanStationsService;
 
@@ -90,7 +93,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             Instant curInst = Instant.now();
             String curInstStr = toLocaleTimeString(curInst);
             printMsgProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ",
-                    this.timeoutSecUpdate*1000);
+                    this.timeoutSecUpdate*1000, this.version);
             if (this.batterySocCur == 0) {
                 try {
                     this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
@@ -292,12 +295,12 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private void setTimeoutSecUpdate() {
         if (isDay) {
             if ( this.sunRiseMax != null && this.curDate.toEpochMilli() < this.sunRiseMax) {
-                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 2; // 10 min
+                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 3; // 6 min
             } else {
-                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec();   // 5 min
+                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 2;   // 4 min
             }
         } else {
-            this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec()*6; // 30 min
+            this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 15; // 30 min
         }
     }
 

@@ -12,7 +12,7 @@ public class SolarmanStation {
     private Long inverterId;
     private Long loggerId;
     @Builder.Default
-    private Long timeoutSec = 600L;
+    private Long timeoutSec = 120L;
     @Builder.Default
     private double batSocMinMin = 50.0;
     @Builder.Default

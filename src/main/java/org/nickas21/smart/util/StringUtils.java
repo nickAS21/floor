@@ -9,7 +9,7 @@ public class StringUtils {
         return source == null || source.isEmpty() || source.trim().isEmpty();
     }
 
-    public static void printMsgProgressBar(String message, long timeAll) {
+    public static void printMsgProgressBar(String message, long timeAll, String version) {
         int size = 60;
         int timeInterval = Math.toIntExact(timeAll/size);
         for (int i=1; i<size; i++) {
@@ -21,7 +21,7 @@ public class StringUtils {
             }
         }
         System.out.print("|" + "=".repeat(size) + "|\r");
-        log.info("Update after progressBar... ver: 2.4");
+        log.info("Update after progressBar... ver: {}", version);
     }
 }
 

@@ -1,6 +1,9 @@
 server:
   port : 8084
 
+app:
+  version: '@project.version@'
+
 connector:
   tuya:
     region: EU
@@ -19,7 +22,7 @@ smart:
     temp-set-max: 24
     category-for-control-powers: wk
   solarman:
-    timeout-sec: "${SOLARMAN_TIMEOUT_SEC:300}"
+    timeout-sec: "${SOLARMAN_TIMEOUT_SEC:120}"
     bat-soc-min-min: "${SOLARMAN_BAT_SOC_MIN_MIN:50.0}"
     bat-soc-min-max: "${SOLARMAN_BAT_SOC_MIN_MAX:80.0}"
     bat-soc-max: "${SOLARMAN_BAT_SOC_MAX:97.0}"
