@@ -217,11 +217,10 @@ public class TuyaDeviceService {
         return new DeviceUpdate(fieldNameValueUpdate, valueNew, valueOld);
     }
 
-    public void updateThermostatBatteryCharge(int deltaPower,  String... filters) throws Exception {
+    public void updateThermostatBatteryCharge(int deltaPower, Long timeoutSecUpdate,  String... filters) throws Exception {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(true, filters);
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
-            String k = entry.getKey();
             Device v = entry.getValue();
             Object valueNew = v.getValueSetMaxOn();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
@@ -244,11 +243,12 @@ public class TuyaDeviceService {
                         v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), deviceUpdate.getValueNew(), valueOld);
             }
         }
-        updateThermostatsMax(30000);
+        updateThermostatsMax(timeoutSecUpdate*1000);
     }
 
-    private void updateThermostatsMax(int intervalMillis) {
-        if (queueUpdateMax.size()>0) {
+    private void updateThermostatsMax(Long timeoutSecUpdateMillis) {
+        int size = queueUpdateMax.size();
+        if (size > 0) {
             AtomicInteger atomicTaskCnt = new AtomicInteger(0);
             Iterator<Device> iteration = queueUpdateMax.keySet().iterator();
             Timer timer = new Timer();
@@ -278,6 +278,7 @@ public class TuyaDeviceService {
                 }
             };
             // Schedule the task to run at fixed intervals
+            int intervalMillis = timeoutSecUpdateMillis/size < 30000 ? (int) (timeoutSecUpdateMillis / size) : 30000;
             timer.scheduleAtFixedRate(task, 0, intervalMillis);
 
         }

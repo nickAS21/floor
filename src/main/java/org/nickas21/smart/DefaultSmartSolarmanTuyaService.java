@@ -183,7 +183,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     private void batteryChargeDischarge(boolean isCharge, int freeBatteryPower) throws Exception {
         if (isCharge) {     // Battery charge
-            tuyaDeviceService.updateThermostatBatteryCharge(freeBatteryPower,
+            tuyaDeviceService.updateThermostatBatteryCharge(freeBatteryPower, this.timeoutSecUpdate,
                     tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
         } else {     // Battery discharge
             tuyaDeviceService.updateThermostatBatteryDischarge(freeBatteryPower,
