@@ -10,8 +10,8 @@ public class StringUtils {
     }
 
     public static void printMsgProgressBar(String message, long timeAll) {
-        long timeInterval = 5000L;
-        int size = Math.toIntExact(timeAll/timeInterval);
+        int size = 60;
+        int timeInterval = Math.toIntExact(timeAll/size);
         for (int i=1; i<size; i++) {
             try {
                 Thread.sleep(timeInterval);
@@ -21,7 +21,7 @@ public class StringUtils {
             }
         }
         System.out.print("|" + "=".repeat(size) + "|\r");
-        log.info("Update after progressBar... ver: 2.3");
+        log.info("Update after progressBar... ver: 2.4");
     }
 }
 

@@ -52,6 +52,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private Long sunSetDate;
     private Long sunRiseMax;
     private Long sunSetMin;
+    private Long timeoutSecUpdate;
     private double batSocMinInMilliSec; // %
 
     @Autowired
@@ -67,7 +68,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         this.stationConsumptionPower = solarmanStationsService.getSolarmanStation().getStationConsumptionPower();
         this.powerValueRealTimeData = PowerValueRealTimeData.builder().build();
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-        executorService.scheduleAtFixedRate(this::setBmsSocCur, 0, solarmanStationsService.getSolarmanStation().getTimeoutSec(), TimeUnit.SECONDS);
+        this.timeoutSecUpdate = this.timeoutSecUpdate == null ?  solarmanStationsService.getSolarmanStation().getTimeoutSec() : this.timeoutSecUpdate;
+        executorService.scheduleAtFixedRate(this::setBmsSocCur, 0, this.timeoutSecUpdate, TimeUnit.SECONDS);
     }
 
     private void setBmsSocCur() {
@@ -82,12 +84,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
 
             updateSunRiseSunSetDate();
+            setTimeoutSecUpdate();
 
             String batteryPowerNewStr = -batteryPowerNew + " W";
             Instant curInst = Instant.now();
             String curInstStr = toLocaleTimeString(curInst);
-            printMsgProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000)) + ",  after [" + solarmanStationsService.getSolarmanStation().getTimeoutSec()/60 + "] min: ",
-                    solarmanStationsService.getSolarmanStation().getTimeoutSec()*1000);
+            printMsgProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ",
+                    this.timeoutSecUpdate*1000);
             if (this.batterySocCur == 0) {
                 try {
                     this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
@@ -284,6 +287,18 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
         }
         this.curDate = curTimeDate;
+    }
+
+    private void setTimeoutSecUpdate() {
+        if (isDay) {
+            if ( this.sunRiseMax != null && this.curDate.toEpochMilli() < this.sunRiseMax) {
+                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 2; // 10 min
+            } else {
+                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec();   // 5 min
+            }
+        } else {
+            this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec()*6; // 30 min
+        }
     }
 
     private Double getBatSocMin(){
