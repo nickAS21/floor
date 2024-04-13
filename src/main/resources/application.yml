@@ -3,6 +3,7 @@ server:
 
 app:
   version: '@project.version@'
+  title: '@project.description@'
 
 connector:
   tuya:
