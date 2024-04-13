@@ -278,7 +278,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         String curTimeDateDMY = toLocaleDateString(curTimeDate);
         String curSunSetDateDMY = this.sunSetDate == null ? null : toLocaleDateString(this.sunSetDate);
         String curSunSetTime = this.sunSetDate == null ? null : toLocaleTimeString(this.sunSetDate);
-         if (!curTimeDateDMY.equals(curSunSetDateDMY)) {
+        if (!curTimeDateDMY.equals(curSunSetDateDMY)) {
             log.info("curTimeDateDMY:  [{}] : [{}]", curTimeDateDMY, toLocaleTimeString(curTimeDate));
             log.info("curSunSetDateDMY [{}] : [{}]", curSunSetDateDMY, curSunSetTime);
             Long[] sunRiseSunSetDate;
