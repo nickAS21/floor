@@ -98,10 +98,7 @@ public class HttpUtil {
     public static Long[] getSunRiseSunset(double locationLat, double locationLng) {
         Long[] result = new Long[2];
         log.info("GetSunRiseSunset Calendar dateTime: [{}]", toLocaleDateTimeString(Calendar.getInstance().toInstant()));
-        Calendar date = Calendar.getInstance(TimeZone.getDefault());
-        if (date.get(Calendar.HOUR_OF_DAY) <= 2) {
-            date.set(Calendar.HOUR_OF_DAY, 2);
-        }
+        Calendar date = Calendar.getInstance(timeZone);
         Calendar[] calendars = ca.rmen.sunrisesunset.SunriseSunset.getSunriseSunset(date, locationLat, locationLng);
         result[0] = calendars[0].getTimeInMillis();
         result[1] = calendars[1].getTimeInMillis();
