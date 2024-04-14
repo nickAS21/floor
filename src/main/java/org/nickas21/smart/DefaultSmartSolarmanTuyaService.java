@@ -56,6 +56,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private Long sunSetMin;
     private Long timeoutSecUpdate;
     private double batSocMinInMilliSec; // %
+    private int freePowerCorrectMinMax;
 
     @Value("${app.version:unknown}")
     String version;
@@ -340,14 +341,19 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 powerValueRealTimeData.getConsumptionTotalPowerValue() -
                 stationConsumptionPower);
             if (this.sunRiseMax != null && this.sunRiseMax > System.currentTimeMillis()) {
+                this.freePowerCorrectMinMax = this.freePowerCorrectMinMax == 0 ?
+                        solarmanStationsService.getSolarmanStation().getDopPowerToMax() :
+                        this.freePowerCorrectMinMax == solarmanStationsService.getSolarmanStation().getDopPowerToMax() ?
+                            solarmanStationsService.getSolarmanStation().getDopPowerToMin() :
+                            solarmanStationsService.getSolarmanStation().getDopPowerToMax();
                 if (batterySocNew >= 98.00) {
-                    freePowerCorrect = Math.max(freePowerCorrect, 2000);
+                    freePowerCorrect = Math.max(freePowerCorrect, this.freePowerCorrectMinMax);
                 } else if (isCharge) {
-                    if (freePowerCorrect < 2000) {
-                        if ((freePowerCorrect + solarmanStationsService.getSolarmanStation().getDopPowerToMax()) > 2000) {
-                            freePowerCorrect = 2000;
+                    if (freePowerCorrect < this.freePowerCorrectMinMax) {
+                        if ((freePowerCorrect + solarmanStationsService.getSolarmanStation().getDopPowerToMin()) > this.freePowerCorrectMinMax) {
+                            freePowerCorrect = this.freePowerCorrectMinMax;
                         } else {
-                            freePowerCorrect += solarmanStationsService.getSolarmanStation().getDopPowerToMax();
+                            freePowerCorrect += solarmanStationsService.getSolarmanStation().getDopPowerToMin();
                         }
                     }
                 }

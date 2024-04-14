@@ -26,9 +26,9 @@ public class SolarmanStation {
     @Builder.Default
     private double stationConsumptionPower = 75.0;
     @Builder.Default
-    private int dopPowerToMax = 800;
+    private int dopPowerToMax = 2000;
     @Builder.Default
-    private int dopPowerToMin = 300;
+    private int dopPowerToMin = 800;
     private double locationLat;   //": 50.31023634165624,
     private double locationLng;
 }
