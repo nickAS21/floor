@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.Calendar;
@@ -99,8 +100,10 @@ public class HttpUtil {
         Long[] result = new Long[2];
         log.info("GetSunRiseSunset Calendar dateTime: [{}]", toLocaleDateTimeString(Calendar.getInstance().toInstant()));
         Calendar date = Calendar.getInstance(timeZone);
-        if (date.get(Calendar.HOUR_OF_DAY) <= 4) {
-            date.set(Calendar.HOUR_OF_DAY, 4);
+        int localOffsetHrs = ZoneId.systemDefault().getRules().getOffset(Instant.ofEpochMilli(date.getTimeInMillis())).getTotalSeconds()/60/60;
+
+        if (date.get(Calendar.HOUR_OF_DAY) <= localOffsetHrs) {
+            date.set(Calendar.HOUR_OF_DAY, localOffsetHrs);
         }
         Calendar[] calendars = ca.rmen.sunrisesunset.SunriseSunset.getSunriseSunset(date, locationLat, locationLng);
         result[0] = calendars[0].getTimeInMillis();
