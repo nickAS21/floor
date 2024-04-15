@@ -260,18 +260,18 @@ public class TuyaDeviceService {
                         DeviceUpdate deviceUpdate = queueUpdateMax.get(v);
                         try {
                             sendPostRequestCommand(v.getId(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
-                            log.info("Device: [{}] Update. Parameter [{}] changeValue [{}] lastValue [{}]",
+                            log.info("Timer: Device: [{}] Update. Parameter [{}] changeValue [{}] lastValue [{}]",
                                     v.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
                                     v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
                             atomicTaskCnt.incrementAndGet();
                         } catch (Exception e) {
-                            log.error("Device: [{}] not Update. [{}]", v.getName(), e.getMessage());
+                            log.error("Timer: Device: [{}] not Update. [{}]", v.getName(), e.getMessage());
                             queueUpdateMax.remove(v);
                         }
 
                     } else {
                         // Stop the timer when maxIterations is reached
-                        log.info("Finish run timer: [{}] from [{}]", atomicTaskCnt.get(), queueUpdateMax.size());
+                        log.info("Finish run timer: [{}] from [{}]", atomicTaskCnt.get(), size);
                         timer.cancel();
                         queueUpdateMax.clear();
                     }
