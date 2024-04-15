@@ -88,16 +88,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
             updateSunRiseSunSetDate();
             setIsDay();
-            setTimeoutSecUpdate();
 
             String batteryPowerNewStr = -batteryPowerNew + " W";
             Instant curInst = Instant.now();
             String curInstStr = toLocaleTimeString(curInst);
-            printMsgProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ",
-                    this.timeoutSecUpdate*1000, this.version);
+            setTimeoutSecUpdate();
             if (this.batterySocCur == 0) {
                 try {
-                    log.info("Init parameters: Reducing electricity consumption, TempSetMin");
+                    printMsgProgressBar("Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ",
+                            this.timeoutSecUpdate*1000, this.version);
                     this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                     isUpdateAfterIsDayFalse = true;
                 } catch (Exception e) {
@@ -177,6 +176,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     }
                 }
             }
+            printMsgProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ",
+                    this.timeoutSecUpdate*1000, this.version);
+
             batterySocCur = batterySocNew;
         } catch (Exception e) {
             log.error("Update parameters idDay [{}] UpdateAllThermostat to min after Error: [{}}]", this.isDay, e.getMessage());
