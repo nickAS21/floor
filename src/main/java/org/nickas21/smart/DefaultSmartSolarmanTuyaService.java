@@ -307,7 +307,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private void setTimeoutSecUpdate() {
         if (isDay) {
             if ( this.sunRiseMax != null && this.curDate.toEpochMilli() < this.sunRiseMax) {
-                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec(); // 2 min
+                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 2; // 4 min
             } else {
                 this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 2;   // 4 min
             }
