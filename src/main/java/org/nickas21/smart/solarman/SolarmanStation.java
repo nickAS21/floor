@@ -24,7 +24,7 @@ public class SolarmanStation {
     @Builder.Default
     private double batSocAlarmError = 40.0;
     @Builder.Default
-    private double stationConsumptionPower = 75.0;
+    private double stationConsumptionPower = 50.0;
     @Builder.Default
     private int dopPowerToMax = 2000;
     @Builder.Default
