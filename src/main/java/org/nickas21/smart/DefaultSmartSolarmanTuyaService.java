@@ -362,7 +362,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     }
                 }
                 freePowerCorrectCnt++;
-            } else if (freePowerCorrectCnt > 2) {
+            } else if (freePowerCorrectCnt > 1) {
                 freePowerCorrectCnt = 0;
             } else {
                 freePowerCorrectCnt++;
