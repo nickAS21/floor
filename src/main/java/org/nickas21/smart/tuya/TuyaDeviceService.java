@@ -249,6 +249,8 @@ public class TuyaDeviceService {
     private void updateThermostatsMax(Long timeoutSecUpdateMillis) {
         int size = queueUpdateMax.size();
         if (size > 0) {
+            // Schedule the task to run at fixed intervals
+            int intervalMillis = (timeoutSecUpdateMillis/size)/4 < 30000 ? (int) (timeoutSecUpdateMillis/size)/4 : 30000;
             AtomicInteger atomicTaskCnt = new AtomicInteger(0);
             Iterator<Device> iteration = queueUpdateMax.keySet().iterator();
             Timer timer = new Timer();
@@ -265,7 +267,7 @@ public class TuyaDeviceService {
                                     v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
                             atomicTaskCnt.incrementAndGet();
                         } catch (Exception e) {
-                            log.error("Timer: Device: [{}] not Update. [{}]", v.getName(), e.getMessage());
+                            log.error("Timer: Device: [{}] not Update. [{}], intervalMillis: [{}], timeoutSecUpdateMillis [{}], size [{}]", v.getName(), e.getMessage(), intervalMillis, timeoutSecUpdateMillis, size);
                             queueUpdateMax.remove(v);
                         }
 
@@ -277,8 +279,6 @@ public class TuyaDeviceService {
                     }
                 }
             };
-            // Schedule the task to run at fixed intervals
-            int intervalMillis = timeoutSecUpdateMillis/size < 30000 ? (int) (timeoutSecUpdateMillis / size) : 30000;
             timer.scheduleAtFixedRate(task, 0, intervalMillis);
 
         }
