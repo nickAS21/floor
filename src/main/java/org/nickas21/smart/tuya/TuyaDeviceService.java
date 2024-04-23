@@ -160,6 +160,27 @@ public class TuyaDeviceService {
         sendPostRequest(path, commandsNode, deviceName);
     }
 
+    public void updateAllThermostatStart() throws Exception {
+        String[] filters = getDeviceProperties().getCategoryForControlPowers();
+        if (this.devices != null) {
+            log.info("Start update Devices [{}].", this.devices.getDevIds().size());
+            int cntUpdate = 0;
+            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                String k = entry.getKey();
+                Device v = entry.getValue();
+                for (String f : filters) {
+                    if (f.equals(v.getCategory())) {
+                        updateDeviceThermostat(k, this.getDeviceProperties().getTempSetMin(), v, true);
+                        cntUpdate++;
+                    }
+                }
+            }
+            log.info("Finish updating Devices [{}] from [{}] after start", cntUpdate,  this.devices.getDevIds().size());
+        } else {
+            log.error("Devices is null, Devices not Update after start.");
+        }
+    }
+
     public void updateAllThermostat(Object tempSet) throws Exception {
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
         if (this.devices != null) {
@@ -168,7 +189,7 @@ public class TuyaDeviceService {
                 Device v = entry.getValue();
                 for (String f : filters) {
                     if (f.equals(v.getCategory())) {
-                        updateDeviceThermostat(k, tempSet, v);
+                        updateDeviceThermostat(k, tempSet, v, false);
                     }
                 }
             }
@@ -185,9 +206,9 @@ public class TuyaDeviceService {
         }
     }
 
-    private void updateDeviceThermostat (String k, Object valueNew, Device v) throws Exception {
+    private void updateDeviceThermostat (String k, Object valueNew, Device v, boolean start) throws Exception {
         DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
-        if (deviceUpdate.isUpdate()) {
+        if (deviceUpdate.isUpdate() || start) {
             sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
         } else {
             log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",

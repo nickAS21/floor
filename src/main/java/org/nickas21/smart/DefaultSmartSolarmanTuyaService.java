@@ -97,7 +97,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 try {
                     printMsgProgressBar("Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ",
                             this.timeoutSecUpdate*1000, this.version);
-                    this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                    this.tuyaDeviceService.updateAllThermostatStart();
                     isUpdateAfterIsDayFalse = true;
                 } catch (Exception e) {
                     log.error("Start, updateAllThermostat to min.", e);
