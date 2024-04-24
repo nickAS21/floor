@@ -246,7 +246,7 @@ public class TuyaDeviceService {
             Object valueNew = v.getValueSetMaxOn();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             Object valueOld = v.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
-            if (atomicDeltaPower.get() - v.getConsumptionPower() > 0) {
+            if (atomicDeltaPower.get() - v.getConsumptionPower() >= 0) {
                 if (deviceUpdate.isUpdate()){
                     queueUpdateMax.put(v, deviceUpdate);
                     log.info("Device: [{}] Add to Queue. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
