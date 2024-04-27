@@ -108,7 +108,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             Current real time data: [{}], -Update real time data: [{}],\s
                             -batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], -batterySocMin: [{} %],\s
                             -batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A],\s
-                            -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W], freePowerCorrectCnt: [{}],\s
+                            -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W], freePowerCorrectCnt: [{}], freePowerCorrectMinMax: [{}],\s
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
                             -relayStatus: [{}], -gridStatus: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].""",
                     curInstStr,
@@ -128,6 +128,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     powerValueRealTimeData.getConsumptionTotalPowerValue(),
                     stationConsumptionPower,
                     freePowerCorrectCnt,
+                    freePowerCorrectMinMax,
 
                     powerValueRealTimeData.getBatteryDailyCharge(),
                     powerValueRealTimeData.getBatteryDailyDischarge(),
