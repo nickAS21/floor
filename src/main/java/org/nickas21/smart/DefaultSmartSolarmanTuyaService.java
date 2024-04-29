@@ -348,7 +348,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             if (freePowerCorrectCnt == 0) {
                 this.freePowerCorrectMinMax = this.freePowerCorrectMinMax == 0 ?
                         solarmanStationsService.getSolarmanStation().getDopPowerToMax() :
-                        this.freePowerCorrectMinMax == solarmanStationsService.getSolarmanStation().getDopPowerToMax() ?
+                        batterySocNew >= 98.00 ? solarmanStationsService.getSolarmanStation().getDopPowerToMax() :
+                            this.freePowerCorrectMinMax == solarmanStationsService.getSolarmanStation().getDopPowerToMax() ?
                                 solarmanStationsService.getSolarmanStation().getDopPowerToMin() :
                                 solarmanStationsService.getSolarmanStation().getDopPowerToMax();
                 log.info("freePowerCorrectMinMax after update: [{}]", this.freePowerCorrectMinMax);
