@@ -7,9 +7,13 @@ app:
   test-front: false
 
 connector:
+  jwt:
+    expiresIn: 36000000
   smart:
-    login:
-    password:
+    user_login: "${USER_LOGIN:user}"
+    user_password: "${USER_PWD:user}"
+    admin_login: "${ADMIN_LOGIN:admin}"
+    admin_password: "${ADMIN_PWD:secret}"
   tuya:
     ak: "${TUYA_AK:}"
     sk: "${TUYA_SK:}"
