@@ -1,8 +1,10 @@
 package org.nickas21.smart.security.configuration;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
@@ -10,75 +12,62 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler;
-import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
-import org.springframework.security.web.server.csrf.WebSessionServerCsrfTokenRepository;
-import reactor.core.publisher.Mono;
-
-import java.net.URI;
-
-import static org.nickas21.smart.util.JwtUtil.generateToken;
+import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
 
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
+    @Autowired
+    SmartConnectionService smartConnectionService;
+
     @Bean
     public MapReactiveUserDetailsService userDetailsService() {
-        PasswordEncoder encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
-        UserDetails user = User.withUsername("user")
-                .password(encoder.encode("user"))
+
+        UserDetails user = User
+                .withUsername(smartConnectionService.getUserLogin())
+                .password(passwordEncoder().encode(smartConnectionService.getUserPassword()))
                 .roles("USER")
                 .build();
-        return new MapReactiveUserDetailsService(user);
+
+        UserDetails admin = User
+                .withUsername(smartConnectionService.getAdminLogin())
+                .password(passwordEncoder().encode(smartConnectionService.getAdminPassword()))
+                .roles("ADMIN")
+                .build();
+
+        return new MapReactiveUserDetailsService(user, admin);
     }
 
+    @Bean
+    public ReactiveAuthenticationManager authenticationManager(MapReactiveUserDetailsService userDetailsService) {
+        UserDetailsRepositoryReactiveAuthenticationManager authenticationManager =
+                new UserDetailsRepositoryReactiveAuthenticationManager(userDetailsService);
+        authenticationManager.setPasswordEncoder(passwordEncoder());
+        return authenticationManager;
+    }
 
     @Bean
-    public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+    public PasswordEncoder passwordEncoder() {
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+
+    @Bean
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
-                .csrf().csrfTokenRepository(CookieServerCsrfTokenRepository.withHttpOnlyFalse())
-                .and()
-                // Add other security configurations as needed
-                .authorizeExchange()
-                .pathMatchers("/login").permitAll()
-                .anyExchange().authenticated()
-                .and()
-                .httpBasic().and()
-                .formLogin().and()
+                .csrf().disable()
+                .authorizeExchange(exchanges -> exchanges
+                        .pathMatchers("/auth/user/login").permitAll()
+                        .anyExchange().authenticated()
+                )
+                .formLogin().disable()
+                .httpBasic().disable()
                 .build();
     }
 
-//    @Bean
-//    public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
-//        return http
-//                .csrf().csrfTokenRepository(CookieServerCsrfTokenRepository.withHttpOnlyFalse())
-//                .and()
-//                // Add other security configurations as needed
-//                .authorizeExchange()
-//                .pathMatchers("/login").permitAll()
-//                .anyExchange().authenticated()
-//                .and()
-//                .httpBasic().and()
-//                .formLogin().and()
-//                .formLogin(formLoginSpec -> formLoginSpec
-//                        .loginPage("/login")
-//                        .authenticationSuccessHandler(authenticationSuccessHandler())
-//                )
-//                .build();
-//    }
-
-
-//    private ServerAuthenticationSuccessHandler authenticationSuccessHandler() {
-//        return (webFilterExchange, authentication) -> {
-//            String username = authentication.getName();
-//            String token = generateToken(username);
-//            webFilterExchange.getExchange().getResponse().getHeaders().add("Authorization", "Bearer " + token);
-//            webFilterExchange.getExchange().getResponse().setStatusCode(HttpStatus.FOUND);
-//            webFilterExchange.getExchange().getResponse().getHeaders().setLocation(URI.create("/main"));
-//            return Mono.empty();
-//        };
-//    }
+    @Bean
+    public WebSessionServerSecurityContextRepository securityContextRepository() {
+        return new WebSessionServerSecurityContextRepository();
+    }
 }

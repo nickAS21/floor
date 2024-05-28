@@ -6,7 +6,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 @ConfigurationProperties("connector.smart")
 public class SmartConnectionProperties {
-    private String password;
-    private String login;
+    private String userLogin;
+    private String userPassword;
+    private String adminLogin;
+    private String adminPassword;
+
 
 }
