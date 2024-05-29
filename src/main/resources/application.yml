@@ -4,11 +4,12 @@ server:
 app:
   version: '@project.version@'
   title: '@project.description@'
-  test-front: false
+  test_front: false
 
 connector:
   jwt:
-    expiresIn: 36000000
+#    expires_in_sec: 3 hours
+    expires_in_minutes: 180
   smart:
     user_login: "${USER_LOGIN:user}"
     user_password: "${USER_PWD:user}"
@@ -30,9 +31,8 @@ connector:
     logger-sn: "${CONNECTOR_SOLARMAN_LOGGER-SN:}"
 smart:
   tuya:
-    temp_set:
-      min: "${TUYA_TEMP_SET_MIN:5}"
-      max: "${TUYA_TEMP_SET_MAX:24}"
+    temp_set_min: "${TUYA_TEMP_SET_MIN:5}"
+    temp_set_max: "${TUYA_TEMP_SET_MAX:24}"
     category_for_control_powers: "${TUYA_CATEGORY_FOR_CONTROL_POWERS:wk}"
   solarman:
     timeout-sec: "${SOLARMAN_TIMEOUT_SEC:120}"

@@ -23,7 +23,7 @@ public class SmartSolarmanTuyaServiceInstall {
     @Autowired
     DefaultSmartSolarmanTuyaService smartSolarmanTuyaService;
 
-    @Value("${app.test-front:false}")
+    @Value("${app.test_front:false}")
     boolean testFront;
 
     @PostConstruct
