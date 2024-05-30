@@ -61,7 +61,13 @@ public class UserService {
        return new String[]{userName, jwtToken};
     }
 
-    public void setJwtToken(String userName, JwtToken jwtToken){
+    public void saveJwtToken(String userName, JwtToken jwtToken){
         this.tokenUsers.put(userName, jwtToken);
+    }
+    public void replaceJwtToken(String userName, JwtToken jwtToken){
+        this.tokenUsers.replace(userName, jwtToken);
+    }
+    public void removeJwtToken(String userName){
+        this.tokenUsers.remove(userName);
     }
 }

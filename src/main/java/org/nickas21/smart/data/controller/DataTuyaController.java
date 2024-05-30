@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping(value = "/tuya")
+@RequestMapping(value = "/api/tuya")
 public class DataTuyaController {
 
     private final UserService userService;

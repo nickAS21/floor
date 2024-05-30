@@ -68,7 +68,7 @@ public class SecurityConfig {
                 .securityContextRepository(securityContextRepository)
                 .requestCache(requestCacheSpec -> requestCacheSpec.requestCache(NoOpServerRequestCache.getInstance()))
                 .authorizeExchange(authorizeExchangeSpec -> authorizeExchangeSpec
-                        .pathMatchers("/auth/user/login").permitAll()
+                        .pathMatchers("api/auth/login").permitAll()
                         .anyExchange().authenticated()
                 )
                 .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec

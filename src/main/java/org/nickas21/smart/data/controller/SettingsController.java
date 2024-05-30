@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping(value = "/smart")
+@RequestMapping(value = "/api/smart")
 public class SettingsController {
 
     private final SettingsService settingsService;

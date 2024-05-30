@@ -16,7 +16,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping(value = "/auth/user")
+@RequestMapping(value = "/api/auth")
 public class AuthController {
 
     private final UserService userService;
@@ -51,7 +51,7 @@ public class AuthController {
                             .flatMap(auth -> {
                                 SecurityContext securityContext = new SecurityContextImpl(auth);
                                 JwtToken jwtToken = jwtUtil.generateToken(userDetails); // create JWT token
-                                this.userService.setJwtToken(authRequest.getUsername(), jwtToken);
+                                this.userService.saveJwtToken(authRequest.getUsername(), jwtToken);
                                 return securityContextRepository.save(exchange, securityContext)
                                         .then(Mono.just(new AuthResponse(jwtToken, "Login successful"))); // Response with JWT token
                             });
@@ -67,15 +67,32 @@ public class AuthController {
                         String[] userNames = userService.getUserNameFromToken(token);
                         return userDetailsService.findByUsername(userNames[0])
                                 .flatMap(userDetails -> {
-                                    JwtToken newToken = jwtUtil.generateToken(userDetails); // create JWT token
-                                    userService.setJwtToken(userNames[0], newToken);
-                                    return Mono.just(new AuthResponse(newToken, "Refresh token successful")); // Response with JWT token
+                                    JwtToken newToken = jwtUtil.generateToken(userDetails);
+                                    userService.replaceJwtToken(userNames[0], newToken);
+                                    return Mono.just(new AuthResponse(newToken, "Refresh token successful"));
                                 });
                     } else {
                         return Mono.just(new AuthResponse(null, "Invalid Refresh token"));
                     }
                 })
                 .onErrorResume(e -> Mono.just(new AuthResponse(null, "An error Refresh token: " + e.getMessage())));
+    }
+    @PostMapping("/logout")
+    public Mono<AuthResponse> logout(@RequestHeader("Authorization") String token) {
+        return userService.validateToken(token)
+                .flatMap(isValid -> {
+                    if (isValid) {
+                        String[] userNames = userService.getUserNameFromToken(token);
+                        return userDetailsService.findByUsername(userNames[0])
+                                .flatMap(userDetails -> {
+                                    userService.removeJwtToken(userNames[0]);
+                                    return Mono.just(new AuthResponse(null, "Remove token successful"));
+                                });
+                    } else {
+                        return Mono.just(new AuthResponse(null, "Invalid Remove token"));
+                    }
+                })
+                .onErrorResume(e -> Mono.just(new AuthResponse(null, "An error Remove token: " + e.getMessage())));
     }
 }
 
