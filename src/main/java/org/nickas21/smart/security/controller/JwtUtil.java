@@ -27,7 +27,7 @@ public class JwtUtil {
     private final long EXPIRES_IN;
 
     public JwtUtil(JwtConnectionProperties jwtConnectionProperties) {
-        this.EXPIRES_IN = Long.parseLong(jwtConnectionProperties.getExpiresInMinutes());
+        this.EXPIRES_IN = Long.parseLong(jwtConnectionProperties.getExpiresInSec());
     }
 
     public String extractUsername(String token) {
@@ -63,8 +63,8 @@ public class JwtUtil {
 
     private JwtToken createToken(Map<String, Object> claims, String userName) {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime exp = now.plusMinutes(this.EXPIRES_IN);
-        LocalDateTime expRefresh = exp.plusMinutes(this.EXPIRES_IN);
+        LocalDateTime exp = now.plusMinutes(this.EXPIRES_IN / 60);
+        LocalDateTime expRefresh = exp.plusMinutes(this.EXPIRES_IN / 60);
         Instant instantNow = now.atZone(ZoneId.systemDefault()).toInstant();
         Instant instantExp = exp.atZone(ZoneId.systemDefault()).toInstant();
         Instant instantRefresh = expRefresh.atZone(ZoneId.systemDefault()).toInstant();

@@ -17,6 +17,8 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
 import org.springframework.security.web.server.savedrequest.NoOpServerRequestCache;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
+import org.springframework.web.cors.reactive.CorsWebFilter;
 import reactor.core.publisher.Mono;
 
 @Configuration
@@ -87,5 +89,13 @@ public class SecurityConfig {
     @Bean
     public WebSessionServerSecurityContextRepository securityContextRepository() {
         return new WebSessionServerSecurityContextRepository();
+    }
+
+    /**
+     * temp for the front debug
+     */
+    @Bean
+    public CorsWebFilter corsWebFilter(CorsConfigurationSource corsConfigurationSource) {
+        return new CorsWebFilter(corsConfigurationSource);
     }
 }

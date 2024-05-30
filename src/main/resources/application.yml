@@ -9,7 +9,7 @@ app:
 connector:
   jwt:
 #    expires_in_sec: 3 hours
-    expires_in_minutes: 180
+    expires_in_sec: 10800
   smart:
     user_login: "${USER_LOGIN:user}"
     user_password: "${USER_PWD:user}"

@@ -28,8 +28,23 @@ public class UserService {
             String[] userNames =  getUserNameFromToken(token);
             String username = userNames[0];
             String jwtToken = userNames[1];
-            if (this.tokenUsers.containsKey(username) && (this.tokenUsers.get(username).getAccessToken().equals(jwtToken)
-            || this.tokenUsers.get(username).getRefreshToken().equals(jwtToken))) {
+            if (this.tokenUsers.containsKey(username) && this.tokenUsers.get(username).getAccessToken().equals(jwtToken)) {
+                return userDetailsService.findByUsername(username)
+                        .map(userDetails -> jwtUtil.validateToken(jwtToken, userDetails));
+            } else {
+                return Mono.just(false);
+            }
+        } catch (Exception e) {
+            return Mono.just(false);
+        }
+    }
+
+    public Mono<Boolean> validateRefreshToken(String token) {
+        try {
+            String[] userNames =  getUserNameFromToken(token);
+            String username = userNames[0];
+            String jwtToken = userNames[1];
+            if (this.tokenUsers.containsKey(username) && this.tokenUsers.get(username).getRefreshToken().equals(jwtToken)) {
                 return userDetailsService.findByUsername(username)
                         .map(userDetails -> jwtUtil.validateToken(jwtToken, userDetails));
             } else {

@@ -61,7 +61,7 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public Mono<AuthResponse> refreshToken(@RequestHeader("Authorization") String token) {
-        return userService.validateToken(token)
+        return userService.validateRefreshToken(token)
                 .flatMap(isValid -> {
                     if (isValid) {
                         String[] userNames = userService.getUserNameFromToken(token);
