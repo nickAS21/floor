@@ -117,4 +117,20 @@ mvn clean install
 java -jar sparkplug-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
 
+### Running frontend in dev server
 
+- The first thing first you need to install Node.js and NPM;
+- Then, open a terminal in frontend folder:
+```shell
+cd ./src/frontend
+```
+
+- Then install all necessary dependencies by using the following command:
+```shell
+npm install
+```
+
+- The final step is running dev server:
+```shell
+npm run dev
+```
