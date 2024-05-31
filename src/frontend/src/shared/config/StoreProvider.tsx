@@ -2,16 +2,18 @@
 
 import React from 'react';
 
-// import { Provider } from 'react-redux';
-// import { store } from '../redux/store';
+import { Provider } from 'react-redux';
+import { persistor, store } from '../redux/store';
+import { PersistGate } from 'redux-persist/integration/react';
 
 export const StoreProvider = (props: React.PropsWithChildren) => {
     return (
         <>
-            {/* For storing and caching in the future*/}
-            {/* <Provider store={store}> */}
-            {props.children}
-            {/* </Provider>*/}
+            <PersistGate persistor={persistor}>
+                <Provider store={store}>
+                    {props.children}
+                </Provider>
+            </PersistGate>
         </>
     );
 };

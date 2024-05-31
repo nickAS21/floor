@@ -4,24 +4,36 @@ server:
 app:
   version: '@project.version@'
   title: '@project.description@'
+  test-front: false
 
 connector:
+  jwt:
+    expiresIn: 36000000
+  smart:
+    user_login: "${USER_LOGIN:user}"
+    user_password: "${USER_PWD:user}"
+    admin_login: "${ADMIN_LOGIN:admin}"
+    admin_password: "${ADMIN_PWD:secret}"
   tuya:
-    region: EU
-
+    ak: "${TUYA_AK:}"
+    sk: "${TUYA_SK:}"
+    region: "${TUYA_REGION:EU}"
+    device_ids: "${TUYA_DEVICE_IDS:}"
+    user_uid: "${TUYA_USER_UID:}"
   solarman:
     region: IN
-#    appid:
-#    secret:
-#    username:
-#    password:
-#    password-hash:
-#    logger-sn:
+    appid:
+    secret:
+    username:
+    password:
+    #    password-hash:
+    logger-sn: "${CONNECTOR_SOLARMAN_LOGGER-SN:}"
 smart:
   tuya:
-    temp-set-min: 5
-    temp-set-max: 24
-    category-for-control-powers: wk
+    temp_set:
+      min: "${TUYA_TEMP_SET_MIN:5}"
+      max: "${TUYA_TEMP_SET_MAX:24}"
+    category_for_control_powers: "${TUYA_CATEGORY_FOR_CONTROL_POWERS:wk}"
   solarman:
     timeout-sec: "${SOLARMAN_TIMEOUT_SEC:120}"
     bat-soc-min-min: "${SOLARMAN_BAT_SOC_MIN_MIN:50.0}"
