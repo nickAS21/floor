@@ -1,6 +1,8 @@
 "use client";
 
-import { Container, useMantineColorScheme } from "@mantine/core";
+import Header from "@/modules/Header";
+import Sidebar from "@/modules/Sidebar";
+import { Box, useMantineColorScheme } from "@mantine/core";
 import { useLayoutEffect } from "react";
 
 type Props = {
@@ -20,6 +22,12 @@ export default function Layout({ children }: Props) {
     }, [colorScheme])
 
     return (
-        <Container>{children}</Container>
+        <Box className="dashboard_layout dark:text-white">
+            <Sidebar />
+            <Header />
+            <div className="h-[calc(100vh - 70px)] board py-2 px-6">
+                {children}
+            </div>
+        </Box>
     )
 }
