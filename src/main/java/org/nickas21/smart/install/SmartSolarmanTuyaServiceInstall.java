@@ -7,7 +7,6 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.TuyaConnection;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -23,16 +22,11 @@ public class SmartSolarmanTuyaServiceInstall {
     @Autowired
     DefaultSmartSolarmanTuyaService smartSolarmanTuyaService;
 
-    @Value("${app.test-front:false}")
-    boolean testFront;
-
     @PostConstruct
     public void performInstall() {
-        if (!testFront) {
-            tuyaConnection.init();
-            solarmanStationsService.init();
-            smartSolarmanTuyaService.solarmanRealTimeDataStart();
-        }
+        tuyaConnection.init();
+        solarmanStationsService.init();
+        smartSolarmanTuyaService.solarmanRealTimeDataStart();
     }
 
     @PreDestroy

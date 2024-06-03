@@ -1,3 +1,7 @@
 .boxShadow {
     box-shadow: inset 0px 0px .2em .01em rgb(196, 196, 196);
 }
+
+.formInput {
+    @apply rounded-full;
+}

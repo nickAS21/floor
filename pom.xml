@@ -6,13 +6,13 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.0</version>
+        <version>3.2.5</version>
         <relativePath/>
     </parent>
 
     <groupId>org.nickas21.solar.pulsar.tuya</groupId>
     <artifactId>floor</artifactId>
-    <version>3.27-SNAPSHOT</version>
+    <version>3.24-SNAPSHOT</version>
     <description>Smart home, underfloor heating control from solar panels</description>
     <packaging>jar</packaging>
 
@@ -22,7 +22,6 @@
         <apache-pulsar.version>3.0.1</apache-pulsar.version>
         <sunrise-sunset.version>1.1.1</sunrise-sunset.version>
         <paho.mqttv5.client.version>1.2.5</paho.mqttv5.client.version>
-        <jjwt.version>0.11.5</jjwt.version>
     </properties>
 
     <dependencies>
@@ -99,28 +98,6 @@
             <version>13.0</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>${jjwt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-
 
     </dependencies>
 

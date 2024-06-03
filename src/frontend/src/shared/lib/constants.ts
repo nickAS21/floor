@@ -1,1 +1,0 @@
-export const LOCAL_STORAGE_AUTH_MOCK_KEY = "auth_mock_key";

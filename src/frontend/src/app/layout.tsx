@@ -14,11 +14,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <ColorSchemeScript defaultColorScheme="light" />
+        <ColorSchemeScript />
       </head>
       <body>
         <StoreProvider>
-          <MantineProvider theme={theme} defaultColorScheme="light">{children}</MantineProvider>
+          <MantineProvider theme={theme}>{children}</MantineProvider>
         </StoreProvider>
       </body>
     </html>

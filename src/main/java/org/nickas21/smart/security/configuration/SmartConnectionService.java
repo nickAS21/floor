@@ -19,20 +19,12 @@ public class SmartConnectionService {
      }
 
 
-    public String getUserLogin() {
-        return StringUtils.hasLength(this.smartConnectionProperties.getUserLogin()) ? this.smartConnectionProperties.getUserLogin() : this.solarmanConnectionProperties.getUsername();
+    public String getSmartLogin() {
+        return StringUtils.hasLength(this.smartConnectionProperties.getLogin()) ? this.smartConnectionProperties.getLogin() : this.solarmanConnectionProperties.getUsername();
     }
 
-    public String getUserPassword() {
-        return StringUtils.hasLength(this.smartConnectionProperties.getUserPassword()) ? this.smartConnectionProperties.getUserPassword() : this.solarmanConnectionProperties.getSecret();
-    }
-
-    public String getAdminLogin() {
-        return StringUtils.hasLength(this.smartConnectionProperties.getAdminLogin()) ? this.smartConnectionProperties.getAdminLogin() : this.solarmanConnectionProperties.getUsername();
-    }
-
-    public String getAdminPassword() {
-        return StringUtils.hasLength(this.smartConnectionProperties.getAdminPassword()) ? this.smartConnectionProperties.getAdminPassword() : this.solarmanConnectionProperties.getSecret();
+    public String getSmartPassword() {
+        return StringUtils.hasLength(this.smartConnectionProperties.getPassword()) ? this.smartConnectionProperties.getPassword() : this.solarmanConnectionProperties.getSecret();
     }
 
 }

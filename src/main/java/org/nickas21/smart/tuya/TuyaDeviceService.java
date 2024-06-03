@@ -101,7 +101,7 @@ public class TuyaDeviceService {
     }
 
     public void init() {
-        this.devices = new Devices(null);
+        this.devices = new Devices();
         if (getTuyaToken() != null) {
             sendInitRequest();
         } else {

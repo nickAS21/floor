@@ -8,9 +8,6 @@ public class StringUtils {
     public static boolean isBlank(String source) {
         return source == null || source.isEmpty() || source.trim().isEmpty();
     }
-    public static boolean isNotBlank(String source) {
-        return !isBlank(source);
-    }
 
     public static void printMsgProgressBar(String message, long timeAll, String version) {
         int size = 60;
