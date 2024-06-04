@@ -7,7 +7,6 @@ import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
 import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,9 +16,10 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
 import org.springframework.security.web.server.savedrequest.NoOpServerRequestCache;
+import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
-import org.springframework.web.cors.reactive.CorsWebFilter;
 import reactor.core.publisher.Mono;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -62,22 +62,36 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http,
                                                          ServerAuthenticationEntryPoint authenticationEntryPoint,
-                                                         WebSessionServerSecurityContextRepository securityContextRepository) {
+                                                         WebSessionServerSecurityContextRepository securityContextRepository,
+                                                         CorsConfigurationSource corsConfigurationSource) {
         return http
-                .csrf(CsrfSpec::disable)
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .securityContextRepository(securityContextRepository)
                 .requestCache(requestCacheSpec -> requestCacheSpec.requestCache(NoOpServerRequestCache.getInstance()))
                 .authorizeExchange(authorizeExchangeSpec -> authorizeExchangeSpec
-                        .pathMatchers("api/auth/login").permitAll()
+                        .pathMatchers("/api/auth/login", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll()
                         .anyExchange().authenticated()
                 )
+                .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource))
                 .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
                         .authenticationEntryPoint(authenticationEntryPoint)
                 )
                 .build();
     }
 
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration corsConfiguration = new CorsConfiguration();
+        corsConfiguration.addAllowedOrigin("http://localhost:3000");
+        corsConfiguration.addAllowedMethod("*");
+        corsConfiguration.addAllowedHeader("*");
+        corsConfiguration.setAllowCredentials(true);
 
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", corsConfiguration);
+
+        return source;
+    }
     @Bean
     public ServerAuthenticationEntryPoint authenticationEntryPoint() {
         return (exchange, ex) -> {
@@ -89,13 +103,5 @@ public class SecurityConfig {
     @Bean
     public WebSessionServerSecurityContextRepository securityContextRepository() {
         return new WebSessionServerSecurityContextRepository();
-    }
-
-    /**
-     * temp for the front debug
-     */
-    @Bean
-    public CorsWebFilter corsWebFilter(CorsConfigurationSource corsConfigurationSource) {
-        return new CorsWebFilter(corsConfigurationSource);
     }
 }

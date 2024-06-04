@@ -32,7 +32,7 @@ public class SettingsController {
 
 
     @GetMapping("/config")
-    public Mono<ResponseEntity<String[]>> getConfig(@RequestHeader("Authorization") String token) {
+    public Mono<ResponseEntity<String[]>> getConfig(@RequestHeader(required = false, value = "Authorization") String token) {
         return userService.validateToken(token)
                 .flatMap(isValid -> {
                     if (isValid) {
