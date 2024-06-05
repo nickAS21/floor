@@ -31,7 +31,8 @@ public class PowerValueRealTimeData {
     double dailyEnergySell;     // unit kWh
     double dailyEnergyBuy;      // unit kWh
 
-    String gridRelayStatus;     // Pull-in, Break
-    String gridStatus;          // Purchasing energy, Grid connected, Static
+    String gridStatusRelay;     // Pull-in, Break
+    String gridStatusSolarman;      // Purchasing energy, Grid connected, Static
+    Boolean gridStatusOnLineReal;          // false/true
 }
 

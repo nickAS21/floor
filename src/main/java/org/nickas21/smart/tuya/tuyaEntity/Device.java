@@ -5,10 +5,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
@@ -40,7 +41,7 @@ public class Device {
     private String ip;
 
     private String local_key;
-    private Boolean online;
+    private Map <Long, Boolean> onLine = new ConcurrentHashMap<>();
     private String product_id;
     private Boolean sub;
     private String time_zone;
@@ -52,15 +53,21 @@ public class Device {
     private String gateway_id;
     private String bizCodeLast;
 
-    public void setStatus (JsonNode statusArrayNode) {
-        if (statusArrayNode.isArray()) {
-            for (JsonNode statusNode : statusArrayNode) {
+    public void setStatus (JsonNode statusNodes) {
+        if (statusNodes.isArray()) {
+            for (JsonNode statusNode : statusNodes) {
                 if (statusNode.has("code")) {
                     String code = statusNode.get("code").asText();
                     DeviceStatus statusNew = treeToValue(statusNode, DeviceStatus.class);
                     setStatus (statusNew, code);
                 }
             }
+        }
+    }
+
+    public void setStatusOnline (JsonNode statusNodes) {
+        if (statusNodes.has("active_time") && statusNodes.has("online")) {
+            this.getOnLine().put(statusNodes.get("active_time").asLong(), statusNodes.get("online").asBoolean());
         }
     }
 
@@ -88,11 +95,11 @@ public class Device {
             deviceBizCode.setValue(deviceBizCode.getBizData().getName());
             this.setName(deviceBizCode.getBizData().getName());
         } else if ("online".equals(deviceBizCode.getBizCode())) {
-            this.setOnline(true);
+            this.onLine.put(deviceBizCode.getTs(), true);
             deviceBizCode.setValueOld(false);
             deviceBizCode.setValue(true);
         }else if ("offline".equals(deviceBizCode.getBizCode())) {
-            this.setOnline(false);
+            this.onLine.put(deviceBizCode.getTs(), false);
             deviceBizCode.setValueOld(true);
             deviceBizCode.setValue(false);
         }
@@ -112,6 +119,13 @@ public class Device {
             this.status = new HashMap<>();
         }
         this.status.put(code, status);
+    }
+
+    public Entry<Long, Boolean> currentStateOnLine() {
+        Optional<Entry<Long, Boolean>> maxEntry = this.getOnLine().entrySet()
+                .stream()
+                .max(Entry.comparingByKey());
+        return maxEntry.orElse(null);
     }
 }
 
