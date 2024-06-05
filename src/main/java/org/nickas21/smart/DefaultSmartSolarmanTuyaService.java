@@ -115,7 +115,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 Entry<Long, Boolean> currentStateOnLine =  tuyaDeviceService.devices.getDevIds().get(this.codeGridRelay).currentStateOnLine();
                 powerValueRealTimeData.setGridStatusOnLineReal(tuyaDeviceService.devices.getDevIds().get(currentStateOnLine == null ? "null" : this.codeGridRelay).currentStateOnLine().getValue());
             } catch (Exception e) {
-                log.error("Start, updateAllThermostat to min.", e);
+                log.error("Start, Update parameter gridStateOnLine.", e);
             }
 
             log.info("""

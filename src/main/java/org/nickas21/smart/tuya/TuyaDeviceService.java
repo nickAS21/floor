@@ -25,8 +25,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.ClientRequest;
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
+import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -82,6 +85,7 @@ public class TuyaDeviceService {
     private final TuyaDeviceProperties deviceProperties;
     private final RestTemplate httpClient = new RestTemplate();
     private final WebClient authClient = WebClient.builder().build();
+    private final WebClient webClient;
 
     @Autowired
     SolarmanStationsService solarmanStationsService;
@@ -89,6 +93,13 @@ public class TuyaDeviceService {
     public TuyaDeviceService(TuyaConnectionProperties connectionConfiguration, TuyaDeviceProperties deviceProperties) {
         this.connectionConfiguration = connectionConfiguration;
         this.deviceProperties = deviceProperties;
+        this.webClient =  WebClient.builder()
+                .baseUrl(connectionConfiguration.getRegion().getApiUrl())
+                .filter(ExchangeFilterFunction.ofRequestProcessor(
+                        (ClientRequest request) -> Mono.just(ClientRequest.from(request)
+                                .headers(httpHeaders -> httpHeaders.setBearerAuth(getTuyaToken().getAccessToken()))
+                                .build())))
+                .build();
     }
 
     public void init() {
@@ -614,12 +625,15 @@ public class TuyaDeviceService {
     }
 
     public void upDateOnlineStateDevice(String deviceId) throws Exception {
-        String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
-        RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
-        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null && responseEntity.getBody() != null) {
-            JsonNode result = responseEntity.getBody().get("result");
-            devices.getDevIds().get(deviceId).setStatusOnline(result);
+       Device device = devices.getDevIds().get(deviceId);
+        if (device != null) {
+            String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
+            RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
+            ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
+            if (responseEntity != null && responseEntity.getBody() != null && responseEntity.getBody().has("result")) {
+                JsonNode result = responseEntity.getBody().get("result");
+                device.setStatusOnline(result);
+            }
         }
     }
 

@@ -50,6 +50,7 @@ public class AuthController {
                 .flatMap(userDetails -> {
                     UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
                             loginRequest.getUsername(), loginRequest.getPassword(), userDetails.getAuthorities());
+
                     return authenticationManager.authenticate(token)
                             .flatMap(auth -> {
                                 SecurityContext securityContext = new SecurityContextImpl(auth);
@@ -59,7 +60,8 @@ public class AuthController {
                                         .then(Mono.just(new LoginResponse(jwtToken, "Login successful"))); // Response with JWT token
                             });
                 })
-                .switchIfEmpty(Mono.just(new LoginResponse(null, "Invalid username or password")));
+                .switchIfEmpty(Mono.error(new Throwable()))
+                .onErrorResume(e -> Mono.just(new SmartErrorResponse("Invalid username or password" + e.getMessage(), SmartErrorCode.AUTHENTICATION)));
     }
 
     @ApiOperation(value = "Refresh Token (refresh)",
