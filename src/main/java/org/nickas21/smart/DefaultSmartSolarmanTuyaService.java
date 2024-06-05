@@ -7,11 +7,13 @@ import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.tuya.tuyaEntity.Device;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Map.Entry;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -58,6 +60,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private double batSocMinInMilliSec; // %
     private int freePowerCorrectMinMax;
     private int freePowerCorrectCnt;
+    private String codeGridRelay;
     @Value("${app.version:unknown}")
     String version;
     @Autowired
@@ -103,6 +106,18 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     log.error("Start, updateAllThermostat to min.", e);
                 }
             }
+
+            try {
+                this.codeGridRelay = this.codeGridRelay == null ? this.getCodeGridRelay() : this.codeGridRelay;
+                tuyaDeviceService.upDateOnlineStateDevice(this.codeGridRelay);
+                printMsgProgressBar("Start: " + curInstStr + ". Update parameter gridStateOnLine: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000/8)) + ",  after [" + (float)this.timeoutSecUpdate/60/8 + "] min: ",
+                        this.timeoutSecUpdate*1000/8, this.version);
+                Entry<Long, Boolean> currentStateOnLine =  tuyaDeviceService.devices.getDevIds().get(this.codeGridRelay).currentStateOnLine();
+                powerValueRealTimeData.setGridStatusOnLineReal(tuyaDeviceService.devices.getDevIds().get(currentStateOnLine == null ? "null" : this.codeGridRelay).currentStateOnLine().getValue());
+            } catch (Exception e) {
+                log.error("Start, updateAllThermostat to min.", e);
+            }
+
             log.info("""
                             Current data:\s
                             Current real time data: [{}], -Update real time data: [{}],\s
@@ -110,7 +125,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             -batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A],\s
                             -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W], freePowerCorrectCnt: [{}], freePowerCorrectMinMax: [{}],\s
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
-                            -relayStatus: [{}], -gridStatus: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].""",
+                            -relayStatus: [{}], -gridSolarmanStatus: [{}], -gridRealStatus: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].""",
                     curInstStr,
                     toLocaleTimeString(powerValueRealTimeData.getCollectionTime() * 1000),
 
@@ -133,8 +148,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     powerValueRealTimeData.getBatteryDailyCharge(),
                     powerValueRealTimeData.getBatteryDailyDischarge(),
 
-                    powerValueRealTimeData.getGridRelayStatus(),
-                    powerValueRealTimeData.getGridStatus(),
+                    powerValueRealTimeData.getGridStatusRelay(),
+                    powerValueRealTimeData.getGridStatusSolarman(),
+                    powerValueRealTimeData.getGridStatusOnLineReal(),
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell());
 
@@ -273,8 +289,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         powerValueRealTimeData.setTotalEnergyBuy(totalEnergyBuy);
         powerValueRealTimeData.setDailyEnergySell(dailyEnergySell);
         powerValueRealTimeData.setDailyEnergyBuy(dailyEnergyBuy);
-        powerValueRealTimeData.setGridRelayStatus(gridRelayStatus);
-        powerValueRealTimeData.setGridStatus(gridStatus);
+        powerValueRealTimeData.setGridStatusRelay(gridRelayStatus);
+        powerValueRealTimeData.setGridStatusSolarman(gridStatus);
         powerValueRealTimeData.setTotalGridPower(totalGridPower);
     }
 
@@ -317,6 +333,19 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         } else {
             this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 15; // 30 min
         }
+    }
+
+    private String getCodeGridRelay(){
+        if (tuyaDeviceService.devices.getDevIds() != null) {
+            for (Entry<String, Device> deviceId: tuyaDeviceService.devices.getDevIds().entrySet()) {
+                if(tuyaDeviceService.onLine.equals(deviceId.getValue().getValueSetMaxOn())){
+                    if (tuyaDeviceService.onLine.equals(deviceId.getValue().getValueSetMaxOn())) {
+                        return deviceId.getKey();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private Double getBatSocMin(){
@@ -387,11 +416,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     private void setIsDay() {
         if (this.curDate != null && this.sunSetMin != null && this.sunRiseDate != null) {
-            if (this.curDate.toEpochMilli() >= this.sunRiseDate && this.curDate.toEpochMilli() < this.sunSetMin) {
-                this.isDay = true;
-            } else {
-                this.isDay = false;
-            }
+            this.isDay = this.curDate.toEpochMilli() >= this.sunRiseDate && this.curDate.toEpochMilli() < this.sunSetMin;
         } else {
             this.isDay = false;
         }

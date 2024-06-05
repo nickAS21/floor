@@ -25,11 +25,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.reactive.function.client.ClientRequest;
-import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
-import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -74,16 +71,17 @@ import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
 @EnableConfigurationProperties({TuyaConnectionProperties.class, TuyaDeviceProperties.class})
 public class TuyaDeviceService {
 
+    public final String onLine = "online";
+
     private TuyaToken accessTuyaToken;
     public Devices devices;
 
-    private Map<Device, DeviceUpdate> queueUpdateMax = new ConcurrentHashMap<>();
+    private final Map<Device, DeviceUpdate> queueUpdateMax = new ConcurrentHashMap<>();
 
     private final TuyaConnectionProperties connectionConfiguration;
     private final TuyaDeviceProperties deviceProperties;
     private final RestTemplate httpClient = new RestTemplate();
     private final WebClient authClient = WebClient.builder().build();
-    private final WebClient webClient;
 
     @Autowired
     SolarmanStationsService solarmanStationsService;
@@ -91,13 +89,6 @@ public class TuyaDeviceService {
     public TuyaDeviceService(TuyaConnectionProperties connectionConfiguration, TuyaDeviceProperties deviceProperties) {
         this.connectionConfiguration = connectionConfiguration;
         this.deviceProperties = deviceProperties;
-        this.webClient =  WebClient.builder()
-                .baseUrl(connectionConfiguration.getRegion().getApiUrl())
-                .filter(ExchangeFilterFunction.ofRequestProcessor(
-                        (ClientRequest request) -> Mono.just(ClientRequest.from(request)
-                                .headers(httpHeaders -> httpHeaders.setBearerAuth(getTuyaToken().getAccessToken()))
-                                .build())))
-                .build();
     }
 
     public void init() {
@@ -142,6 +133,10 @@ public class TuyaDeviceService {
             device.setBizCode((ObjectNode) msg.getJson());
         }
     }
+
+//    private Device initInfoGrid(String deviceId, int... devParams) throws Exception {
+//        // bf486f484c2ec56ff9bnpq - AutoGreedDeye
+//    }
 
     /**
      * devicesToUpDateStatusValue
@@ -238,7 +233,7 @@ public class TuyaDeviceService {
         return new DeviceUpdate(fieldNameValueUpdate, valueNew, valueOld);
     }
 
-    public void updateThermostatBatteryCharge(int deltaPower, Long timeoutSecUpdate,  String... filters) throws Exception {
+    public void updateThermostatBatteryCharge(int deltaPower, Long timeoutSecUpdate,  String... filters) {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(true, filters);
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
@@ -558,7 +553,9 @@ public class TuyaDeviceService {
                 if (devId.length == 3) {
                     if ("false".equals(devId[2]) || "true".equals(devId[2])) {
                         devParams[1] = "false".equals(devId[2]) ? 0 : -1;
-                    } else {
+                    } else if (onLine.equals(devId[2])){
+                        devParams[1] = -2;
+                    }else {
                         devParams[1] = Integer.parseInt(devId[2]);
                     }
                 } else {
@@ -584,15 +581,21 @@ public class TuyaDeviceService {
         if (responseEntity != null && responseEntity.getBody() != null) {
             JsonNode result = responseEntity.getBody().get("result");
             device = treeToValue(result, Device.class);
+            device.setStatusOnline (result);
             devices.getDevIds().put(deviceId, device);
             path = String.format(GET_DEVICE_STATUS_URL_PATH, deviceId);
             requestEntity = createGetTuyaRequest(path, false);
             responseEntity = sendRequest(requestEntity);
             if (responseEntity != null) {
-                devices.getDevIds().get(deviceId).setStatus(result);
+                if (responseEntity.getBody() != null && responseEntity.getBody().has("result")) {
+                    result = responseEntity.getBody().get("result");
+                    devices.getDevIds().get(deviceId).setStatus(result);
+                }
                 if (devParams.length > 0) {
                     devices.getDevIds().get(deviceId).setConsumptionPower(devParams[0]);
-                    if (devParams[1] <= 0) {
+                    if (devParams[1] == -2) {
+                        devices.getDevIds().get(deviceId).setValueSetMaxOn(onLine);
+                    } else if (devParams[1] <= 0 && devParams[1] > -2) {
                         devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1] !=0);
                     } else {
                         devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1]);
@@ -608,6 +611,16 @@ public class TuyaDeviceService {
             log.warn("Device with id [{}] is not available", deviceId);
         }
         return device;
+    }
+
+    public void upDateOnlineStateDevice(String deviceId) throws Exception {
+        String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
+        RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
+        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
+        if (responseEntity != null && responseEntity.getBody() != null) {
+            JsonNode result = responseEntity.getBody().get("result");
+            devices.getDevIds().get(deviceId).setStatusOnline(result);
+        }
     }
 
     //    https://openapi.tuyaeu.com/v1.0/iot-03/devices/bfa715581477683002qb4l/freeze-state
