@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button, Checkbox, TextInput } from "@mantine/core";
+import { Button, TextInput } from "@mantine/core";
 import { useForm, isNotEmpty } from "@mantine/form";
-import { useEffect, useState } from "react";
+import { useContext, useEffect } from "react";
+import { AxiosError, isAxiosError } from "axios";
 
 import classes from "./classes.module.css";
 import { cn } from "@/shared/lib/utils";
@@ -11,13 +12,30 @@ import { useAppDispatch } from "@/shared/redux/store";
 import { setUser } from "@/shared/redux/authReducer";
 import { useUser } from "@/shared/hooks/useUser";
 import { fetcher } from "@/shared/lib/utils";
+import Notify from "@/components/Notify";
+import { notifyContext } from "@/shared/context/notifications";
+import { IconAlertTriangleFilled, } from "@tabler/icons-react";
+
 
 export default function LoginForm() {
+    const { setNotification, props, clear, setParams } = useContext(notifyContext);
     const router = useRouter();
     const dispatch = useAppDispatch();
     const { isAuth } = useUser();
 
-    const [isAPIEnabled, setIsAPIEnabled] = useState(false);
+    useEffect(() => {
+        // Customize notification
+        setParams({
+            failed: {
+                text: 'Login failed!',
+                icon: <IconAlertTriangleFilled size={24} fill="#DC362E" />,
+                color: 'transparent',
+              },
+              success: {
+                text: 'Omitted.'
+              }
+        })
+    }, []);
 
     const form = useForm({
         initialValues: {
@@ -38,24 +56,22 @@ export default function LoginForm() {
 
     const handleSubmit = async (values: typeof form["values"]) => {
         try {
-            if (isAPIEnabled) {
-                const res = await fetcher({
-                    url: "/auth/user/login",
-                    method: "post",
-                    data: {
-                        username: values.username,
-                        password:  values.password
-                    }
-                });
-    
-                dispatch(setUser({ username: values.username, token: res.data.data.token }));
-                router.push("/");
-            } else {
-                dispatch(setUser({ username: values.username, token: "wey3tfe6r7w8jiqu2byec3trf6e2g7h8jioki" }));
-                router.push("/");
-            }
+            const res = await fetcher({
+                url: "/api/auth/login",
+                method: "post",
+                data: {
+                    username: values.username,
+                    password: values.password
+                }
+            });
+
+            dispatch(setUser({ username: values.username, token: res.data.token }));
+            router.push("/");
         } catch (err) {
-            console.error(err);
+            if (isAxiosError(err)) {
+                console.log(err);
+                setNotification("Failed", err.message);
+            }
         }
     }
 
@@ -84,9 +100,9 @@ export default function LoginForm() {
                     ),
                     error: 'form-error',
                 }} />
-                <Checkbox className="mt-8" label="Enable real API?" checked={isAPIEnabled} onChange={e => setIsAPIEnabled(e.target.checked)} />
                 <Button fullWidth type="submit" variant="default" classNames={{ root: "mt-6 bg-[#b6ff6b] dark:bg-orange-400 transition hover:bg-[#b1ff62] text-black hover:text-white rounded-full" }}>Log in</Button>
             </div>
         </form>
+        <Notify {...props} onClose={clear} />
     </>
 }

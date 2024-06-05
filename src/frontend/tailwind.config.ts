@@ -9,6 +9,16 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      keyframes: {
+        progress: {
+          '0%': {
+            transform: 'scaleX(0%)',
+          },
+          '100%': {
+            transform: 'scaleX(100%)',
+          },
+        },
+      },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic":

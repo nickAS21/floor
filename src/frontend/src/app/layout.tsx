@@ -1,10 +1,11 @@
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 
-import '@mantine/core/styles.css';
+import { StoreProvider } from "@/shared/config/StoreProvider";
+import { NotifyProvider } from '@/shared/context/notifications';
 
 import theme from '@/shared/config/theme';
+import '@mantine/core/styles.css';
 import "./globals.css";
-import { StoreProvider } from "@/shared/config/StoreProvider";
 
 export default function RootLayout({
   children,
@@ -18,7 +19,11 @@ export default function RootLayout({
       </head>
       <body>
         <StoreProvider>
-          <MantineProvider theme={theme} defaultColorScheme="light">{children}</MantineProvider>
+          <MantineProvider theme={theme} defaultColorScheme="light">
+            <NotifyProvider>
+              {children}
+            </NotifyProvider>
+          </MantineProvider>
         </StoreProvider>
       </body>
     </html>

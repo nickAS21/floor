@@ -1,9 +1,16 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+type TokenObject = {
+    accessToken: string;
+    expiresTimeInSec: number;
+    refreshToken: string;
+    tokenType: string;
+};
+
 type AuthState = {
     user: {
         username: string
-        token: string;
+        token: TokenObject;
     } | null;
 }
 
@@ -13,7 +20,7 @@ const initialState: AuthState = {
 
 type UserPayload = {
     username: string;
-    token: string;
+    token: TokenObject;
 }
 
 export const authSlice = createSlice({
@@ -25,9 +32,12 @@ export const authSlice = createSlice({
         },
         setUser: (state, { payload }: { payload: UserPayload }) => {
             state.user = payload;
+        },
+        refreshToken: (state, { payload }: { payload: TokenObject }) => {
+            state.user && (state.user.token = payload);
         }
     }
 });
 
-export const { clearUser, setUser } = authSlice.actions;
+export const { clearUser, setUser, refreshToken } = authSlice.actions;
 export const authReducer = authSlice.reducer;
