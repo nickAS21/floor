@@ -25,7 +25,7 @@ public class DataTuyaController {
 
 
     @GetMapping("/dev")
-    public Mono<ResponseEntity<Devices>> getConfig(@RequestHeader("Authorization") String token) {
+    public Mono<ResponseEntity<Devices>> getConfig(@RequestHeader(required = false, value = "Authorization") String token) {
         return userService.validateToken(token)
                 .flatMap(isValid -> {
                     if (!isValid) {

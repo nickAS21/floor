@@ -6,6 +6,17 @@ app:
   title: '@project.description@'
   test_front: false
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+swagger:
+  api_path: /api/**
+  # The title on the API doc UI page
+  title: "${SWAGGER_TITLE:Smart REST API}"
+
 connector:
   jwt:
 #    expires_in_sec: 3 hours
