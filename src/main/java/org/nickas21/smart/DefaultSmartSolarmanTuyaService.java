@@ -107,14 +107,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 }
             }
 
-//            Entry<Long, Boolean> gridRealStatus = null;
             try {
                 this.codeGridRelay = this.codeGridRelay == null ? this.getCodeGridRelay() : this.codeGridRelay;
                 tuyaDeviceService.upDateOnlineStateDevice(this.codeGridRelay);
-                powerValueRealTimeData.setGridStatusOnLineReal(tuyaDeviceService.devices.getDevIds().get(this.codeGridRelay).currentStateOnLine().getValue());
                 printMsgProgressBar("Start: " + curInstStr + ". Update parameter gridStateOnLine: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000/8)) + ",  after [" + (float)this.timeoutSecUpdate/60/8 + "] min: ",
                         this.timeoutSecUpdate*1000/8, this.version);
-
+                Entry<Long, Boolean> currentStateOnLine =  tuyaDeviceService.devices.getDevIds().get(this.codeGridRelay).currentStateOnLine();
+                powerValueRealTimeData.setGridStatusOnLineReal(tuyaDeviceService.devices.getDevIds().get(currentStateOnLine == null ? "null" : this.codeGridRelay).currentStateOnLine().getValue());
             } catch (Exception e) {
                 log.error("Start, updateAllThermostat to min.", e);
             }
