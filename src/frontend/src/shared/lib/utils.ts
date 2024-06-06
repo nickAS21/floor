@@ -19,13 +19,12 @@ export const publicFetcher = axios.create({
 });
 
 const refreshTokenFn = async () => {
-  const store = JSON.parse(localStorage.getItem("persist:auth") || "");
-  const session = JSON.parse(store.user);
-
+  const state = ReduxStore.getState().auth.user?.token;
+  
   try {
     const response = await fetcher.post("/api/auth/refresh", null, {
       headers: {
-        Authorization: `Bearer ${session?.token.refreshToken}`
+        Authorization: `Bearer ${state?.refreshToken}`
       }
     });
 
@@ -54,7 +53,7 @@ export const fetcher = axios.create({
 fetcher.interceptors.response.use(
   (res) => {
     // FIXME
-    if (res.data.status != null && res.data.status !== 200) { 
+    if (res.data.message === "Invalid username or password") { 
       const err = new AxiosError(res.data.message);
       err.status = res.data.status;
       throw err;
@@ -64,7 +63,7 @@ fetcher.interceptors.response.use(
   },
   async (error) => {
     const config = error?.config;
-    
+
     if (error?.response?.status === 401 && !config?.sent) {
       config.sent = true;
       
@@ -84,11 +83,10 @@ fetcher.interceptors.response.use(
 
 fetcher.interceptors.request.use(
   async (config) => {
-    const store = JSON.parse(localStorage.getItem("persist:auth") || "");
-    const session = JSON.parse(store.user);
+    const state = ReduxStore.getState().auth.user?.token;
 
-    if (session) {
-      config.headers.Authorization = `Bearer ${session?.token.refreshToken}`;
+    if (state) {
+      config.headers.Authorization = `Bearer ${state?.accessToken}`;
     }
 
     return config;

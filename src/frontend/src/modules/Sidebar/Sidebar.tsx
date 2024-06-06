@@ -4,7 +4,7 @@ import Link from "next/link";
 import { IconLayoutDashboard, IconLogout, IconSettings } from "@tabler/icons-react";
 import { UnstyledButton } from "@mantine/core";
 
-import { useAppDispatch, useAppSelector } from "@/shared/redux/store";
+import { useAppDispatch } from "@/shared/redux/store";
 import { clearUser } from "@/shared/redux/authReducer";
 import { fetcher } from "@/shared/lib/utils";
 import { useContext } from "react";
@@ -13,7 +13,6 @@ import { isAxiosError } from "axios";
 
 export default function Sidebar() {
     const dispatch = useAppDispatch();
-    const token = useAppSelector(state => state.auth.user?.token.accessToken);
     const { setNotification } = useContext(notifyContext);
 
     const logOut = async () => {

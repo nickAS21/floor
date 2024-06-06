@@ -40,8 +40,7 @@ export default function LoginForm() {
     const form = useForm({
         initialValues: {
             username: '',
-            password: '',
-            apiEnabled: false,
+            password: ''
         },
         validate: {
             username: isNotEmpty("Username is required."),
@@ -51,7 +50,7 @@ export default function LoginForm() {
 
     // When the user attemps to log in while is already authorized, redirect to the main page 
     useEffect(() => {
-        if (isAuth) router.replace("/");
+        if (isAuth) router.push("/");
     }, []);
 
     const handleSubmit = async (values: typeof form["values"]) => {
