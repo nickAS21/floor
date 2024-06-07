@@ -624,19 +624,6 @@ public class TuyaDeviceService {
         return device;
     }
 
-    public void upDateOnlineStateDevice(String deviceId) throws Exception {
-       Device device = devices.getDevIds().get(deviceId);
-        if (device != null) {
-            String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
-            RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
-            ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-            if (responseEntity != null && responseEntity.getBody() != null && responseEntity.getBody().has("result")) {
-                JsonNode result = responseEntity.getBody().get("result");
-                device.setStatusOnline(result);
-            }
-        }
-    }
-
     //    https://openapi.tuyaeu.com/v1.0/iot-03/devices/bfa715581477683002qb4l/freeze-state
     private ResponseEntity<ObjectNode> sendRequest(RequestEntity<Object> requestEntity) throws Exception {
         try {

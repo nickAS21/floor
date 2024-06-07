@@ -42,7 +42,6 @@ import static org.nickas21.smart.util.HttpUtil.totalGridPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
 import static org.nickas21.smart.util.StringUtils.printMsgProgressBar;
 
-
 @Slf4j
 @Service
 public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService {
@@ -107,17 +106,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 }
             }
 
-            try {
-                this.codeGridRelay = this.codeGridRelay == null ? this.getCodeGridRelay() : this.codeGridRelay;
-                tuyaDeviceService.upDateOnlineStateDevice(this.codeGridRelay);
-                printMsgProgressBar("Start: " + curInstStr + ". Update parameter gridStateOnLine: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000/8)) + ",  after [" + (float)this.timeoutSecUpdate/60/8 + "] min: ",
-                        this.timeoutSecUpdate*1000/8, this.version);
-                Entry<Long, Boolean> currentStateOnLine =  tuyaDeviceService.devices.getDevIds().get(this.codeGridRelay).currentStateOnLine();
-                powerValueRealTimeData.setGridStatusOnLineReal(tuyaDeviceService.devices.getDevIds().get(currentStateOnLine == null ? "null" : this.codeGridRelay).currentStateOnLine().getValue());
-            } catch (Exception e) {
-                log.error("Start, Update parameter gridStateOnLine.", e);
+            this.codeGridRelay = this.codeGridRelay == null ? this.getCodeGridRelay() : this.codeGridRelay;
+            if (this.codeGridRelay != null ) {
+                Entry<Long, Boolean> currentStateOnLine = tuyaDeviceService.devices.getDevIds().get(this.codeGridRelay).currentStateOnLine();
+                powerValueRealTimeData.setGridStatusOnLineReal(currentStateOnLine == null ? null : currentStateOnLine.getValue());
             }
-
             log.info("""
                             Current data:\s
                             Current real time data: [{}], -Update real time data: [{}],\s
