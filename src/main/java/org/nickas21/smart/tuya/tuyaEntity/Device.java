@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -67,7 +68,7 @@ public class Device {
 
     public void setStatusOnline (JsonNode statusNodes) {
         if (statusNodes.has("active_time") && statusNodes.has("online")) {
-            this.getOnLine().put(statusNodes.get("active_time").asLong(), statusNodes.get("online").asBoolean());
+            this.getOnLine().put(Instant.now().toEpochMilli(), statusNodes.get("online").asBoolean());
         }
     }
 

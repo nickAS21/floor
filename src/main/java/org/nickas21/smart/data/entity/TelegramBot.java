@@ -9,6 +9,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private String botUsername;
     private String botToken;
+    private boolean stateStart;
 
      public void setBotUsername(String botUsername) {
         this.botUsername = botUsername;
@@ -31,6 +32,14 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         // Here you can handle incoming messages if necessary
+    }
+
+    public boolean isStateStart(){
+         return this.stateStart;
+    }
+
+    public void setStateStart(boolean stateStart){
+         this.stateStart = stateStart;
     }
 
     public void sendMessage(String chatId, String message) throws TelegramApiException {

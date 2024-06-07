@@ -32,6 +32,7 @@ public class TelegramBotConfig {
         try {
             TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
             botsApi.registerBot(bot);
+            bot.setStateStart(true);
             log.info("TelegramBotsApi is started successful.");
             return botsApi;
         } catch (TelegramApiException e) {

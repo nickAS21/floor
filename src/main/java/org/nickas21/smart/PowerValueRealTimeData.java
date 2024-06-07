@@ -2,6 +2,7 @@ package org.nickas21.smart;
 
 import lombok.Builder;
 import lombok.Data;
+import java.util.Map.Entry;
 
 @Data
 @Builder
@@ -33,6 +34,6 @@ public class PowerValueRealTimeData {
 
     String gridStatusRelay;     // Pull-in, Break
     String gridStatusSolarman;      // Purchasing energy, Grid connected, Static
-    Boolean gridStatusOnLineReal;          // false/true
+    Entry<Long, Boolean> gridStatusIsOnLine;          // time, false/true
 }
 
