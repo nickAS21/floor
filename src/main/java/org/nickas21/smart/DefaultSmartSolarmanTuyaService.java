@@ -1,24 +1,19 @@
 package org.nickas21.smart;
 
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.data.service.TelegramService;
 import org.nickas21.smart.solarman.BatteryStatus;
 import org.nickas21.smart.solarman.SolarmanSocPercentage;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
-import org.nickas21.smart.tuya.tuyaEntity.Device;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
 import java.time.Instant;
-import java.util.Map.Entry;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import static org.nickas21.smart.util.HttpUtil.batteryCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.batteryDailyChargeKey;
 import static org.nickas21.smart.util.HttpUtil.batteryDailyDischargeKey;
@@ -60,8 +55,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private double batSocMinInMilliSec; // %
     private int freePowerCorrectMinMax;
     private int freePowerCorrectCnt;
-    private String gridRelayCodeId;
-    private Long lastUpdateTimeGridStatusInfo;
+
     @Value("${app.version:unknown}")
     String version;
     @Autowired
@@ -69,9 +63,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     @Autowired
     TuyaDeviceService tuyaDeviceService;
-
-    @Autowired
-    private TelegramService telegramService;
 
     @Override
     public void solarmanRealTimeDataStart() {
@@ -111,10 +102,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 }
             }
 
-            this.gridRelayCodeId = this.gridRelayCodeId == null ? this.getGridRelayCodeId() : this.gridRelayCodeId;
-            if (this.gridRelayCodeId != null ) {
-                this.updateGridStateOnLine();
-            }
+            tuyaDeviceService.updateGridStateOnLine();
+
             log.info("""
                             Current data:\s
                             Current real time data: [{}], -Update real time data: [{}],\s
@@ -147,7 +136,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
                     powerValueRealTimeData.getGridStatusRelay(),
                     powerValueRealTimeData.getGridStatusSolarman(),
-                    powerValueRealTimeData.getGridStatusIsOnLine().getValue(),
+                    tuyaDeviceService.getGridStatusIsOnLine().getValue(),
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell());
 
@@ -331,19 +320,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         }
     }
 
-    private String getGridRelayCodeId(){
-        if (tuyaDeviceService.devices.getDevIds() != null) {
-            for (Entry<String, Device> deviceId: tuyaDeviceService.devices.getDevIds().entrySet()) {
-                if(tuyaDeviceService.onLine.equals(deviceId.getValue().getValueSetMaxOn())){
-                    if (tuyaDeviceService.onLine.equals(deviceId.getValue().getValueSetMaxOn())) {
-                        return deviceId.getKey();
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
     private Double getBatSocMin(){
         if (this.curDate != null && this.sunRiseDate != null) {
             if (this.sunRiseMax != null && this.sunSetMin != null
@@ -417,27 +393,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             this.isDay = false;
         }
         log.info("Is Day [{}]", isDay);
-    }
-
-    private void updateGridStateOnLine() {
-        Entry<Long, Boolean> gridStateOnLine = tuyaDeviceService.devices.getDevIds().get(this.gridRelayCodeId).currentStateOnLine();
-        if (gridStateOnLine != null) {
-            String msg = null;
-            if (this.lastUpdateTimeGridStatusInfo == null) {
-                // first message
-                msg = telegramService.sendFirstMsgToTelegram(gridStateOnLine);
-            } else {
-                // next  message
-                if (gridStateOnLine.getValue() != powerValueRealTimeData.getGridStatusIsOnLine().getValue()) {
-                    msg = telegramService.sendMsgToTelegram(this.lastUpdateTimeGridStatusInfo, gridStateOnLine);
-                }
-            }
-            if (msg != null) {
-                this.lastUpdateTimeGridStatusInfo = gridStateOnLine.getKey();
-            }
-            powerValueRealTimeData.setGridStatusIsOnLine(gridStateOnLine);
-            log.info("\nTelegram send msg: \n{}", msg);
-        }
     }
 }
 

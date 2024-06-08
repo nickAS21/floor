@@ -87,8 +87,9 @@ public class Device {
         }
     }
 
-    public void setBizCode (ObjectNode bizCodeNode) {
+    public boolean setBizCode (ObjectNode bizCodeNode) {
         DeviceBizCode deviceBizCode = treeToValue(bizCodeNode, DeviceBizCode.class);
+        boolean updateGridOnline = false;
         this.setBizCodeLast(deviceBizCode.getBizCode());
         this.setUpdate_time(deviceBizCode.getTs());
         if ("nameUpdate".equals(deviceBizCode.getBizCode())) {
@@ -99,14 +100,17 @@ public class Device {
             this.onLine.put(deviceBizCode.getTs(), true);
             deviceBizCode.setValueOld(false);
             deviceBizCode.setValue(true);
+            updateGridOnline = true;
         }else if ("offline".equals(deviceBizCode.getBizCode())) {
             this.onLine.put(deviceBizCode.getTs(), false);
             deviceBizCode.setValueOld(true);
             deviceBizCode.setValue(false);
+            updateGridOnline = true;
         }
         log.info("Device: [{}] time: -> [{}] parameter bizCode: [{}] valueOld: [{}]  valueNew: [{}] ",
                 this.getName(), toLocaleTimeString(this.getUpdate_time()), deviceBizCode.getBizCode(),
                 deviceBizCode.getValueOld(), deviceBizCode.getValue());
+        return updateGridOnline;
     }
     public Object getStatusValue (String key, Object valueDef){
         return this.status == null || this.status.get(key) == null ? valueDef : this.status.get(key).getValue();
