@@ -47,9 +47,13 @@ public class TelegramService {
             long duration = gridStateOnLine.getKey() - lastUpdateTimeGridStatusInfo;
             long durationMin = duration/1000/60;
             long durationHour = durationMin/60;
+            long duration24 = durationHour/24;
+            durationHour = durationHour - duration24*24;
             durationMin = durationMin -  durationHour*60;
-            String durationStr = durationHour >= 24 ? "більше " + durationHour/24 + " діб/доби" :
-                    durationHour > 0 ? durationHour + " годин(и/а), " + durationMin + " хв." :
+            String durationStr = duration24 > 0 ?
+                    duration24 + " доба(и)/діб, " + durationHour/24 + " діб/доби, " + durationHour + " годин(и/а), " + durationMin + " хв." :
+                    durationHour > 0 ?
+                            durationHour + " годин(и/а), " + durationMin + " хв." :
                             durationMin + " хв.";
            msg = "Станом на: [" + timeUpdateStr + "]\n - " +  msgGridStatus + "\n" +
                     msgGrid + " з [" + timeBeforeStr + "] по [" + timeUpdateStr + "],\n- тривалість: [" + durationStr + "].";

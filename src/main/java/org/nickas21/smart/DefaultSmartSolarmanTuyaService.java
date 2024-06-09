@@ -136,10 +136,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
                     powerValueRealTimeData.getGridStatusRelay(),
                     powerValueRealTimeData.getGridStatusSolarman(),
-                    tuyaDeviceService.getGridStatusIsOnLine().getValue(),
+                    tuyaDeviceService.getGridRelayCodeStateOnLine(),
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell());
-
             if (isDay) {
                 isUpdateAfterIsDayFalse = false;
                 if (this.batterySocCur > 0) {

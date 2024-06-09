@@ -132,5 +132,10 @@ public class Device {
                 .max(Entry.comparingByKey());
         return maxEntry.orElse(null);
     }
+
+    public Boolean getCurrentStateOnLineValue() {
+        Entry<Long, Boolean> stateOnLine = this.currentStateOnLine();
+        return stateOnLine != null ? stateOnLine.getValue() : null;
+    }
 }
 
