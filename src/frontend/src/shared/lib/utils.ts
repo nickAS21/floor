@@ -1,31 +1,34 @@
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import axios, { AxiosError } from "axios";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import axios from "axios";
 import mem from "mem";
 
 import { store as ReduxStore } from "../redux/store";
-import { refreshToken as refreshTokenAction } from '../redux/authReducer';
-
+import { refreshToken as refreshTokenAction } from "../redux/authReducer";
+import { APP_PATHS } from "./constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export const publicFetcher = axios.create({
-  baseURL: process.env.NODE_ENV === "production" ? process.env.NEXT_PUBLIC_BACKEND_URL : process.env.NEXT_PUBLIC_DEV_BACKEND_URL,
+  baseURL:
+    process.env.NODE_ENV === "production"
+      ? process.env.NEXT_PUBLIC_BACKEND_URL
+      : process.env.NEXT_PUBLIC_DEV_BACKEND_URL,
   headers: {
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
   },
 });
 
 const refreshTokenFn = async () => {
   const state = ReduxStore.getState().auth.user?.token;
-  
+
   try {
     const response = await fetcher.post("/api/auth/refresh", null, {
       headers: {
-        Authorization: `Bearer ${state?.refreshToken}`
-      }
+        Authorization: `Bearer ${state?.refreshToken}`,
+      },
     });
 
     const { token } = response.data;
@@ -35,38 +38,38 @@ const refreshTokenFn = async () => {
     return token;
   } catch (err) {
     localStorage.removeItem("persist:auth");
+    throw err;
   }
-}
+};
 
 const maxAge = 10000;
 
 export const memoizedRefreshToken = mem(refreshTokenFn, { maxAge });
 
 export const fetcher = axios.create({
-  baseURL: process.env.NODE_ENV === "production" ? process.env.NEXT_PUBLIC_BACKEND_URL : process.env.NEXT_PUBLIC_DEV_BACKEND_URL,
+  baseURL:
+    process.env.NODE_ENV === "production"
+      ? process.env.NEXT_PUBLIC_BACKEND_URL
+      : process.env.NEXT_PUBLIC_DEV_BACKEND_URL,
   headers: {
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
   },
   withCredentials: true,
 });
 
 fetcher.interceptors.response.use(
-  (res) => {
-    // FIXME
-    if (res.data.message === "Invalid username or password") { 
-      const err = new AxiosError(res.data.message);
-      err.status = res.data.status;
-      throw err;
-    };
-
-    return res;
-  },
+  (res) => res,
   async (error) => {
     const config = error?.config;
 
-    if (error?.response?.status === 401 && !config?.sent) {
+    if (
+      // In case of log in error, we don't need to refresh the token (the same will be with registering)
+      config.url !== APP_PATHS["LOGIN"] &&
+      error?.response?.status === 401 &&
+      !config?.sent
+    ) {
       config.sent = true;
-      
+
       const result = await memoizedRefreshToken();
 
       if (result) {
@@ -92,4 +95,4 @@ fetcher.interceptors.request.use(
     return config;
   },
   (err) => Promise.reject(err)
-)
+);

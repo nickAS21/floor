@@ -1,7 +1,9 @@
+import SettingsDisplay from "@/modules/SettingsDisplay";
+
 export default function Page() {
-    return (
-        <>
-            <h1>Settings page</h1>
-        </>
-    )
+  return (
+    <>
+      <SettingsDisplay />
+    </>
+  );
 }
