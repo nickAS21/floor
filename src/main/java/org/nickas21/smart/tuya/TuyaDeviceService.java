@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.data.service.TelegramService;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaToken;
@@ -25,8 +26,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.ClientRequest;
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
+import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +43,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -76,19 +81,35 @@ public class TuyaDeviceService {
     private TuyaToken accessTuyaToken;
     public Devices devices;
 
+    private String gridRelayCodeId;
+
+    private Long lastUpdateTimeGridStatusInfo;
+
+    private Entry<Long, Boolean> gridStatusIsOnLine;          // time, false/true
+
     private final Map<Device, DeviceUpdate> queueUpdateMax = new ConcurrentHashMap<>();
 
     private final TuyaConnectionProperties connectionConfiguration;
     private final TuyaDeviceProperties deviceProperties;
     private final RestTemplate httpClient = new RestTemplate();
     private final WebClient authClient = WebClient.builder().build();
+    private final WebClient webClient;
 
     @Autowired
     SolarmanStationsService solarmanStationsService;
+    @Autowired
+    private TelegramService telegramService;
 
     public TuyaDeviceService(TuyaConnectionProperties connectionConfiguration, TuyaDeviceProperties deviceProperties) {
         this.connectionConfiguration = connectionConfiguration;
         this.deviceProperties = deviceProperties;
+        this.webClient =  WebClient.builder()
+                .baseUrl(connectionConfiguration.getRegion().getApiUrl())
+                .filter(ExchangeFilterFunction.ofRequestProcessor(
+                        (ClientRequest request) -> Mono.just(ClientRequest.from(request)
+                                .headers(httpHeaders -> httpHeaders.setBearerAuth(getTuyaToken().getAccessToken()))
+                                .build())))
+                .build();
     }
 
     public void init() {
@@ -130,13 +151,11 @@ public class TuyaDeviceService {
             }
         }
         if (bizCode != null && device != null) {
-            device.setBizCode((ObjectNode) msg.getJson());
+            if (device.setBizCode((ObjectNode) msg.getJson())) {
+                updateGridStateOnLine();
+            }
         }
     }
-
-//    private Device initInfoGrid(String deviceId, int... devParams) throws Exception {
-//        // bf486f484c2ec56ff9bnpq - AutoGreedDeye
-//    }
 
     /**
      * devicesToUpDateStatusValue
@@ -386,6 +405,10 @@ public class TuyaDeviceService {
         return this.connectionConfiguration;
     }
 
+    public Entry<Long, Boolean> getGridStatusIsOnLine() {
+        return this.gridStatusIsOnLine;
+    }
+
     private TuyaToken createTuyaToken() throws Exception {
         Map<String, Object> queries = new HashMap<>();
         queries.put("grant_type", TOKEN_GRANT_TYPE);
@@ -613,16 +636,6 @@ public class TuyaDeviceService {
         return device;
     }
 
-    public void upDateOnlineStateDevice(String deviceId) throws Exception {
-        String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
-        RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
-        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null && responseEntity.getBody() != null) {
-            JsonNode result = responseEntity.getBody().get("result");
-            devices.getDevIds().get(deviceId).setStatusOnline(result);
-        }
-    }
-
     //    https://openapi.tuyaeu.com/v1.0/iot-03/devices/bfa715581477683002qb4l/freeze-state
     private ResponseEntity<ObjectNode> sendRequest(RequestEntity<Object> requestEntity) throws Exception {
         try {
@@ -651,5 +664,46 @@ public class TuyaDeviceService {
     private boolean hasRefreshAccessToken() {
         Long deltaRefresh = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 1000;
         return (System.currentTimeMillis() - this.accessTuyaToken.getT()) > (this.accessTuyaToken.getExpireTimeMilli() - deltaRefresh);
+    }
+
+    public void updateGridStateOnLine() {
+        if (this.getGridRelayCodeId() != null ) {
+            Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(this.getGridRelayCodeId()).currentStateOnLine();
+            if (gridStateOnLine != null) {
+                String msg = null;
+                if (this.lastUpdateTimeGridStatusInfo == null) {
+                    // first message
+                    msg = telegramService.sendFirstMsgToTelegram(gridStateOnLine);
+                } else {
+                    // next  message
+                    if (gridStateOnLine.getValue() != this.gridStatusIsOnLine.getValue()) {
+                        msg = telegramService.sendMsgToTelegram(this.lastUpdateTimeGridStatusInfo, gridStateOnLine);
+                    }
+                }
+                if (msg != null) {
+                    this.lastUpdateTimeGridStatusInfo = gridStateOnLine.getKey();
+                }
+                this.gridStatusIsOnLine = gridStateOnLine;
+                log.info("\nTelegram send msg: \n{}", msg);
+            }
+        }
+    }
+
+    private String getGridRelayCodeId() {
+        if (this.gridRelayCodeId == null) {
+            this.gridRelayCodeId = this.getGridRelayCode();
+        }
+        return this.gridRelayCodeId;
+    }
+
+    private String getGridRelayCode(){
+        if (this.devices.getDevIds() != null) {
+            for (Entry<String, Device> deviceId: this.devices.getDevIds().entrySet()) {
+                if(this.onLine.equals(deviceId.getValue().getValueSetMaxOn())){
+                    return deviceId.getKey();
+                }
+            }
+        }
+        return null;
     }
 }

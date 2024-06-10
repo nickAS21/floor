@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -67,7 +68,7 @@ public class Device {
 
     public void setStatusOnline (JsonNode statusNodes) {
         if (statusNodes.has("active_time") && statusNodes.has("online")) {
-            this.getOnLine().put(statusNodes.get("active_time").asLong(), statusNodes.get("online").asBoolean());
+            this.getOnLine().put(Instant.now().toEpochMilli(), statusNodes.get("online").asBoolean());
         }
     }
 
@@ -86,8 +87,9 @@ public class Device {
         }
     }
 
-    public void setBizCode (ObjectNode bizCodeNode) {
+    public boolean setBizCode (ObjectNode bizCodeNode) {
         DeviceBizCode deviceBizCode = treeToValue(bizCodeNode, DeviceBizCode.class);
+        boolean updateGridOnline = false;
         this.setBizCodeLast(deviceBizCode.getBizCode());
         this.setUpdate_time(deviceBizCode.getTs());
         if ("nameUpdate".equals(deviceBizCode.getBizCode())) {
@@ -98,14 +100,17 @@ public class Device {
             this.onLine.put(deviceBizCode.getTs(), true);
             deviceBizCode.setValueOld(false);
             deviceBizCode.setValue(true);
+            updateGridOnline = true;
         }else if ("offline".equals(deviceBizCode.getBizCode())) {
             this.onLine.put(deviceBizCode.getTs(), false);
             deviceBizCode.setValueOld(true);
             deviceBizCode.setValue(false);
+            updateGridOnline = true;
         }
         log.info("Device: [{}] time: -> [{}] parameter bizCode: [{}] valueOld: [{}]  valueNew: [{}] ",
                 this.getName(), toLocaleTimeString(this.getUpdate_time()), deviceBizCode.getBizCode(),
                 deviceBizCode.getValueOld(), deviceBizCode.getValue());
+        return updateGridOnline;
     }
     public Object getStatusValue (String key, Object valueDef){
         return this.status == null || this.status.get(key) == null ? valueDef : this.status.get(key).getValue();

@@ -33,6 +33,5 @@ public class PowerValueRealTimeData {
 
     String gridStatusRelay;     // Pull-in, Break
     String gridStatusSolarman;      // Purchasing energy, Grid connected, Static
-    Boolean gridStatusOnLineReal;          // false/true
 }
 

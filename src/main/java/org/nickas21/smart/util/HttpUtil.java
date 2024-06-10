@@ -76,6 +76,14 @@ public class HttpUtil {
         return formatter.format(curInst);
     }
 
+    public static String toLocaleDateTimeStringToTelegram(Long milliSec) {
+        DateTimeFormatter formatter = DateTimeFormatter
+                .ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+                .withLocale(Locale.forLanguageTag("uk-UA"))
+                .withZone(timeZone.toZoneId());
+        return formatter.format(Instant.ofEpochMilli(milliSec));
+    }
+
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;
         if (queries != null) {

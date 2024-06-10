@@ -61,11 +61,11 @@ public class SecurityConfig {
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http,
-                                                         ServerAuthenticationEntryPoint authenticationEntryPoint,
                                                          WebSessionServerSecurityContextRepository securityContextRepository,
                                                          CorsConfigurationSource corsConfigurationSource) {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .logout(ServerHttpSecurity.LogoutSpec::disable)
                 .securityContextRepository(securityContextRepository)
                 .requestCache(requestCacheSpec -> requestCacheSpec.requestCache(NoOpServerRequestCache.getInstance()))
                 .authorizeExchange(authorizeExchangeSpec -> authorizeExchangeSpec
@@ -74,7 +74,8 @@ public class SecurityConfig {
                 )
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource))
                 .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
-                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .authenticationEntryPoint((exchange, exception) -> Mono.error(exception))
+                        .accessDeniedHandler((exchange, exception) -> Mono.error(exception))
                 )
                 .build();
     }

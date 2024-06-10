@@ -56,6 +56,12 @@ smart:
     dop-power-to-max: "${DOP_POWER_TO_MAX:2000}"
     dop-power-to-min: "${DOP_POWER_TO_MIN:800}"
 
+telegram:
+  bot:
+    username: "${TELEGRAM_BOT_USERNAME:xxx}"
+    token: "${TELEGRAM_BOT_TOKEN:xxxx}"
+  chat-id: "${TELEGRAM_CHAT_ID:-100}"
+
 logging.level:
   ch.qos.logback: OFF
   org.apache.pulsar: OFF
