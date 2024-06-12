@@ -49,12 +49,12 @@ public class TelegramService {
             long durationHour = durationMin/60;
             long duration24 = durationHour/24;
             durationHour = durationHour - duration24*24;
-            durationMin = durationMin -  durationHour*60;
+            durationMin = durationMin - duration24*24*60 -  durationHour*60;
             String durationStr = duration24 > 0 ?
-                    duration24 + " доба(и)/діб, " + durationHour/24 + " діб/доби, " + durationHour + " годин(и/а), " + durationMin + " хв." :
+                    duration24 + " d," + durationHour + " h, " + durationMin + " min." :
                     durationHour > 0 ?
-                            durationHour + " годин(и/а), " + durationMin + " хв." :
-                            durationMin + " хв.";
+                            durationHour + " h, " + durationMin + " min." :
+                            durationMin + " min.";
            msg = "Станом на: [" + timeUpdateStr + "]\n - " +  msgGridStatus + "\n" +
                     msgGrid + " з [" + timeBeforeStr + "] по [" + timeUpdateStr + "],\n- тривалість: [" + durationStr + "].";
             this.sendNotification(msg);
