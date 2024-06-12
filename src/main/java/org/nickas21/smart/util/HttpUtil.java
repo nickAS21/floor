@@ -84,6 +84,14 @@ public class HttpUtil {
         return formatter.format(Instant.ofEpochMilli(milliSec));
     }
 
+    public static String toUsDateTimeStringToTelegram(Long milliSec) {
+        DateTimeFormatter formatter = DateTimeFormatter
+                .ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.SHORT)
+                .withLocale(Locale.US)
+                .withZone(timeZone.toZoneId());
+        return formatter.format(Instant.ofEpochMilli(milliSec));
+    }
+
     public static String creatHttpPathWithQueries(String path, Map<String, Object> queries) {
         String pathWithQueries = path;
         if (queries != null) {
