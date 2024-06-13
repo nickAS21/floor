@@ -3,6 +3,7 @@ package org.nickas21.smart.tuya;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.security.configuration.TelegramBotConfig;
 import org.nickas21.smart.tuya.mq.MessageVO;
 import org.nickas21.smart.tuya.mq.MqPulsarConsumer;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
@@ -24,6 +25,8 @@ public class TuyaConnection implements TuyaConnectionIn {
 
     @Autowired()
     private TuyaDeviceService tuyaDeviceService;
+    @Autowired()
+    private TelegramBotConfig telegramBotConfig;
 
     public void init() {
         mqPulsarConsumer = createMqConsumer(this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk());
@@ -49,6 +52,10 @@ public class TuyaConnection implements TuyaConnectionIn {
             } catch (Exception e) {
                 log.error("Cannot stop message queue consumer!", e);
             }
+        }
+        if (telegramBotConfig != null) {
+            log.info("Start destroy telegramBotConfig");
+            telegramBotConfig.stop();
         }
     }
 

@@ -1,9 +1,7 @@
 package org.nickas21.smart.security.configuration;
 
-import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.entity.TelegramBot;
-import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +12,7 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 @Slf4j
 @Configuration
-public class TelegramBotConfig  implements DisposableBean {
+public class TelegramBotConfig {
 
     @Value("${telegram.bot.username}")
     private String botUsername;
@@ -48,9 +46,8 @@ public class TelegramBotConfig  implements DisposableBean {
         }
     }
 
-    @PreDestroy
-    @Override
-    public void destroy() {
+    public void stop() {
+        log.info("Telegram bot stateStart: [{}]", bot.isStateStart());
         if (bot.isStateStart()) {
             try {
                 botSession.stop();
