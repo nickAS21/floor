@@ -1,6 +1,7 @@
 package org.nickas21.smart.security.configuration;
 
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.data.entity.DefaultBotSessionFloor;
 import org.nickas21.smart.data.entity.TelegramBot;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -8,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.BotSession;
-import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 @Slf4j
 @Configuration
@@ -35,7 +35,7 @@ public class TelegramBotConfig {
     @Bean
     public TelegramBotsApi telegramBotsApi(TelegramBot bot) {
         try {
-            botsApi = new TelegramBotsApi(DefaultBotSession.class);
+            botsApi = new TelegramBotsApi(DefaultBotSessionFloor.class);
             botSession =  botsApi.registerBot(bot);
             bot.setStateStart(true);
             log.info("TelegramBotsApi is started successful.");
@@ -46,11 +46,13 @@ public class TelegramBotConfig {
         }
     }
 
-    public void stop() {
+    public void preDestroy() {
         log.info("Telegram bot stateStart: [{}]", bot.isStateStart());
+        if (botSession != null) {
+            botSession.stop();
+        }
         if (bot.isStateStart()) {
             try {
-                botSession.stop();
                 bot.onClosing();
                 botsApi = null;
                 log.info("Telegram bot unregistered successfully.");

@@ -41,7 +41,11 @@ public class TuyaConnection implements TuyaConnectionIn {
     }
 
     public void preDestroy() throws Exception {
-        log.warn("Start destroy tuyaDeviceService [{}]!", tuyaDeviceService);
+        log.warn("Start destroy tuyaDeviceService!");
+        if (telegramBotConfig != null) {
+            log.info("Start destroy telegramBotConfig");
+            telegramBotConfig.preDestroy();
+        }
         if (tuyaDeviceService.getConnectionConfiguration() != null) {
             tuyaDeviceService.updateAllDevicePreDestroy();
         }
@@ -52,10 +56,6 @@ public class TuyaConnection implements TuyaConnectionIn {
             } catch (Exception e) {
                 log.error("Cannot stop message queue consumer!", e);
             }
-        }
-        if (telegramBotConfig != null) {
-            log.info("Start destroy telegramBotConfig");
-            telegramBotConfig.stop();
         }
     }
 
