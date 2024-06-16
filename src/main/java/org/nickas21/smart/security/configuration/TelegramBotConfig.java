@@ -1,7 +1,7 @@
 package org.nickas21.smart.security.configuration;
 
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.data.entity.DefaultBotSessionFloor;
+import org.nickas21.smart.data.entity.TelegramBotSession;
 import org.nickas21.smart.data.entity.TelegramBot;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -35,7 +35,7 @@ public class TelegramBotConfig {
     @Bean
     public TelegramBotsApi telegramBotsApi(TelegramBot bot) {
         try {
-            botsApi = new TelegramBotsApi(DefaultBotSessionFloor.class);
+            botsApi = new TelegramBotsApi(TelegramBotSession.class);
             botSession =  botsApi.registerBot(bot);
             bot.setStateStart(true);
             log.info("TelegramBotsApi is started successful.");
@@ -54,7 +54,6 @@ public class TelegramBotConfig {
         if (bot.isStateStart()) {
             try {
                 bot.onClosing();
-                botsApi = null;
                 log.info("Telegram bot unregistered successfully.");
             } catch (Exception e) {
                 log.error("Failed to unregister bot: {}", e.getMessage());

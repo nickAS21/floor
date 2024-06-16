@@ -41,7 +41,7 @@ public class TuyaConnection implements TuyaConnectionIn {
     }
 
     public void preDestroy() throws Exception {
-        log.warn("Start destroy tuyaDeviceService!");
+        log.info("Start destroy tuyaDeviceService!");
         if (telegramBotConfig != null) {
             log.info("Start destroy telegramBotConfig");
             telegramBotConfig.preDestroy();

@@ -37,6 +37,7 @@ import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.totalGridPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
 import static org.nickas21.smart.util.StringUtils.printMsgProgressBar;
+import static org.nickas21.smart.util.StringUtils.stopProgressBar;
 
 @Slf4j
 @Service
@@ -56,6 +57,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private int freePowerCorrectMinMax;
     private int freePowerCorrectCnt;
 
+    private Thread progressBarThread;
+
+    private ScheduledExecutorService executorService;
+
     @Value("${app.version:unknown}")
     String version;
     @Autowired
@@ -69,9 +74,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         this.batterySocCur = 0;
         this.stationConsumptionPower = solarmanStationsService.getSolarmanStation().getStationConsumptionPower();
         this.powerValueRealTimeData = PowerValueRealTimeData.builder().build();
-        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        this.executorService = Executors.newSingleThreadScheduledExecutor();
         this.timeoutSecUpdate = this.timeoutSecUpdate == null ?  solarmanStationsService.getSolarmanStation().getTimeoutSec() : this.timeoutSecUpdate;
-        executorService.scheduleAtFixedRate(this::setBmsSocCur, 0, this.timeoutSecUpdate, TimeUnit.SECONDS);
+        this.executorService.scheduleAtFixedRate(this::setBmsSocCur, 0, this.timeoutSecUpdate, TimeUnit.SECONDS);
     }
 
     private void setBmsSocCur() {
@@ -93,9 +98,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             setTimeoutSecUpdate();
             if (this.batterySocCur == 0) {
                 try {
-                    printMsgProgressBar("Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ",
-                            this.timeoutSecUpdate*1000, this.version);
-                    this.tuyaDeviceService.updateAllThermostatStart();
+                    String msgProgressBar = "Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ";
+                    this.setProgressBarThread (msgProgressBar);
+
+                    this.tuyaDeviceService.updateAllThermostatToMin("start");
                     isUpdateAfterIsDayFalse = true;
                 } catch (Exception e) {
                     log.error("Start, updateAllThermostat to min.", e);
@@ -172,15 +178,16 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     log.info("Update parameters idDay [{}]: Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", this.isDay, toLocaleTimeString(this.sunSetDate));
                     log.info("Night   at: [{}]", toLocaleTimeString(this.sunSetMin));
                     try {
-                        this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                        this.tuyaDeviceService.updateAllThermostatToMin("is Day == false");
                         isUpdateAfterIsDayFalse = true;
                     } catch (Exception e) {
                         log.error("Update parameters idDay [{}] UpdateAllThermostat to min. Error: [{}}]", this.isDay, e.getMessage());
                     }
                 }
             }
-            printMsgProgressBar(curInstStr + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ",
-                    this.timeoutSecUpdate*1000, this.version);
+
+            String msgProgressBar = ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ";
+            this.setProgressBarThread (msgProgressBar);
 
             batterySocCur = batterySocNew;
         } catch (Exception e) {
@@ -392,6 +399,23 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             this.isDay = false;
         }
         log.info("Is Day [{}]", isDay);
+    }
+
+    private void setProgressBarThread (String msgProgressBar) {
+        this.progressBarThread = new Thread(() -> printMsgProgressBar(msgProgressBar, this.timeoutSecUpdate*1000, this.version));
+        progressBarThread.start();
+    }
+
+    public void preDestroy() {
+        log.info("Start destroy DefaultSmartSolarmanTuyaService");
+        if (this.progressBarThread != null) {
+            stopProgressBar();
+            log.info("Stopped executor ProgressBar");
+        }
+        if (this.executorService != null) {
+            this.executorService.shutdown();
+            log.info("Stopped executor service");
+        }
     }
 }
 

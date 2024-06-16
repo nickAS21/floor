@@ -15,7 +15,12 @@ import org.telegram.telegrambots.facilities.TelegramHttpClientBuilder;
 import org.telegram.telegrambots.meta.api.methods.updates.GetUpdates;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
-import org.telegram.telegrambots.meta.generics.*;
+import org.telegram.telegrambots.meta.generics.BotOptions;
+import org.telegram.telegrambots.meta.generics.BotSession;
+import org.telegram.telegrambots.meta.generics.LongPollingBot;
+import org.telegram.telegrambots.meta.generics.UpdatesHandler;
+import org.telegram.telegrambots.meta.generics.UpdatesReader;
+import org.telegram.telegrambots.meta.generics.BackOff;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -35,10 +40,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.telegram.telegrambots.Constants.SOCKET_TIMEOUT;
 
-
 @Slf4j
-public class DefaultBotSessionFloor implements BotSession {
-
+public class TelegramBotSession implements BotSession {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicInteger startConflict409 = new AtomicInteger(0);
@@ -54,8 +57,7 @@ public class DefaultBotSessionFloor implements BotSession {
     private DefaultBotOptions options;
     private UpdatesSupplier updatesSupplier;
 
-    public DefaultBotSessionFloor() {
-    }
+    public TelegramBotSession() {}
 
     @Override
     public synchronized void start() {
@@ -64,7 +66,6 @@ public class DefaultBotSessionFloor implements BotSession {
         }
 
         running.set(true);
-
         lastReceivedUpdate = 0;
 
         readerThread = new ReaderThread(updatesSupplier, this);
@@ -130,7 +131,6 @@ public class DefaultBotSessionFloor implements BotSession {
         return running.get();
     }
 
-    @SuppressWarnings("WeakerAccess")
     private class ReaderThread extends Thread implements UpdatesReader {
 
         private final UpdatesSupplier updatesSupplier;
@@ -150,7 +150,6 @@ public class DefaultBotSessionFloor implements BotSession {
             requestConfig = options.getRequestConfig();
             backOff = options.getBackOff();
 
-            // fall back to default exponential backoff strategy if no backoff specified
             if (backOff == null) {
                 backOff = new ExponentialBackOffFloor();
             }
@@ -171,7 +170,7 @@ public class DefaultBotSessionFloor implements BotSession {
                 try {
                     httpclient.close();
                 } catch (IOException e) {
-                    log.warn(e.getLocalizedMessage(), e);
+                    log.error("interrupt() [{}] [{}]", e.getMessage(), e.getLocalizedMessage(), e.getCause());
                 }
             }
             super.interrupt();
@@ -190,8 +189,7 @@ public class DefaultBotSessionFloor implements BotSession {
                             } else {
                                 updates.removeIf(x -> x.getUpdateId() < lastReceivedUpdate);
                                 lastReceivedUpdate = updates.parallelStream()
-                                        .map(
-                                                Update::getUpdateId)
+                                        .map(Update::getUpdateId)
                                         .max(Integer::compareTo)
                                         .orElse(0);
                                 receivedUpdates.addAll(updates);
@@ -204,10 +202,10 @@ public class DefaultBotSessionFloor implements BotSession {
                             if (!running.get()) {
                                 receivedUpdates.clear();
                             }
-                            log.info(e.getLocalizedMessage(), e);
+                            log.error("TelegramBot Run: msgInterruptedException before interrupt [{}] [{}]", e.getMessage(), e.getLocalizedMessage(), e.getCause());
                             interrupt();
                         } catch (Exception global) {
-                            log.error(global.getLocalizedMessage(), global);
+                            log.error("TelegramBot Run: msgException global [{}] [{}]", global.getMessage(), global.getLocalizedMessage(), global.getCause());
                             try {
                                 synchronized (lock) {
                                     lock.wait(backOff.nextBackOffMillis());
@@ -223,12 +221,11 @@ public class DefaultBotSessionFloor implements BotSession {
                     }
                 }
             }
-            log.debug("Reader thread has being closed");
+            log.info("Reader thread has being closed");
         }
 
         private List<Update> getUpdatesFromServer() throws IOException {
-            GetUpdates request = GetUpdates
-                    .builder()
+            GetUpdates request = GetUpdates.builder()
                     .limit(options.getGetUpdatesLimit())
                     .timeout(options.getGetUpdatesTimeout())
                     .offset(lastReceivedUpdate + 1)
@@ -239,7 +236,6 @@ public class DefaultBotSessionFloor implements BotSession {
             }
 
             String url = options.getBaseUrl() + token + "/" + GetUpdates.PATH;
-            //http client
             HttpPost httpPost = new HttpPost(url);
             httpPost.addHeader("charset", StandardCharsets.UTF_8.name());
             httpPost.setConfig(requestConfig);
@@ -257,7 +253,7 @@ public class DefaultBotSessionFloor implements BotSession {
                     List<Update> updates = request.deserializeResponse(responseContent);
                     backOff.reset();
                     if (startConflict409.get() > 0) {
-                       log.info("Finish reStart  TelegramBot. Cnt409: [{}]", startConflict409.get());
+                        log.info("Finish reStart TelegramBot. Cnt409: [{}]", startConflict409.get());
                         startConflict409.set(0);
                     }
                     return updates;
@@ -269,19 +265,17 @@ public class DefaultBotSessionFloor implements BotSession {
                     }
                     startConflict409.incrementAndGet();
                 } else {
-                    log.info(e.getLocalizedMessage());
+                    log.error("getUpdatesFromServer msgTelegramApiRequestException... [{}] [{}]", e.getMessage(), e.getLocalizedMessage(), e.getCause());
                 }
             } catch (SocketTimeoutException e) {
-                log.info(e.getLocalizedMessage());
+                log.error("getUpdatesFromServer SocketTimeoutException [{}] [{}]", e.getMessage(), e.getLocalizedMessage(), e.getCause());
             } catch (InterruptedException e) {
-                log.info(e.getLocalizedMessage());
+                log.error("getUpdatesFromServer InterruptedException [{}] [{}]", e.getMessage(), e.getLocalizedMessage(), e.getCause());
                 interrupt();
             } catch (InternalError e) {
-                // handle InternalError to workaround OpenJDK bug (resolved since 13.0)
-                // https://bugs.openjdk.java.net/browse/JDK-8173620
                 if (e.getCause() instanceof InvocationTargetException) {
                     Throwable cause = e.getCause().getCause();
-                    log.error(cause.getLocalizedMessage(), cause);
+                    log.error("getUpdatesFromServer InternalError [{}] [{}]", cause.getMessage(), cause.getLocalizedMessage(), cause);
                 } else throw e;
             }
 
@@ -290,7 +284,6 @@ public class DefaultBotSessionFloor implements BotSession {
     }
 
     public interface UpdatesSupplier {
-
         List<Update> getUpdates() throws Exception;
     }
 

@@ -172,7 +172,7 @@ public class TuyaDeviceService {
         sendPostRequest(path, commandsNode, deviceName);
     }
 
-    public void updateAllThermostatStart() throws Exception {
+    public void updateAllThermostatToMin(String msgInfo) throws Exception {
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
         if (this.devices != null) {
             log.info("Start update Devices [{}].", this.devices.getDevIds().size());
@@ -187,7 +187,7 @@ public class TuyaDeviceService {
                     }
                 }
             }
-            log.info("Finish updating Devices [{}] from [{}] after start", cntUpdate, this.devices.getDevIds().size());
+            log.info("Finish updating Devices [{}] from [{}] after [{}]", cntUpdate, this.devices.getDevIds().size(), msgInfo);
         } else {
             log.error("Devices is null, Devices not Update after start.");
         }
