@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 public class StringUtils {
 
     private static volatile boolean stopProgressBar = false;
+    private static final int size = 60;
 
     public static boolean isBlank(String source) {
         return source == null || source.isEmpty() || source.trim().isEmpty();
@@ -14,21 +15,20 @@ public class StringUtils {
         return !isBlank(source);
     }
 
-    public static void printMsgProgressBar(String message, long timeAll, String version) {
-        int size = 60;
+    public static void printMsgProgressBar(Thread threadCur, String message, long timeAll, String version) {
         int timeInterval = Math.toIntExact(timeAll / size);
         for (int i = 1; i < size; i++) {
             if (stopProgressBar) {
-                System.out.print("|" + "=".repeat(size) + "|\r");
+                stopThread(threadCur);
                 log.info("Progress bar stopped prematurely. Version: {}", version);
-                Thread.currentThread().interrupt();
                 return;
             }
             try {
-                Thread.sleep(timeInterval);
+                threadCur.sleep(timeInterval);
                 System.out.print(message + "[" + "=".repeat(i) + ">" + " ".repeat(size-i) + "]\r");
             } catch (InterruptedException e) {
                 System.out.print("|" + "=".repeat(size) + "|\r");
+                log.info("Update after Interrupted progressBar... ver: {}", version);
                 Thread.currentThread().interrupt();
                 return;
             }
@@ -41,6 +41,10 @@ public class StringUtils {
 
     public static void stopProgressBar() {
         stopProgressBar = true;
+    }
+    public static void stopThread(Thread thread) {
+        System.out.print("|" + "=".repeat(size) + "|\r");
+        thread.interrupt();
     }
 }
 

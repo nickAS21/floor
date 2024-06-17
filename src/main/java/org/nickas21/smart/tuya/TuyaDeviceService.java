@@ -77,6 +77,8 @@ import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
 public class TuyaDeviceService {
 
     public final String onLine = "online";
+    public final String nameFieldTempCurrent = "temp_current";
+    public final String nameFieldSwitch = "switch";
 
     private TuyaToken accessTuyaToken;
     public Devices devices;
@@ -142,6 +144,17 @@ public class TuyaDeviceService {
             device.setStatus(deviceStatus);
             String nameField = deviceStatus.get(0).get("code").asText();
             DeviceStatus devStatus = device.getStatus().get(nameField);
+            if (device.getValueSetMaxOn() instanceof Boolean && nameFieldTempCurrent.equals(nameField)) {
+                Boolean valueCur = (Boolean) device.getStatus().get(nameFieldSwitch).getValue();
+                if (!valueCur) {
+                    DeviceStatus devStatusSwitchNew = new DeviceStatus();
+                    devStatusSwitchNew.setValue(true);
+                    device.setStatus(nameFieldSwitch, devStatusSwitchNew);
+                    log.info("Device (update switch by value): [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
+                            device.getName(), toLocaleTimeString(Long.parseLong(String.valueOf(deviceStatus.get(0).get("t")))),
+                            nameFieldSwitch, valueCur, devStatusSwitchNew.getValue());
+                }
+            }
             if (device.getCategory() != null && Arrays.asList(deviceProperties.getCategoryForControlPowers()).contains(device.getCategory())) {
                 log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
                         device.getName(), toLocaleTimeString(Long.parseLong(String.valueOf(deviceStatus.get(0).get("t")))),
@@ -172,7 +185,7 @@ public class TuyaDeviceService {
         sendPostRequest(path, commandsNode, deviceName);
     }
 
-    public void updateAllThermostatToMin(String msgInfo) throws Exception {
+    public boolean updateAllThermostatToMin(String msgInfo) throws Exception {
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
         if (this.devices != null) {
             log.info("Start update Devices [{}].", this.devices.getDevIds().size());
@@ -188,8 +201,10 @@ public class TuyaDeviceService {
                 }
             }
             log.info("Finish updating Devices [{}] from [{}] after [{}]", cntUpdate, this.devices.getDevIds().size(), msgInfo);
+            return true;
         } else {
             log.error("Devices is null, Devices not Update after start.");
+            return false;
         }
     }
 
@@ -547,7 +562,7 @@ public class TuyaDeviceService {
                         Object val = commands.get(0).get("value").getNodeType().name().equals("NUMBER") ? commands.get(0).get("value").asInt() :
                                 commands.get(0).get("value").getNodeType().name().equals("BOOLEAN") ? commands.get(0).get("value").asBoolean() : commands.get(0).get("value");
                         statusNew.setValue(val);
-                        device.setStatus(statusNew, commands.get(0).get("code").asText());
+                        device.setStatus(commands.get(0).get("code").asText(), statusNew);
                         log.info("Device (sendPostRequest): [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
                                 device.getName(), toLocaleTimeString(statusNew.getEventTime()),
                                 statusNew.getName(), statusNew.getValueOld(), statusNew.getValue());
@@ -586,6 +601,11 @@ public class TuyaDeviceService {
         }
         if (devices != null) {
             log.info("Init tuya Devices successful: [{}], from [{}]", devices.getDevIds().size(), this.connectionConfiguration.getDeviceIds().length);
+            try {
+                this.updateAllThermostatToMin("start");
+            } catch (Exception e) {
+                log.error("Update  Devices after start is failed. [{}]", e.getMessage());
+            }
         } else {
             log.error("Init tuya Devices failed All from [{}]", this.connectionConfiguration.getDeviceIds().length);
         }
@@ -702,7 +722,7 @@ public class TuyaDeviceService {
     }
 
     private String getGridRelayCode(){
-        if (this.devices.getDevIds() != null) {
+        if (this.devices != null && this.devices.getDevIds() != null) {
             for (Entry<String, Device> deviceId: this.devices.getDevIds().entrySet()) {
                 if(this.onLine.equals(deviceId.getValue().getValueSetMaxOn())){
                     return deviceId.getKey();
