@@ -77,15 +77,15 @@ import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
 public class TuyaDeviceService {
 
     public final String onLine = "online";
+    public final String nameFieldTempCurrent = "temp_current";
+    public final String nameFieldSwitch = "switch";
 
     private TuyaToken accessTuyaToken;
     public Devices devices;
 
     private String gridRelayCodeId;
 
-    private Long lastUpdateTimeGridStatusInfo;
-
-    private Entry<Long, Boolean> gridStatusIsOnLine;          // time, false/true
+    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfo;
 
     private final Map<Device, DeviceUpdate> queueUpdateMax = new ConcurrentHashMap<>();
 
@@ -103,7 +103,7 @@ public class TuyaDeviceService {
     public TuyaDeviceService(TuyaConnectionProperties connectionConfiguration, TuyaDeviceProperties deviceProperties) {
         this.connectionConfiguration = connectionConfiguration;
         this.deviceProperties = deviceProperties;
-        this.webClient =  WebClient.builder()
+        this.webClient = WebClient.builder()
                 .baseUrl(connectionConfiguration.getRegion().getApiUrl())
                 .filter(ExchangeFilterFunction.ofRequestProcessor(
                         (ClientRequest request) -> Mono.just(ClientRequest.from(request)
@@ -144,6 +144,17 @@ public class TuyaDeviceService {
             device.setStatus(deviceStatus);
             String nameField = deviceStatus.get(0).get("code").asText();
             DeviceStatus devStatus = device.getStatus().get(nameField);
+            if (device.getValueSetMaxOn() instanceof Boolean && nameFieldTempCurrent.equals(nameField)) {
+                Boolean valueCur = (Boolean) device.getStatus().get(nameFieldSwitch).getValue();
+                if (!valueCur) {
+                    DeviceStatus devStatusSwitchNew = new DeviceStatus();
+                    devStatusSwitchNew.setValue(true);
+                    device.setStatus(nameFieldSwitch, devStatusSwitchNew);
+                    log.info("Device (update switch by value): [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
+                            device.getName(), toLocaleTimeString(Long.parseLong(String.valueOf(deviceStatus.get(0).get("t")))),
+                            nameFieldSwitch, valueCur, devStatusSwitchNew.getValue());
+                }
+            }
             if (device.getCategory() != null && Arrays.asList(deviceProperties.getCategoryForControlPowers()).contains(device.getCategory())) {
                 log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
                         device.getName(), toLocaleTimeString(Long.parseLong(String.valueOf(deviceStatus.get(0).get("t")))),
@@ -151,7 +162,7 @@ public class TuyaDeviceService {
             }
         }
         if (bizCode != null && device != null) {
-            if (device.setBizCode((ObjectNode) msg.getJson())) {
+            if (device.setBizCode((ObjectNode) msg.getJson()) && device.getId().equals(this.getGridRelayCodeId())) {
                 updateGridStateOnLine();
             }
         }
@@ -174,7 +185,7 @@ public class TuyaDeviceService {
         sendPostRequest(path, commandsNode, deviceName);
     }
 
-    public void updateAllThermostatStart() throws Exception {
+    public boolean updateAllThermostatToMin(String msgInfo) throws Exception {
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
         if (this.devices != null) {
             log.info("Start update Devices [{}].", this.devices.getDevIds().size());
@@ -189,9 +200,11 @@ public class TuyaDeviceService {
                     }
                 }
             }
-            log.info("Finish updating Devices [{}] from [{}] after start", cntUpdate,  this.devices.getDevIds().size());
+            log.info("Finish updating Devices [{}] from [{}] after [{}]", cntUpdate, this.devices.getDevIds().size(), msgInfo);
+            return true;
         } else {
             log.error("Devices is null, Devices not Update after start.");
+            return false;
         }
     }
 
@@ -220,13 +233,13 @@ public class TuyaDeviceService {
         }
     }
 
-    private void updateDeviceThermostat (String k, Object valueNew, Device v, boolean start) throws Exception {
+    private void updateDeviceThermostat(String k, Object valueNew, Device v, boolean start) throws Exception {
         DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
         if (deviceUpdate.isUpdate() || start) {
             sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
         } else {
             log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
-                    v.getName(),  deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                    v.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
         }
     }
 
@@ -236,7 +249,7 @@ public class TuyaDeviceService {
         if (valueNew instanceof Boolean) {
             fieldNameValueUpdate = offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
-        } else if (v.getValueSetMaxOn()!= null && v.getValueSetMaxOn() instanceof Boolean) {
+        } else if (v.getValueSetMaxOn() != null && v.getValueSetMaxOn() instanceof Boolean) {
             fieldNameValueUpdate = offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
             if (valueNew == this.getDeviceProperties().getTempSetMin()) {
@@ -252,7 +265,7 @@ public class TuyaDeviceService {
         return new DeviceUpdate(fieldNameValueUpdate, valueNew, valueOld);
     }
 
-    public void updateThermostatBatteryCharge(int deltaPower, Long timeoutSecUpdate,  String... filters) {
+    public void updateThermostatBatteryCharge(int deltaPower, Long timeoutSecUpdate, String... filters) {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(true, filters);
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
@@ -261,14 +274,14 @@ public class TuyaDeviceService {
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             Object valueOld = v.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
             if (atomicDeltaPower.get() - v.getConsumptionPower() > 0) {
-                if (deviceUpdate.isUpdate()){
+                if (deviceUpdate.isUpdate()) {
                     queueUpdateMax.put(v, deviceUpdate);
                     log.info("Device: [{}] Add to Queue. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
                             v.getName(),
-                            atomicDeltaPower.get(),  v.getConsumptionPower(), atomicDeltaPower.get()- v.getConsumptionPower(),
+                            atomicDeltaPower.get(), v.getConsumptionPower(), atomicDeltaPower.get() - v.getConsumptionPower(),
                             deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
                             valueOld);
-                   atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
+                    atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
                 } else {
                     log.info("Device: [{}] not Update. Charge left power [{}], [{}] changeValue [{}] lastValue [{}]",
                             v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), valueOld);
@@ -278,14 +291,14 @@ public class TuyaDeviceService {
                         v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), deviceUpdate.getValueNew(), valueOld);
             }
         }
-        updateThermostatsMax(timeoutSecUpdate*1000);
+        updateThermostatsMax(timeoutSecUpdate * 1000);
     }
 
     private void updateThermostatsMax(Long timeoutSecUpdateMillis) {
         int size = queueUpdateMax.size();
         if (size > 0) {
             // Schedule the task to run at fixed intervals
-            int intervalMillis = (timeoutSecUpdateMillis/size)/4 < 30000 ? (int) (timeoutSecUpdateMillis/size)/4 : 30000;
+            int intervalMillis = (timeoutSecUpdateMillis / size) / 4 < 30000 ? (int) (timeoutSecUpdateMillis / size) / 4 : 30000;
             AtomicInteger atomicTaskCnt = new AtomicInteger(0);
             Iterator<Device> iteration = queueUpdateMax.keySet().iterator();
             Timer timer = new Timer();
@@ -328,11 +341,11 @@ public class TuyaDeviceService {
             Object valueNew = deviceProperties.getTempSetMin();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
             if (atomicDeltaPower.get() < 0) {
-                if (deviceUpdate.isUpdate()){
+                if (deviceUpdate.isUpdate()) {
                     sendPostRequestCommand(k, deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), v.getName());
                     log.info("Device: [{}] Update. Discharge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
                             v.getName(),
-                            atomicDeltaPower.get(),  v.getConsumptionPower(), atomicDeltaPower.get() + v.getConsumptionPower(),
+                            atomicDeltaPower.get(), v.getConsumptionPower(), atomicDeltaPower.get() + v.getConsumptionPower(),
                             deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
                             v.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
                     atomicDeltaPower.getAndUpdate(value -> value + v.getConsumptionPower());
@@ -346,13 +359,14 @@ public class TuyaDeviceService {
             }
         }
     }
+
     public void updateThermostatBatteryDischargePreDestroy(String... filters) throws Exception {
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(false, filters);
         for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
             String k = entry.getKey();
             Device v = entry.getValue();
             Object valueNew = deviceProperties.getTempSetMin();
-            if (v.getValueSetMaxOn()!= null && v.getValueSetMaxOn() instanceof Boolean) {
+            if (v.getValueSetMaxOn() != null && v.getValueSetMaxOn() instanceof Boolean) {
                 valueNew = false;
             }
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
@@ -405,10 +419,6 @@ public class TuyaDeviceService {
         return this.connectionConfiguration;
     }
 
-    public Entry<Long, Boolean> getGridStatusIsOnLine() {
-        return this.gridStatusIsOnLine;
-    }
-
     private TuyaToken createTuyaToken() throws Exception {
         Map<String, Object> queries = new HashMap<>();
         queries.put("grant_type", TOKEN_GRANT_TYPE);
@@ -427,13 +437,13 @@ public class TuyaDeviceService {
             JsonNode result = responseEntity.getBody().get("result");
             Long t = responseEntity.getBody().get("t").asLong();
             String tid = responseEntity.getBody().get("tid").asText();
-           return getExpireTuyaToken (result, t,  tid);
+            return getExpireTuyaToken(result, t, tid);
         }
         return null;
     }
 
-    private TuyaToken getExpireTuyaToken (JsonNode result, Long t, String tid) {
-         return TuyaToken.builder()
+    private TuyaToken getExpireTuyaToken(JsonNode result, Long t, String tid) {
+        return TuyaToken.builder()
                 .accessToken(result.get("access_token").asText())
                 .refreshToken(result.get("refresh_token").asText())
                 .uid(result.get("uid").asText())
@@ -490,7 +500,7 @@ public class TuyaDeviceService {
     }
 
     private RequestEntity<Object> createRequestWithBody(String path, ObjectNode body) {
-        HttpMethod httpMethod =  HttpMethod.POST;
+        HttpMethod httpMethod = HttpMethod.POST;
         String ts = String.valueOf(System.currentTimeMillis());
         MultiValueMap<String, String> httpHeaders = createHeaders(ts);
         httpHeaders.add("access_token", getTuyaToken().getAccessToken());
@@ -545,14 +555,14 @@ public class TuyaDeviceService {
                 JsonNode success = responseEntity.getBody().get("success");
                 if (deviceName.length > 0) {
                     log.info("Device: [{}] POST result [{}], body [{}]", deviceName[0], result.booleanValue() & success.booleanValue(), requestEntity.getBody());
-                    Device device =  devices.getDeviceByName(deviceName[0]);
+                    Device device = devices.getDeviceByName(deviceName[0]);
                     if (device != null) {
-                        ArrayNode commands = (ArrayNode)toJsonNode(commandsNode.get("commands").toString());
+                        ArrayNode commands = (ArrayNode) toJsonNode(commandsNode.get("commands").toString());
                         DeviceStatus statusNew = new DeviceStatus();
                         Object val = commands.get(0).get("value").getNodeType().name().equals("NUMBER") ? commands.get(0).get("value").asInt() :
                                 commands.get(0).get("value").getNodeType().name().equals("BOOLEAN") ? commands.get(0).get("value").asBoolean() : commands.get(0).get("value");
                         statusNew.setValue(val);
-                        device.setStatus(statusNew, commands.get(0).get("code").asText());
+                        device.setStatus(commands.get(0).get("code").asText(), statusNew);
                         log.info("Device (sendPostRequest): [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
                                 device.getName(), toLocaleTimeString(statusNew.getEventTime()),
                                 statusNew.getName(), statusNew.getValueOld(), statusNew.getValue());
@@ -571,26 +581,31 @@ public class TuyaDeviceService {
             try {
                 String[] devId = deviceIdWithPower.split(":");
                 String deviceId = devId[0];
-                int [] devParams = new int[2];
+                int[] devParams = new int[2];
                 devParams[0] = Integer.parseInt(devId[1]);
                 if (devId.length == 3) {
                     if ("false".equals(devId[2]) || "true".equals(devId[2])) {
                         devParams[1] = "false".equals(devId[2]) ? 0 : -1;
-                    } else if (onLine.equals(devId[2])){
+                    } else if (onLine.equals(devId[2])) {
                         devParams[1] = -2;
-                    }else {
+                    } else {
                         devParams[1] = Integer.parseInt(devId[2]);
                     }
                 } else {
                     devParams[1] = deviceProperties.getTempSetMax();
                 }
-                initDeviceTuya (deviceId, devParams);
+                initDeviceTuya(deviceId, devParams);
             } catch (Exception e) {
                 log.error("Failed init device with id [{}] [{}]", deviceIdWithPower, e.getMessage());
             }
         }
         if (devices != null) {
             log.info("Init tuya Devices successful: [{}], from [{}]", devices.getDevIds().size(), this.connectionConfiguration.getDeviceIds().length);
+            try {
+                this.updateAllThermostatToMin("start");
+            } catch (Exception e) {
+                log.error("Update  Devices after start is failed. [{}]", e.getMessage());
+            }
         } else {
             log.error("Init tuya Devices failed All from [{}]", this.connectionConfiguration.getDeviceIds().length);
         }
@@ -604,7 +619,7 @@ public class TuyaDeviceService {
         if (responseEntity != null && responseEntity.getBody() != null) {
             JsonNode result = responseEntity.getBody().get("result");
             device = treeToValue(result, Device.class);
-            device.setStatusOnline (result);
+            device.setStatusOnline(result);
             devices.getDevIds().put(deviceId, device);
             path = String.format(GET_DEVICE_STATUS_URL_PATH, deviceId);
             requestEntity = createGetTuyaRequest(path, false);
@@ -619,7 +634,7 @@ public class TuyaDeviceService {
                     if (devParams[1] == -2) {
                         devices.getDevIds().get(deviceId).setValueSetMaxOn(onLine);
                     } else if (devParams[1] <= 0 && devParams[1] > -2) {
-                        devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1] !=0);
+                        devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1] != 0);
                     } else {
                         devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1]);
                     }
@@ -628,7 +643,7 @@ public class TuyaDeviceService {
                     devices.getDevIds().get(deviceId).setConsumptionPower(2000);
                 }
             } else {
-               log.error ("Init tuya Device with Id [{}}] failed... ", deviceId);
+                log.error("Init tuya Device with Id [{}}] failed... ", deviceId);
             }
         } else {
             log.warn("Device with id [{}] is not available", deviceId);
@@ -661,13 +676,14 @@ public class TuyaDeviceService {
     private boolean hasValidAccessToken() {
         return this.accessTuyaToken != null && this.accessTuyaToken.getExpireTimeFinish() > System.currentTimeMillis();
     }
+
     private boolean hasRefreshAccessToken() {
         Long deltaRefresh = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 1000;
         return (System.currentTimeMillis() - this.accessTuyaToken.getT()) > (this.accessTuyaToken.getExpireTimeMilli() - deltaRefresh);
     }
 
     public void updateGridStateOnLine() {
-        if (this.getGridRelayCodeId() != null ) {
+        if (this.getGridRelayCodeId() != null) {
             Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(this.getGridRelayCodeId()).currentStateOnLine();
             if (gridStateOnLine != null) {
                 String msg = null;
@@ -676,28 +692,37 @@ public class TuyaDeviceService {
                     msg = telegramService.sendFirstMsgToTelegram(gridStateOnLine);
                 } else {
                     // next  message
-                    if (gridStateOnLine.getValue() != this.gridStatusIsOnLine.getValue()) {
-                        msg = telegramService.sendMsgToTelegram(this.lastUpdateTimeGridStatusInfo, gridStateOnLine);
+                    if (gridStateOnLine.getValue() != this.lastUpdateTimeGridStatusInfo.getValue()) {
+                        msg = telegramService.sendMsgToTelegram(this.lastUpdateTimeGridStatusInfo.getKey(), gridStateOnLine);
                     }
                 }
                 if (msg != null) {
-                    this.lastUpdateTimeGridStatusInfo = gridStateOnLine.getKey();
+                    this.lastUpdateTimeGridStatusInfo = gridStateOnLine;
+                    log.info("\nTelegram send msg: \n{}", msg);
                 }
-                this.gridStatusIsOnLine = gridStateOnLine;
-                log.info("\nTelegram send msg: \n{}", msg);
             }
         }
     }
 
-    private String getGridRelayCodeId() {
+    public String getGridRelayCodeId() {
         if (this.gridRelayCodeId == null) {
             this.gridRelayCodeId = this.getGridRelayCode();
         }
         return this.gridRelayCodeId;
     }
 
+    public Boolean getGridRelayCodeStateOnLine(){
+        if (getGridRelayCodeId() != null) {
+            Device gridDevice = this.devices.getDevIds().get(getGridRelayCodeId());
+            if (gridDevice != null) {
+                return gridDevice.getCurrentStateOnLineValue();
+            }
+        }
+        return null;
+    }
+
     private String getGridRelayCode(){
-        if (this.devices.getDevIds() != null) {
+        if (this.devices != null && this.devices.getDevIds() != null) {
             for (Entry<String, Device> deviceId: this.devices.getDevIds().entrySet()) {
                 if(this.onLine.equals(deviceId.getValue().getValueSetMaxOn())){
                     return deviceId.getKey();

@@ -60,7 +60,7 @@ public class Device {
                 if (statusNode.has("code")) {
                     String code = statusNode.get("code").asText();
                     DeviceStatus statusNew = treeToValue(statusNode, DeviceStatus.class);
-                    setStatus (statusNew, code);
+                    setStatus(code, statusNew);
                 }
             }
         }
@@ -72,7 +72,7 @@ public class Device {
         }
     }
 
-    public void setStatus (DeviceStatus statusNew, String code) {
+    public void setStatus (String code, DeviceStatus statusNew) {
         DeviceStatus statusOld = this.status != null ? this.status.get(code) : null;
         if (statusNew != null) {
             statusNew.setEventTime(System.currentTimeMillis());
@@ -81,10 +81,17 @@ public class Device {
                 statusNew.setValueOld(statusOld.getValue());
                 statusNew.setName(code);
             }
-            setStatus(code, statusNew);
+            this.updateStatus(code, statusNew);
             log.trace("Init: devId [{}] devName [{}], status: [{}] -> old=[{}], new=[{}]",
                     this.id, this.name, code, statusNew.getValueOld(), statusNew.getValue());
         }
+    }
+
+    private void updateStatus(String code, DeviceStatus status) {
+        if (this.status == null) {
+            this.status = new HashMap<>();
+        }
+        this.status.put(code, status);
     }
 
     public boolean setBizCode (ObjectNode bizCodeNode) {
@@ -119,18 +126,16 @@ public class Device {
         return this.status == null || this.status.get(key) == null ? null : this.status.get(key).getValue();
     }
 
-    private void setStatus(String code, DeviceStatus status) {
-        if (this.status == null) {
-            this.status = new HashMap<>();
-        }
-        this.status.put(code, status);
-    }
-
     public Entry<Long, Boolean> currentStateOnLine() {
         Optional<Entry<Long, Boolean>> maxEntry = this.getOnLine().entrySet()
                 .stream()
                 .max(Entry.comparingByKey());
         return maxEntry.orElse(null);
+    }
+
+    public Boolean getCurrentStateOnLineValue() {
+        Entry<Long, Boolean> stateOnLine = this.currentStateOnLine();
+        return stateOnLine != null ? stateOnLine.getValue() : null;
     }
 }
 
