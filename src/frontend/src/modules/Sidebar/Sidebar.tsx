@@ -21,7 +21,7 @@ export default function Sidebar() {
 
   const logOut = async () => {
     try {
-      const res = await fetcher.post("/api/auth/logout");
+      await fetcher.post("/api/auth/logout");
       dispatch(clearUser());
     } catch (err) {
       if (isAxiosError(err)) {

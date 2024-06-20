@@ -1,7 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import axios from "axios";
-import mem from "mem";
 
 import { store as ReduxStore } from "../redux/store";
 import { refreshToken as refreshTokenAction } from "../redux/authReducer";
@@ -25,7 +24,7 @@ const refreshTokenFn = async () => {
   const state = ReduxStore.getState().auth.user?.token;
 
   try {
-    const response = await fetcher.post("/api/auth/refresh", null, {
+    const response = await fetcher.post("/api/auth/refresh", undefined, {
       headers: {
         Authorization: `Bearer ${state?.refreshToken}`,
       },
@@ -42,9 +41,7 @@ const refreshTokenFn = async () => {
   }
 };
 
-const maxAge = 10000;
-
-export const memoizedRefreshToken = mem(refreshTokenFn, { maxAge });
+export const memoizedRefreshToken = refreshTokenFn;
 
 export const fetcher = axios.create({
   baseURL:
@@ -65,6 +62,7 @@ fetcher.interceptors.response.use(
     if (
       // In case of log in error, we don't need to refresh the token (the same will be with registering)
       config.url !== APP_PATHS["LOGIN"] &&
+      config.url !== APP_PATHS["REFRESH"] &&
       error?.response?.status === 401 &&
       !config?.sent
     ) {

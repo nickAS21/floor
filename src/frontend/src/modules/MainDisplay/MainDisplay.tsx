@@ -14,12 +14,12 @@ export default function Dashboard() {
     if (!isAuth) router.replace("/login");
   }, [isAuth]);
 
-  useEffect(() => {
-    (async () => {
-      const data = await getTuyaData();
-      console.log(data);
-    })();
-  }, []);
+  // useEffect(() => {
+  //   (async () => {
+  //     const data = await getTuyaData();
+  //     console.log(data);
+  //   })();
+  // }, []);
 
   return (
     <>
