@@ -1,25 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-import { useUser } from "@/shared/hooks/useUser";
+import { useContext, useEffect } from "react";
 import { getTuyaData } from "@/shared/lib/requests";
+import { isAxiosError } from "axios";
+import { notifyContext } from "@/shared/context/notifications";
 
 export default function Dashboard() {
-  const { isAuth } = useUser();
-  const router = useRouter();
+  const { setNotification } = useContext(notifyContext);
 
   useEffect(() => {
-    if (!isAuth) router.replace("/login");
-  }, [isAuth]);
-
-  // useEffect(() => {
-  //   (async () => {
-  //     const data = await getTuyaData();
-  //     console.log(data);
-  //   })();
-  // }, []);
+    (async () => {
+      try {
+        const data = await getTuyaData();
+        console.log(data);
+      } catch (err) {
+        if (isAxiosError(err)) {
+          setNotification("Failed", err.response?.data.message || err.message);
+        } else {
+          console.log(err);
+        }
+      }
+    })();
+  }, []);
 
   return (
     <>
