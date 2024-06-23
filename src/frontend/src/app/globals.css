@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+}
+
+@layer components {
+  .dashboard_layout {
+    display: grid;
+    grid-template-areas: 
+                        "toolbar header header"
+                        "toolbar board board";
+    grid-auto-columns: auto 1fr 1fr;
+    grid-auto-rows: 70px 1fr;
+  }
+
+  .header {
+    grid-area: header;
+  }
+
+  .board {
+    grid-area: board;
+  }
+
+  .toolbar {
+    grid-area: toolbar;
+  }
+
+  .form-root {
+    @apply relative;
+  }
+
+  .form-label {
+    @apply mb-1 text-sm/normal;
+  }
+
+  .form-input {
+    @apply rounded-full;
+  }
+
+  .form-error {
+    @apply absolute -bottom-4 left-0 text-[10px]/[12px] text-red-400;
+  }
+
+  .form-error--input {
+    @apply border-red-400 text-gray-400;
+  }
+}
