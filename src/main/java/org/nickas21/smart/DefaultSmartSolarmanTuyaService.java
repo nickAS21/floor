@@ -59,6 +59,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private Thread progressBarThread;
 
     private DynamicScheduler scheduler;
+    private final boolean  debuging = false;
 
     @Value("${app.version:unknown}")
     String version;
@@ -186,9 +187,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         }
     }
 
-    private void batteryChargeDischarge(boolean isCharge, int freeBatteryPower) throws Exception {
+    private void batteryChargeDischarge(boolean isCharge, int freeBatteryPower) {
         if (isCharge) {     // Battery charge
-            tuyaDeviceService.updateThermostatBatteryCharge(freeBatteryPower, this.timeoutSecUpdate,
+            tuyaDeviceService.updateThermostatBatteryCharge(freeBatteryPower,
                     tuyaDeviceService.getDeviceProperties().getCategoryForControlPowers());
         } else {     // Battery discharge
             tuyaDeviceService.updateThermostatBatteryDischarge(freeBatteryPower,
@@ -317,6 +318,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             } else {
                 this.scheduler.updateTimeoutSecUpdate(this.timeoutSecUpdate);
             }
+            tuyaDeviceService.setTimeoutSecUpdateMillis(this.timeoutSecUpdate);
         }
     }
 
@@ -345,34 +347,44 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private int getFreePowerCorrect(double batterySocNew, boolean isCharge){
         int freePowerCorrect = (int)(powerValueRealTimeData.getProductionTotalSolarPowerValue() -
                 powerValueRealTimeData.getConsumptionTotalPowerValue() - stationConsumptionPower);
-        if (this.sunRiseMax != null && this.sunRiseMax > System.currentTimeMillis()) {
-            if (freePowerCorrectCnt == 0) {
-                this.freePowerCorrectMinMax = this.freePowerCorrectMinMax == 0 ?
-                        solarmanStationsService.getSolarmanStation().getDopPowerToMax() :
-                        batterySocNew >= 98.00 ? solarmanStationsService.getSolarmanStation().getDopPowerToMax() :
-                            this.freePowerCorrectMinMax == solarmanStationsService.getSolarmanStation().getDopPowerToMax() ?
-                                solarmanStationsService.getSolarmanStation().getDopPowerToMin() :
-                                solarmanStationsService.getSolarmanStation().getDopPowerToMax();
-                log.info("freePowerCorrectMinMax after update: [{}]", this.freePowerCorrectMinMax);
-                if (batterySocNew >= 98.00) {
-                    freePowerCorrect = Math.max(freePowerCorrect, this.freePowerCorrectMinMax);
-                } else if (isCharge) {
-                    if (freePowerCorrect < this.freePowerCorrectMinMax) {
-                        if ((freePowerCorrect + solarmanStationsService.getSolarmanStation().getDopPowerToMin()) > this.freePowerCorrectMinMax) {
-                            freePowerCorrect = this.freePowerCorrectMinMax;
+        if (this.debuging) {
+            this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMax() * 2;
+            freePowerCorrect = Math.max(freePowerCorrect, this.freePowerCorrectMinMax);
+        } else {
+            if (this.sunRiseMax != null && this.sunRiseMax > System.currentTimeMillis()) {
+                if (freePowerCorrectCnt == 0) {
+                    if (this.freePowerCorrectMinMax == 0) {
+                        this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMax();
+                    } else if (batterySocNew >= 95.00) {
+                        if (isCharge) {
+                            this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMax() * 2;
+                        } else if (this.freePowerCorrectMinMax == solarmanStationsService.getSolarmanStation().getDopPowerToMax()) {
+                            this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMin();
                         } else {
-                            freePowerCorrect += solarmanStationsService.getSolarmanStation().getDopPowerToMin();
+                            this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMax();
                         }
                     }
+                    log.info("freePowerCorrectMinMax after update: [{}]", this.freePowerCorrectMinMax);
+                    if (batterySocNew >= 95.00) {
+                        freePowerCorrect = Math.max(freePowerCorrect, this.freePowerCorrectMinMax);
+                    } else if (isCharge) {
+                        if (freePowerCorrect < this.freePowerCorrectMinMax) {
+                            if ((freePowerCorrect + solarmanStationsService.getSolarmanStation().getDopPowerToMin()) > this.freePowerCorrectMinMax) {
+                                freePowerCorrect = this.freePowerCorrectMinMax;
+                            } else {
+                                freePowerCorrect += solarmanStationsService.getSolarmanStation().getDopPowerToMin();
+                            }
+                        }
+                    }
+                    freePowerCorrectCnt++;
+                } else if (freePowerCorrectCnt > 1) {
+                    freePowerCorrectCnt = 0;
+                } else {
+                    freePowerCorrectCnt++;
                 }
-                freePowerCorrectCnt++;
-            } else if (freePowerCorrectCnt > 1) {
-                freePowerCorrectCnt = 0;
             } else {
-                freePowerCorrectCnt++;
+                freePowerCorrectCnt = 0;
             }
-        } else {
-            freePowerCorrectCnt = 0;
         }
         return freePowerCorrect;
     }

@@ -60,7 +60,7 @@ public class Device {
                 if (statusNode.has("code")) {
                     String code = statusNode.get("code").asText();
                     DeviceStatus statusNew = treeToValue(statusNode, DeviceStatus.class);
-                    setStatus(code, statusNew);
+                    this.setStatus(code, statusNew);
                 }
             }
         }
