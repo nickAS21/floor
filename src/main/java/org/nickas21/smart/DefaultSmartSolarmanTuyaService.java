@@ -142,24 +142,28 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 if (this.batterySocCur > 0) {
                     try {
                         if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
-                            boolean isCharge = getIsCharge ();
+                            boolean isCharge = getIsCharge (batterySocNew);
                             int freePowerCorrect = getFreePowerCorrect(batterySocNew, isCharge);
+                            String infoActionDop;
+                            String infoAction;
                             if (batterySocNew < batterySocMin) {
                                 // Reducing electricity consumption
-                                log.info("Reducing electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
-                                        batteryStatusNew,
-                                        freePowerCorrect,
-                                        "TempSetMin");
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                                infoAction = "Reducing";
+                                infoActionDop = "TempSetMin";
                             } else {
                                 // Battery charge/discharge analysis program
-                                log.info("Change in electricity consumption, battery Status [{}], freePower [{}],  action [{}].",
-                                        batteryStatusNew,
-                                        freePowerCorrect,
-                                        "TempSet_Min/Max");
-                                log.info("Battery: status -> [{}], freePower [{}], isCharging: [{}]", batteryStatusNew, freePowerCorrect, isCharge);
                                 this.batteryChargeDischarge(isCharge, freePowerCorrect);
+                                infoAction = "Change";
+                                infoActionDop = "TempSet_Min/Max";
                             }
+                            log.info("{} electricity consumption, battery batterySocNew [{}], battery StatusCorrect [{}], battery StatusFact [{}], freePower [{}],  action [{}].",
+                                    infoAction,
+                                    batterySocNew,
+                                    isCharge,
+                                    powerValueRealTimeData.getBatteryStatusValue(),
+                                    freePowerCorrect,
+                                    infoActionDop);
                         }
                     } catch (Exception e) {
                         log.error("isDay: [{}] [{}]", isDay, e.getMessage());
@@ -355,8 +359,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 if (freePowerCorrectCnt == 0) {
                     if (this.freePowerCorrectMinMax == 0) {
                         this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMax();
-                    } else if (batterySocNew >= 95.00) {
-                        if (isCharge) {
+                    } else {
+                        if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
                             this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMax() * 2;
                         } else if (this.freePowerCorrectMinMax == solarmanStationsService.getSolarmanStation().getDopPowerToMax()) {
                             this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMin();
@@ -365,7 +369,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         }
                     }
                     log.info("freePowerCorrectMinMax after update: [{}]", this.freePowerCorrectMinMax);
-                    if (batterySocNew >= 95.00) {
+                    if (batterySocNew >= solarmanStationsService.getSolarmanStation().getBatSocMax()) {
                         freePowerCorrect = Math.max(freePowerCorrect, this.freePowerCorrectMinMax);
                     } else if (isCharge) {
                         if (freePowerCorrect < this.freePowerCorrectMinMax) {
@@ -389,9 +393,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         return freePowerCorrect;
     }
 
-    private boolean getIsCharge () {
+    private boolean getIsCharge (double batterySocNew) {
         return  BatteryStatus.CHARGING.getType().equals(powerValueRealTimeData.getBatteryStatusValue())
-                || BatteryStatus.STATIC.getType().equals(powerValueRealTimeData.getBatteryStatusValue());
+                || BatteryStatus.STATIC.getType().equals(powerValueRealTimeData.getBatteryStatusValue())
+                || solarmanStationsService.getSolarmanStation().getBatSocMax() <= batterySocNew;
 
     }
 
