@@ -144,7 +144,6 @@ public class TuyaDeviceService {
         }
         if (device != null && deviceStatus != null) {
             String nameField = deviceStatus.get(0).get("code").asText();
-            DeviceStatus devStatus = device.getStatus().get(nameField);
             boolean updateStatus = false;
 
             if (device.getValueSetMaxOn() instanceof Boolean && nameFieldTempCurrent.equals(nameField)) {
@@ -163,6 +162,7 @@ public class TuyaDeviceService {
                 device.setStatus(deviceStatus);
             }
             if (device.getCategory() != null && Arrays.asList(deviceProperties.getCategoryForControlPowers()).contains(device.getCategory())) {
+                DeviceStatus devStatus = device.getStatus().get(nameField);
                 log.info("Device: [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
                         device.getName(), toLocaleTimeString(Long.parseLong(String.valueOf(deviceStatus.get(0).get("t")))),
                         nameField, devStatus.getValueOld(), devStatus.getValue());
