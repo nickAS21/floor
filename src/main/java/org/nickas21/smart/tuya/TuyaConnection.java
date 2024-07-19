@@ -40,7 +40,7 @@ public class TuyaConnection implements TuyaConnectionIn {
         });
     }
 
-    public void preDestroy() throws Exception {
+    public void cleanup() throws Exception {
         log.info("Start destroy tuyaDeviceService!");
         if (telegramBotConfig != null) {
             log.info("Start destroy telegramBotConfig");

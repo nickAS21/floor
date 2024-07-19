@@ -4,7 +4,7 @@ import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 
 public interface TuyaConnectionIn {
 
-    void preDestroy() throws Exception;
+    void cleanup() throws Exception;
 
     void process(TuyaConnectionMsg msg);
 }

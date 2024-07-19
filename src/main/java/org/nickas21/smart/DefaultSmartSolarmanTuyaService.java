@@ -418,7 +418,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         progressBarThread.start();
     }
 
-    public void preDestroy() {
+    public void cleanup() {
         log.info("Start destroy DefaultSmartSolarmanTuyaService");
         if (this.progressBarThread != null) {
             stopProgressBar();

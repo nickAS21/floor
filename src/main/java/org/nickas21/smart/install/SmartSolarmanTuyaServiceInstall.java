@@ -36,12 +36,12 @@ public class SmartSolarmanTuyaServiceInstall {
     }
 
     @PreDestroy
-    public void preDestroy() throws Exception {
+    public void cleanup() throws Exception {
         if (this.smartSolarmanTuyaService != null) {
-            this.smartSolarmanTuyaService.preDestroy();
+            this.smartSolarmanTuyaService.cleanup();
         }
         if (this.tuyaConnection != null) {
-            this.tuyaConnection.preDestroy();
+            this.tuyaConnection.cleanup();
         }
         log.info("Stopped executor service, list of returned runnables");
     }
