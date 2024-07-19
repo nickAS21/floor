@@ -67,5 +67,7 @@ logging.level:
   org.apache.pulsar: OFF
 
 ---
-spring.config.activate.on-cloud-platform: kubernetes
+spring:
+  config.activate.on-cloud-platform: kubernetes
+  lifecycle.timeout-per-shutdown-phase: 30s # Set the timeout for shutdown phases
 
