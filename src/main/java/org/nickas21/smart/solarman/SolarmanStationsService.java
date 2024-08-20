@@ -41,11 +41,12 @@ public class SolarmanStationsService {
     public SolarmanStationsService(SolarmanConnectionProperties solarmanConnectionProperties, SolarmanStationProperties stationProperties) {
         this.solarmanConnectionProperties = solarmanConnectionProperties;
         this.stationProperties = stationProperties;
+        int cntCreteToken = 3;
         webClient = WebClient.builder()
                 .baseUrl(solarmanConnectionProperties.getRegion().getApiUrl())
                 .filter(ExchangeFilterFunction.ofRequestProcessor(
                         (ClientRequest request) -> Mono.just(ClientRequest.from(request)
-                                .headers(httpHeaders -> httpHeaders.setBearerAuth(getSolarmanToken().getAccessToken()))
+                                .headers(httpHeaders -> httpHeaders.setBearerAuth(getSolarmanToken(cntCreteToken).getAccessToken()))
                                 .build())))
                 .build();
     }
@@ -74,15 +75,25 @@ public class SolarmanStationsService {
     }
 
 
-    private SolarmanToken getSolarmanToken() {
-        if (accessSolarmanToken != null) {
-            if (!hasValidAccessToken()) {
-                log.info("ReCreate Solarman token: expireIn [{}] currentDate [{}]", Instant.ofEpochMilli(this.accessSolarmanToken.getExpiresIn() + 20_000).toString(),
-                        HttpUtil.toLocaleTimeString(Instant.now()));
+    private SolarmanToken getSolarmanToken(int cntCreteToken) {
+        try {
+            if (accessSolarmanToken != null) {
+                if (!hasValidAccessToken()) {
+                    log.info("ReCreate Solarman token: expireIn [{}] currentDate [{}]", Instant.ofEpochMilli(this.accessSolarmanToken.getExpiresIn() + 20_000).toString(),
+                            HttpUtil.toLocaleTimeString(Instant.now()));
+                    accessSolarmanToken = createSolarmanToken();
+                }
+            } else {
                 accessSolarmanToken = createSolarmanToken();
             }
-        } else {
-            accessSolarmanToken = createSolarmanToken();
+        } catch (Exception e){
+            if (cntCreteToken > 0) {
+                cntCreteToken--;
+                getSolarmanToken(cntCreteToken);
+            } else {
+                log.error("Failed Solarman token: [{}]", e.getMessage());
+                System.exit(0);
+            }
         }
         return accessSolarmanToken;
     }

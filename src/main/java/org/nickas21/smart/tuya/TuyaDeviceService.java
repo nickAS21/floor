@@ -322,6 +322,9 @@ public class TuyaDeviceService {
         if (size > 0) {
             // Schedule the task to run at fixed intervals
             log.warn("Start updateThermostats time size: [{}]", size);
+            if (timeoutSecUpdateMillis == null) {
+               this.setTimeoutSecUpdateMillis(solarmanStationsService.getSolarmanStation().getTimeoutSec()/2);
+            }
             int intervalMillis = (timeoutSecUpdateMillis / size) / 4 < 30000 ? (int) (timeoutSecUpdateMillis / size) / 4 : 30000;
             AtomicInteger atomicTaskCnt = new AtomicInteger(0);
             Timer timer = new Timer();
@@ -706,6 +709,9 @@ public class TuyaDeviceService {
                 } else {
                     if (responseEntity.getBody().has("code") && responseEntity.getBody().has("msg")) {
                         log.error("code: [{}], msg: [{}]", responseEntity.getBody().get("code").asInt(), responseEntity.getBody().get("msg").asText());
+                        if (responseEntity.getBody().get("code").asInt() == 28841002) {
+                            System.exit(0);
+                        }
                     }
                     return null;
                 }
