@@ -187,7 +187,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
             batterySocCur = batterySocNew;
         } catch (Exception e) {
-            log.error("Update parameters: idDay [{}] [{}]", this.isDay, e.getMessage());
+            log.error("Update parameters: idDay [{}]", this.isDay, e);
         }
     }
 
