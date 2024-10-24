@@ -84,7 +84,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             SolarmanSocPercentage percentage = SolarmanSocPercentage.fromPercentage(batVolNew);
             double batterySocNew = percentage != null ? percentage.getPercentage() : 0;
             double batterySocMin = getBatSocMin();
-            int batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
+            double batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
 
             updateSunRiseSunSetDate();
@@ -211,8 +211,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
         String batteryStatusValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryStatusKey)).findFirst()
                 .map(RealTimeDataValue::getValue).orElse(null);
-        int batteryPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryPowerKey)).findFirst()
-                .map(realTimeDataValue -> Integer.parseInt(realTimeDataValue.getValue())).orElse(0);
+        double batteryPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryPowerKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
         double batteryCurrentValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryCurrentKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
         double batteryVoltageValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryVoltageKey)).findFirst()
@@ -227,11 +227,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
 
 
-        int totalSolarPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalSolarPowerKey)).findFirst()
-                .map(realTimeDataValue -> Integer.parseInt(realTimeDataValue.getValue())).orElse(0);
+        double totalSolarPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalSolarPowerKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
 
-        int totalConsumptionPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalConsumptionPowerKey)).findFirst()
-                .map(realTimeDataValue -> Integer.parseInt(realTimeDataValue.getValue())).orElse(0);
+        double totalConsumptionPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalConsumptionPowerKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
 
         double totalEnergySell = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalEnergySellKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
@@ -245,8 +245,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         double dailyEnergyBuy = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyEnergyBuyKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
 
-        int totalGridPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalGridPowerKey)).findFirst()
-                .map(realTimeDataValue -> Integer.parseInt(realTimeDataValue.getValue())).orElse(0);
+        double totalGridPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalGridPowerKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
 
         String gridRelayStatus = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridRelayStatusKey)).findFirst()
                 .map(RealTimeDataValue::getValue).orElse(null);

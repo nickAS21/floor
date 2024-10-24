@@ -9,12 +9,12 @@ public class PowerValueRealTimeData {
 
     Long collectionTime;        // Update real time data
 
-    int totalSolarPower;        // unit W
+    double totalSolarPower;        // unit W
 
     double bmsSocValue;         // unit %
         // battery
     String batteryStatusValue;
-    int batteryPowerValue;       // unit W
+    double batteryPowerValue;       // unit W
     double batteryCurrentValue;  // unit A
     double batteryVoltageValue;  // unit V
     double batterySocValue;      // unit %
@@ -24,8 +24,8 @@ public class PowerValueRealTimeData {
     double productionTotalSolarPowerValue;             // unit kWh
     double consumptionTotalPowerValue;                 // unit kWh
 
-    int totalConsumptionPower;  // unit W
-    int totalGridPower;         // unit W
+    double totalConsumptionPower;  // unit W
+    double totalGridPower;         // unit W
     double totalEnergySell;     // unit kWh
     double totalEnergyBuy;      // unit kWh
     double dailyEnergySell;     // unit kWh
