@@ -2,7 +2,6 @@ package org.nickas21.smart;
 
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.BatteryStatus;
-import org.nickas21.smart.solarman.SolarmanSocPercentage;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
@@ -37,6 +36,7 @@ import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.totalGridPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
+import static org.nickas21.smart.util.SolarmanSocUtil.getPercentageVoltage;
 import static org.nickas21.smart.util.StringUtils.printMsgProgressBar;
 import static org.nickas21.smart.util.StringUtils.stopProgressBar;
 import static org.nickas21.smart.util.StringUtils.stopThread;
@@ -85,8 +85,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         try {
             updatePowerValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
-            SolarmanSocPercentage percentage = SolarmanSocPercentage.fromPercentage(batVolNew);
-            double batterySocNew = percentage != null ? percentage.getPercentage() : 0;
+//            SolarmanSocPercentage percentage = SolarmanSocPercentage.fromPercentage(batVolNew);
+//            double batterySocNew = percentage != null ? percentage.getPercentage() : 0;
+            double batterySocNew = getPercentageVoltage(batVolNew);
             double batterySocMin = getBatSocMin();
             double batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
