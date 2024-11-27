@@ -15,7 +15,7 @@ public class SolarmanSocUtil {
         // less 48
         double batSocNew = 9.00;
         // (100% → 90%)
-        if (vCur >= percentage_90 && vCur <= restFloatVoltage) {
+        if (vCur >= percentage_90) {
             batSocNew =  90 + ((vCur - percentage_90) / (restFloatVoltage - percentage_90)) * (100 - 90);
         }
 
@@ -39,7 +39,7 @@ public class SolarmanSocUtil {
             batSocNew =  10 + ((vCur - percentage_10) / (percentage_15 - percentage_10)) * (15 - 10);
         }
 
-        return batSocNew >= 100.00 ? 100.00 :  Math.round(batSocNew * 100.00) / 100.00;
+        return Math.round(batSocNew * 100.00) / 100.00;
     }
 
     public enum SolarmanSocPercentage {
