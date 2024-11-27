@@ -27,7 +27,10 @@ import static org.nickas21.smart.util.HttpUtil.getSunRiseSunset;
 import static org.nickas21.smart.util.HttpUtil.gridRelayStatusKey;
 import static org.nickas21.smart.util.HttpUtil.gridStatusKey;
 import static org.nickas21.smart.util.HttpUtil.productionTotalSolarPowerKey;
+import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
+import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffStart;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateString;
+import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.HttpUtil.totalConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
@@ -45,6 +48,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private double stationConsumptionPower;
     private PowerValueRealTimeData powerValueRealTimeData;
     private boolean isDay;
+    private boolean isDayPrevious;
     private boolean isUpdateToMinAfterIsDayFalse;
     private Instant curDate;
     private Long sunRiseDate;
@@ -59,7 +63,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private Thread progressBarThread;
 
     private DynamicScheduler scheduler;
-    private final boolean  debuging = false;
+    private final boolean  debugging = false;
 
     @Value("${app.version:unknown}")
     String version;
@@ -146,7 +150,12 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             int freePowerCorrect = getFreePowerCorrect(batterySocNew, isCharge);
                             String infoActionDop;
                             String infoAction;
-                            if (batterySocNew < batterySocMin) {
+                            if (!isDayPrevious) {
+                                tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                                infoAction = "After the night...";
+                                infoActionDop = "TempSetMin";
+                                isDayPrevious = isDay;
+                            } else if (batterySocNew < batterySocMin) {
                                 // Reducing electricity consumption
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                                 infoAction = "Reducing";
@@ -170,6 +179,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     }
                 }
             } else {
+                isDayPrevious = false;
                 if (!isUpdateToMinAfterIsDayFalse) {
                     log.info("Update parameters idDay [{}]: Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", this.isDay, toLocaleTimeString(this.sunSetDate));
                     log.info("Night   at: [{}]", toLocaleTimeString(this.sunSetMin));
@@ -177,6 +187,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         this.isUpdateToMinAfterIsDayFalse = this.tuyaDeviceService.updateAllThermostatToMin("is Day == false");
                     } catch (Exception e) {
                         log.error("Update parameters idDay [{}] UpdateAllThermostat to min. Error: [{}}]", this.isDay, e.getMessage());
+                    }
+                }
+                // powerValueRealTimeData.getGridStatusRelay() hour == 23 or hour <= 7: NightTariff
+                int curHour = toLocaleDateTimeHour(curInst);
+                if (curHour == timeLocalNightTariffStart || curHour <= timeLocalNightTariffFinish) {
+                    if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
+                        tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
+                    } else {
+                        tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                     }
                 }
             }
@@ -310,11 +329,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         if (this.timeoutSecUpdate == null) {
             this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec()/2; // 1 min
         } else {
-            if (isDay ) {
+//            if (isDay ) {
                 this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 2; // 4 min
-            } else {
-                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 15; // 30 min
-            }
+//            } else {
+//                this.timeoutSecUpdate = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 15; // 30 min
+//            }
         }
         if (!this.timeoutSecUpdate.equals(timeoutSecUpdateOld)) {
             if (this.scheduler == null) {
@@ -351,7 +370,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private int getFreePowerCorrect(double batterySocNew, boolean isCharge){
         int freePowerCorrect = (int)(powerValueRealTimeData.getProductionTotalSolarPowerValue() -
                 powerValueRealTimeData.getConsumptionTotalPowerValue() - stationConsumptionPower);
-        if (this.debuging) {
+        if (this.debugging) {
             this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMax() * 2;
             freePowerCorrect = Math.max(freePowerCorrect, this.freePowerCorrectMinMax);
         } else {
@@ -406,7 +425,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         } else {
             this.isDay = false;
         }
-        log.info("Is Day [{}]", isDay);
+        log.info("Is Day [{}]; Is Day Previous [{}]", isDay, isDayPrevious);
     }
 
     private void setProgressBarThread (String msgProgressBar) {

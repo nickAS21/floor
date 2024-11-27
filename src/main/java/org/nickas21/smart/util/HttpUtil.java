@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.Calendar;
@@ -47,6 +48,9 @@ public class HttpUtil {
 
     public static final Locale locale = Locale.forLanguageTag("en-US");
     public static final TimeZone timeZone = TimeZone.getTimeZone("Europe/Kyiv");
+    public static final int timeLocalNightTariffStart = 23;
+    public static final int timeLocalNightTariffFinish = 7;
+
 
     public static String toLocaleTimeString(Long milliSec) {
         return toLocaleTimeString(Instant.ofEpochMilli(milliSec));
@@ -74,6 +78,12 @@ public class HttpUtil {
                 .withLocale(locale)
                 .withZone(timeZone.toZoneId());
         return formatter.format(curInst);
+    }
+    public static int toLocaleDateTimeHour(Instant curInst) {
+        ZonedDateTime localDateTime = curInst.atZone(ZoneId.systemDefault());
+        DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("HH");
+        String hour = localDateTime.format(hourFormatter);
+        return Integer.parseInt(hour);
     }
 
     public static String toLocaleDateTimeStringToTelegram(Long milliSec) {
