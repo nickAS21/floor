@@ -120,7 +120,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
                     this.batterySocCur,
                     batterySocNew,
-                    (batterySocNew - this.batterySocCur),
+                    String.format( "%.2f", (batterySocNew - this.batterySocCur)),
                     String.format( "%.2f", batterySocMin),
 
                     batteryStatusNew,
