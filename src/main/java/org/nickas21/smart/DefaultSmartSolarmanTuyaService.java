@@ -182,7 +182,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             } else {
                 isDayPrevious = false;
                 if (!isUpdateToMinAfterIsDayFalse) {
-                    log.info("Update parameters idDay [{}]: Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", this.isDay, toLocaleTimeString(this.sunSetDate));
+                    log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", this.isDay, toLocaleTimeString(this.sunSetDate));
                     log.info("Night   at: [{}]", toLocaleTimeString(this.sunSetMin));
                     try {
                         this.isUpdateToMinAfterIsDayFalse = this.tuyaDeviceService.updateAllThermostatToMin("is Day == false");
@@ -194,11 +194,14 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 int curHour = toLocaleDateTimeHour(curInst);
                 if (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
+                        log.info("Update parameters isDay [{}]: Increased electricity consumption, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
                         tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
                     } else {
+                        log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, No grid power supply, night tariff, exact time: [{}].", this.isDay, curHour);
                         tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                     }
                 } else {
+                    log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", this.isDay, curHour);
                     tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                 }
             }
