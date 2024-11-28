@@ -192,12 +192,14 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 }
                 // powerValueRealTimeData.getGridStatusRelay() hour == 23 or hour <= 7: NightTariff
                 int curHour = toLocaleDateTimeHour(curInst);
-                if (curHour == timeLocalNightTariffStart || curHour <= timeLocalNightTariffFinish) {
+                if (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
                         tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
                     } else {
                         tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                     }
+                } else {
+                    tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                 }
             }
 
