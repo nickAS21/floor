@@ -647,6 +647,9 @@ public class TuyaDeviceService {
         }
         if (devices != null) {
             log.info("Init tuya Devices successful: [{}], from [{}]", devices.getDevIds().size(), this.connectionConfiguration.getDeviceIds().length);
+            for (Entry e: devices.getDevIds().entrySet()) {
+                log.info("name: [{}] id: [{}] ", ((Device) e.getValue()).getName(), e.getKey());
+            }
             try {
                 this.updateAllThermostatToMin("start");
             } catch (Exception e) {
