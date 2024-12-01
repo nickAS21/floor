@@ -67,6 +67,9 @@ import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 import static org.nickas21.smart.util.HttpUtil.offOnKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
+import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
+import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffStart;
+import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
@@ -77,7 +80,7 @@ import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
 @EnableConfigurationProperties({TuyaConnectionProperties.class, TuyaDeviceProperties.class})
 public class TuyaDeviceService {
 
-    public final String onLine = "online";
+    public final String gridRelayDopPrefix = "online";
     public final String nameFieldTempCurrent = "temp_current";
     public final String nameFieldSwitch = "switch";
 
@@ -158,7 +161,7 @@ public class TuyaDeviceService {
                     updateStatus = true;
                 }
             }
-            if (!updateStatus){
+            if (!updateStatus) {
                 device.setStatus(deviceStatus);
             }
             if (device.getCategory() != null && Arrays.asList(deviceProperties.getCategoryForControlPowers()).contains(device.getCategory())) {
@@ -171,6 +174,7 @@ public class TuyaDeviceService {
         if (bizCode != null && device != null) {
             if (device.setBizCode((ObjectNode) msg.getJson()) && device.getId().equals(this.getGridRelayCodeId())) {
                 updateGridStateOnLine();
+                updateOnOffGridRelay();
             }
         }
     }
@@ -223,7 +227,7 @@ public class TuyaDeviceService {
         }
     }
 
-    public void updateAllThermostat(Object tempSet){
+    public void updateAllThermostat(Object tempSet) {
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
         if (this.devices != null) {
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
@@ -243,7 +247,7 @@ public class TuyaDeviceService {
             }
             queueLock.lock();
             try {
-                updateThermostats(queueUpdate,false);
+                updateThermostats(queueUpdate, false);
             } finally {
                 queueLock.unlock();
             }
@@ -264,7 +268,7 @@ public class TuyaDeviceService {
         String fieldNameValueUpdate;
         Object valueOld;
         if (valueNew instanceof Boolean) {
-            fieldNameValueUpdate = offOnKey;
+            fieldNameValueUpdate = gridRelayDopPrefix.equals(v.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
         } else if (v.getValueSetMaxOn() != null && v.getValueSetMaxOn() instanceof Boolean) {
             fieldNameValueUpdate = offOnKey;
@@ -311,19 +315,19 @@ public class TuyaDeviceService {
         }
         queueLock.lock();
         try {
-            updateThermostats(queueUpdate,false);
+            updateThermostats(queueUpdate, false);
         } finally {
             queueLock.unlock();
         }
     }
 
-    public void updateThermostats( Map<Device, DeviceUpdate> queueUpdate, boolean isUpdateAlways) {
+    public void updateThermostats(Map<Device, DeviceUpdate> queueUpdate, boolean isUpdateAlways) {
         int size = queueUpdate.size();
         if (size > 0) {
             // Schedule the task to run at fixed intervals
             log.warn("Start updateThermostats time size: [{}]", size);
             if (timeoutSecUpdateMillis == null) {
-               this.setTimeoutSecUpdateMillis(solarmanStationsService.getSolarmanStation().getTimeoutSec()/2);
+                this.setTimeoutSecUpdateMillis(solarmanStationsService.getSolarmanStation().getTimeoutSec() / 2);
             }
             int intervalMillis = (timeoutSecUpdateMillis / size) / 4 < 30000 ? (int) (timeoutSecUpdateMillis / size) / 4 : 30000;
             AtomicInteger atomicTaskCnt = new AtomicInteger(0);
@@ -350,7 +354,7 @@ public class TuyaDeviceService {
                         }
                     });
                     // Stop the timer when iteration is complete
-                  timer.cancel();
+                    timer.cancel();
                     log.info("Finish run timer: [{}] from [{}]", atomicTaskCnt.get(), size);
                 }
             };
@@ -388,7 +392,7 @@ public class TuyaDeviceService {
         }
         queueLock.lock();
         try {
-            updateThermostats(queueUpdate,false);
+            updateThermostats(queueUpdate, false);
         } finally {
             queueLock.unlock();
         }
@@ -410,7 +414,7 @@ public class TuyaDeviceService {
         }
         queueLock.lock();
         try {
-            updateThermostats(queueUpdate,false);
+            updateThermostats(queueUpdate, false);
         } finally {
             queueLock.unlock();
         }
@@ -599,7 +603,7 @@ public class TuyaDeviceService {
                     if (device != null) {
                         ArrayNode commands = (ArrayNode) toJsonNode(commandsNode.get("commands").toString());
                         String nameParam = commands.get(0).get("code").asText();
-                        Object valueInDeviceCur = device.getStatus() != null && nameParam!= null && device.getStatus().get(nameParam) != null ?
+                        Object valueInDeviceCur = device.getStatus() != null && nameParam != null && device.getStatus().get(nameParam) != null ?
                                 device.getStatus().get(nameParam).getValue() : null;
                         Object val = commands.get(0).get("value").getNodeType().name().equals("NUMBER") ? commands.get(0).get("value").asInt() :
                                 commands.get(0).get("value").getNodeType().name().equals("BOOLEAN") ? commands.get(0).get("value").asBoolean() : commands.get(0).get("value");
@@ -632,7 +636,7 @@ public class TuyaDeviceService {
                 if (devId.length == 3) {
                     if ("false".equals(devId[2]) || "true".equals(devId[2])) {
                         devParams[1] = "false".equals(devId[2]) ? 0 : -1;
-                    } else if (onLine.equals(devId[2])) {
+                    } else if (gridRelayDopPrefix.equals(devId[2])) {
                         devParams[1] = -2;
                     } else {
                         devParams[1] = Integer.parseInt(devId[2]);
@@ -647,7 +651,7 @@ public class TuyaDeviceService {
         }
         if (devices != null) {
             log.info("Init tuya Devices successful: [{}], from [{}]", devices.getDevIds().size(), this.connectionConfiguration.getDeviceIds().length);
-            for (Entry e: devices.getDevIds().entrySet()) {
+            for (Entry e : devices.getDevIds().entrySet()) {
                 log.info("name: [{}] id: [{}] ", ((Device) e.getValue()).getName(), e.getKey());
             }
             try {
@@ -681,7 +685,7 @@ public class TuyaDeviceService {
                 if (devParams.length > 0) {
                     devices.getDevIds().get(deviceId).setConsumptionPower(devParams[0]);
                     if (devParams[1] == -2) {
-                        devices.getDevIds().get(deviceId).setValueSetMaxOn(onLine);
+                        devices.getDevIds().get(deviceId).setValueSetMaxOn(gridRelayDopPrefix);
                     } else if (devParams[1] <= 0 && devParams[1] > -2) {
                         devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1] != 0);
                     } else {
@@ -763,7 +767,7 @@ public class TuyaDeviceService {
         return this.gridRelayCodeId;
     }
 
-    public Boolean getGridRelayCodeStateOnLine(){
+    public Boolean getGridRelayCodeStateOnLine() {
         if (getGridRelayCodeId() != null) {
             Device gridDevice = this.devices.getDevIds().get(getGridRelayCodeId());
             if (gridDevice != null) {
@@ -778,10 +782,43 @@ public class TuyaDeviceService {
     }
 
 
-    private String getGridRelayCode(){
+    public void updateOnOffGridRelay() {
+        if (this.devices != null && this.getGridRelayCodeId() != null) {
+            Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(this.getGridRelayCodeId()).currentStateOnLine();
+            if (gridStateOnLine.getValue()) {
+                int curHour = toLocaleDateTimeHour();
+                boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish);
+                Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+                Device device = this.devices.getDevIds().get(getGridRelayCode());
+                DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
+                if (deviceUpdate.isUpdate()) {
+                    if (paramOnOff) {
+                        log.info("Grid relay to on, night tariff, exact time: [{}].", curHour);
+                    } else {
+                        log.info("Grid relay to off, night tariff, exact time: [{}].", curHour);
+                    }
+                    queueUpdate.put(device, deviceUpdate);
+                } else {
+                    log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                            device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                }
+                queueLock.lock();
+                try {
+                    updateThermostats(queueUpdate, false);
+                } finally {
+                    queueLock.unlock();
+                }
+            } else {
+                log.error("Devices is null, Devices not Update.");
+            }
+        }
+    }
+
+
+    private String getGridRelayCode() {
         if (this.devices != null && this.devices.getDevIds() != null) {
-            for (Entry<String, Device> deviceId: this.devices.getDevIds().entrySet()) {
-                if(this.onLine.equals(deviceId.getValue().getValueSetMaxOn())){
+            for (Entry<String, Device> deviceId : this.devices.getDevIds().entrySet()) {
+                if (this.gridRelayDopPrefix.equals(deviceId.getValue().getValueSetMaxOn())) {
                     return deviceId.getKey();
                 }
             }

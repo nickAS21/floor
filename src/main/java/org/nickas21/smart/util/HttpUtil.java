@@ -79,7 +79,8 @@ public class HttpUtil {
                 .withZone(timeZone.toZoneId());
         return formatter.format(curInst);
     }
-    public static int toLocaleDateTimeHour(Instant curInst) {
+    public static int toLocaleDateTimeHour() {
+        Instant curInst = Instant.now();
         ZonedDateTime localDateTime = curInst.atZone(ZoneId.systemDefault());
         DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("HH");
         String hour = localDateTime.format(hourFormatter);

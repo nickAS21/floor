@@ -27,7 +27,6 @@ import static org.nickas21.smart.util.HttpUtil.gridRelayStatusKey;
 import static org.nickas21.smart.util.HttpUtil.gridStatusKey;
 import static org.nickas21.smart.util.HttpUtil.productionTotalSolarPowerKey;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
-import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffStart;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateString;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
@@ -85,8 +84,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         try {
             updatePowerValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
-//            SolarmanSocPercentage percentage = SolarmanSocPercentage.fromPercentage(batVolNew);
-//            double batterySocNew = percentage != null ? percentage.getPercentage() : 0;
             double batterySocNew = getPercentageVoltage(batVolNew);
             double batterySocMin = getBatSocMin();
             double batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
@@ -106,6 +103,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
 
             tuyaDeviceService.updateGridStateOnLine();
+            tuyaDeviceService.updateOnOffGridRelay();
 
             log.info("""
                             Current data:\s
@@ -191,8 +189,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     }
                 }
                 // powerValueRealTimeData.getGridStatusRelay() hour == 23 or hour <= 7: NightTariff
-                int curHour = toLocaleDateTimeHour(curInst);
-                if (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
+                int curHour = toLocaleDateTimeHour();
+                if (curHour < (timeLocalNightTariffFinish -1)) {
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
                         log.info("Update parameters isDay [{}]: Increased electricity consumption, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
                         tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
