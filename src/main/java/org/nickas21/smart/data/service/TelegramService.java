@@ -119,10 +119,10 @@ public class TelegramService implements TelegramServiceImpl {
                 TelegramBotsApi botsApi = new TelegramBotsApi(TelegramBotSession.class);
                 TelegramBotSession botSession = (TelegramBotSession) botsApi.registerBot(bot);
                 bot.setStateStart(true);
-                log.info("TelegramBotsApiDacha is started successful.");
+                log.info("TelegramBotsApi[{}] is started successful.", bot.getHouseName());
                 return botSession;
             } catch (TelegramApiException e) {
-                log.error("TelegramBotsApiDacha is null. BotUsername: [{}] BotToken: [{}] error: [{}]", bot.getBotUsername(), bot.getBotToken(), e.getMessage());
+                log.error("TelegramBotsApi[{}] is null. BotUsername: [{}] BotToken: [{}] error: [{}]", bot.getHouseName(), bot.getBotUsername(), bot.getBotToken(), e.getMessage());
                 return null;
             }
         } else {
