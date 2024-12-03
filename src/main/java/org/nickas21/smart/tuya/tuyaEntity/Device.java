@@ -108,7 +108,7 @@ public class Device {
             deviceBizCode.setValueOld(false);
             deviceBizCode.setValue(true);
             updateGridOnline = true;
-        }else if ("offline".equals(deviceBizCode.getBizCode())) {
+        } else if ("offline".equals(deviceBizCode.getBizCode())) {
             this.onLine.put(deviceBizCode.getTs(), false);
             deviceBizCode.setValueOld(true);
             deviceBizCode.setValue(false);

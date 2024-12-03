@@ -86,7 +86,6 @@ public class TuyaDeviceService {
     public final String gridRelayDopPrefixDacha = "gridOnlineDacha";
     public final String gridRelayDopPrefixHome = "gridOnlineHome";
     public final String nameFieldTempCurrent = "temp_current";
-    public final String nameFieldSwitch = "switch";
 
     private TuyaToken accessTuyaToken;
     public Devices devices;
@@ -155,16 +154,17 @@ public class TuyaDeviceService {
         if (device != null && deviceStatus != null) {
             String nameField = deviceStatus.get(0).get("code").asText();
             boolean updateStatus = false;
-
-            if (device.getValueSetMaxOn() instanceof Boolean && nameFieldTempCurrent.equals(nameField)) {
-                Boolean valueCur = (Boolean) device.getStatus().get(nameFieldSwitch).getValue();
-                if (!valueCur) {
+            if ((device.getValueSetMaxOn() instanceof Boolean && nameFieldTempCurrent.equals(nameField)) ||
+                    (nameField != null && nameField.contains(offOnKey))) {
+                Object valueOld = device.getStatus().get(nameField).getValue();
+                Boolean valueNew = deviceStatus.get(0).get("value").asBoolean();
+                if (valueOld == null || valueOld != valueNew) {
                     DeviceStatus devStatusSwitchNew = new DeviceStatus();
-                    devStatusSwitchNew.setValue(true);
-                    device.setStatus(nameFieldSwitch, devStatusSwitchNew);
+                    devStatusSwitchNew.setValue(deviceStatus.get(0).get("value"));
+                    device.setStatus(nameField, devStatusSwitchNew);
                     log.info("Device (update switch by value): [{}] time: -> [{}] parameter: [{}] valueOld: [{}] valueNew: [{}] ",
                             device.getName(), toLocaleTimeString(Long.parseLong(String.valueOf(deviceStatus.get(0).get("t")))),
-                            nameFieldSwitch, valueCur, devStatusSwitchNew.getValue());
+                            nameField, valueOld, devStatusSwitchNew.getValue());
                     updateStatus = true;
                 }
             }
@@ -281,9 +281,15 @@ public class TuyaDeviceService {
         String fieldNameValueUpdate;
         Object valueOld;
         if (valueNew instanceof Boolean) {
-            fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(v.getValueSetMaxOn()) || gridRelayDopPrefixHome.equals(v.getValueSetMaxOn()) ?
-                    offOnKey + "_1" : offOnKey;
+            fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(v.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
+           // not update temp -> if:  Home + hour = 8-23 hand mode
+            if (gridRelayDopPrefixHome.equals(v.getValueSetMaxOn())){
+                int curHour = toLocaleDateTimeHour();
+                if (curHour >= (timeLocalNightTariffFinish + 1) && curHour < timeLocalNightTariffStart) {
+                    valueNew = valueOld;
+                }
+            }
         } else if (v.getValueSetMaxOn() != null && v.getValueSetMaxOn() instanceof Boolean) {
             fieldNameValueUpdate = offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
