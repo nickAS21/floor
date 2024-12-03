@@ -46,5 +46,15 @@ public class StringUtils {
         System.out.print("|" + "=".repeat(size) + "|\r");
         thread.interrupt();
     }
+
+    public static boolean isDecimal(String str) {
+        if (str == null || str.isEmpty()) {
+            return false;
+        }
+        return str.matches("[+-]?\\d+(\\.\\d+)?");
+    }
+    public static Boolean isBoolean(String str) {
+        return "true".equals(str) ? Boolean.TRUE : "false".equals(str) ? Boolean.FALSE : null;
+    }
 }
 

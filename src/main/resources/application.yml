@@ -58,9 +58,20 @@ smart:
 
 telegram:
   bot:
-    username: "${TELEGRAM_BOT_USERNAME:xxx}"
-    token: "${TELEGRAM_BOT_TOKEN:xxxx}"
-  chat-id: "${TELEGRAM_CHAT_ID:-100}"
+    dacha:
+      username: "${TELEGRAM_BOT_USERNAME_DACHA:xxx}"
+      token: "${TELEGRAM_BOT_TOKEN_DACHA:xxxx}"
+      chat-id: "${TELEGRAM_CHAT_ID_DACHA:-100}"
+    home:
+      username: "${TELEGRAM_BOT_USERNAME_HOME:xxx}"
+      token: "${TELEGRAM_BOT_TOKEN_HOME:xxxx}"
+      chat-id: "${TELEGRAM_CHAT_ID_HOME:-200}"
+
+gmail:
+  username: "${GMAIL_USERNAME:nick.kulikov21@gmail.com}"
+  password: "${GMAIL_PWD:30i2139tan}"
+#  recipient: "${GMAIL_RECIPIENT:default@example.com}"
+  recipient: "${GMAIL_RECIPIENT:nick@avalr.com.ua}"
 
 logging.level:
   ch.qos.logback: OFF

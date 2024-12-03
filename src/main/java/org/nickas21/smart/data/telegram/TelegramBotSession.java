@@ -1,4 +1,4 @@
-package org.nickas21.smart.data.entity;
+package org.nickas21.smart.data.telegram;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -202,7 +202,7 @@ public class TelegramBotSession implements BotSession {
                             if (!running.get()) {
                                 receivedUpdates.clear();
                             }
-                            log.error("TelegramBot Run: msgInterruptedException before interrupt [{}] [{}]", e.getMessage(), e.getLocalizedMessage(), e.getCause());
+                            log.warn("TelegramBot Run: msgInterruptedException before interrupt [{}] [{}]", e.getMessage(), e.getLocalizedMessage(), e.getCause());
                             interrupt();
                         } catch (Exception global) {
                             log.error("TelegramBot Run: msgException global [{}] [{}]", global.getMessage(), global.getLocalizedMessage(), global.getCause());

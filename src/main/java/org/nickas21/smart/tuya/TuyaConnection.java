@@ -3,7 +3,7 @@ package org.nickas21.smart.tuya;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.security.configuration.TelegramBotConfig;
+import org.nickas21.smart.data.service.TelegramService;
 import org.nickas21.smart.tuya.mq.MessageVO;
 import org.nickas21.smart.tuya.mq.MqPulsarConsumer;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
@@ -26,7 +26,7 @@ public class TuyaConnection implements TuyaConnectionIn {
     @Autowired()
     private TuyaDeviceService tuyaDeviceService;
     @Autowired()
-    private TelegramBotConfig telegramBotConfig;
+    private TelegramService telegramService;
 
     public void init() {
         mqPulsarConsumer = createMqConsumer(this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk());
@@ -42,9 +42,8 @@ public class TuyaConnection implements TuyaConnectionIn {
 
     public void cleanup() throws Exception {
         log.info("Start destroy tuyaDeviceService!");
-        if (telegramBotConfig != null) {
-            log.info("Start destroy telegramBotConfig");
-            telegramBotConfig.preDestroy();
+        if (telegramService != null) {
+            telegramService.preDestroy();
         }
         if (tuyaDeviceService.getConnectionConfiguration() != null) {
             tuyaDeviceService.updateAllDevicePreDestroy();

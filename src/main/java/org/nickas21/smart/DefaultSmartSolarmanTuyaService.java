@@ -78,6 +78,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         this.stationConsumptionPower = solarmanStationsService.getSolarmanStation().getStationConsumptionPower();
         this.powerValueRealTimeData = PowerValueRealTimeData.builder().build();
         initUpdateTimeoutSheduler();
+        tuyaDeviceService.setDebugging(this.debugging);
     }
 
     public void setBmsSocCur() {
@@ -96,14 +97,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             Instant curInst = Instant.now();
             String curInstStr = toLocaleTimeString(curInst);
             if (this.batterySocCur == 0) {
-                String msgProgressBar = "Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ";
+                String msgProgressBar = "\b\b\bStart: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ";
                 this.setProgressBarThread (msgProgressBar);
             } else {
                 initUpdateTimeoutSheduler();
+                tuyaDeviceService.updateGridStateOnLineToTelegram(tuyaDeviceService.getGridRelayCodeIdDacha());
+                tuyaDeviceService.updateOnOffGridRelayDacha();
+                tuyaDeviceService.updateGridStateOnLineToTelegram(tuyaDeviceService.getGridRelayCodeIdHome());
+                tuyaDeviceService.updateOnOffGridRelayHome();
             }
-
-            tuyaDeviceService.updateGridStateOnLine();
-            tuyaDeviceService.updateOnOffGridRelay();
 
             log.info("""
                             Current data:\s
@@ -137,7 +139,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
                     powerValueRealTimeData.getGridStatusRelay(),
                     powerValueRealTimeData.getGridStatusSolarman(),
-                    tuyaDeviceService.getGridRelayCodeStateOnLine(),
+                    tuyaDeviceService.getGridRelayCodeDachaStateOnLine(),
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell());
             if (isDay) {
@@ -205,7 +207,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
 
             if (this.batterySocCur != 0) {
-                String msgProgressBar = toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli())) + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
+                String msgProgressBar = "\b\b\b" + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli())) + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
                 this.setProgressBarThread(msgProgressBar);
             }
             batterySocCur = batterySocNew;

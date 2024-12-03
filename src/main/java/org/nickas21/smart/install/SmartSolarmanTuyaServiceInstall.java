@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
+import org.nickas21.smart.data.service.TelegramService;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.TuyaConnection;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ public class SmartSolarmanTuyaServiceInstall {
     @Autowired
     DefaultSmartSolarmanTuyaService smartSolarmanTuyaService;
 
+    @Autowired
+    TelegramService telegramService;
+
     @Value("${app.test_front:false}")
     boolean testFront;
 
@@ -32,6 +36,7 @@ public class SmartSolarmanTuyaServiceInstall {
             tuyaConnection.init();
             solarmanStationsService.init();
             smartSolarmanTuyaService.solarmanRealTimeDataStart();
+            telegramService.init();
         }
     }
 

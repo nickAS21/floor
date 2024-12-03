@@ -1,4 +1,4 @@
-package org.nickas21.smart.data.entity;
+package org.nickas21.smart.data.telegram;
 
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.meta.generics.BackOff;

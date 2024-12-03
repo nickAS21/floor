@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.service.TelegramService;
+import org.nickas21.smart.data.telegram.TelegramBot;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaToken;
@@ -74,22 +75,27 @@ import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
+import static org.nickas21.smart.util.StringUtils.isBoolean;
+import static org.nickas21.smart.util.StringUtils.isDecimal;
 
 @Slf4j
 @Service
 @EnableConfigurationProperties({TuyaConnectionProperties.class, TuyaDeviceProperties.class})
 public class TuyaDeviceService {
 
-    public final String gridRelayDopPrefix = "online";
+    public final String gridRelayDopPrefixDacha = "gridOnlineDacha";
+    public final String gridRelayDopPrefixHome = "gridOnlineHome";
     public final String nameFieldTempCurrent = "temp_current";
     public final String nameFieldSwitch = "switch";
 
     private TuyaToken accessTuyaToken;
     public Devices devices;
 
-    private String gridRelayCodeId;
+    private String gridRelayCodeIdDacha;
+    private String gridRelayCodeIdHome;
 
-    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfo;
+    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoDacha;
+    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoHome;
 
     private final Lock queueLock = new ReentrantLock();
 
@@ -99,6 +105,7 @@ public class TuyaDeviceService {
     private final WebClient authClient = WebClient.builder().build();
     private final WebClient webClient;
     private Long timeoutSecUpdateMillis;
+    private boolean debugging;
 
     @Autowired
     SolarmanStationsService solarmanStationsService;
@@ -172,9 +179,15 @@ public class TuyaDeviceService {
             }
         }
         if (bizCode != null && device != null) {
-            if (device.setBizCode((ObjectNode) msg.getJson()) && device.getId().equals(this.getGridRelayCodeId())) {
-                updateGridStateOnLine();
-                updateOnOffGridRelay();
+            if (device.setBizCode((ObjectNode) msg.getJson())) {
+                if (device.getId().equals(this.getGridRelayCodeIdDacha())) {
+                    this.updateGridStateOnLineToTelegram(this.getGridRelayCodeIdDacha());
+                    this.updateOnOffGridRelayDacha();
+                } else if (device.getId().equals(this.getGridRelayCodeIdHome())) {
+                    this.updateOnOffGridRelayHome();
+                    this.updateGridStateOnLineToTelegram(this.getGridRelayCodeIdHome());
+                }
+
             }
         }
     }
@@ -268,7 +281,8 @@ public class TuyaDeviceService {
         String fieldNameValueUpdate;
         Object valueOld;
         if (valueNew instanceof Boolean) {
-            fieldNameValueUpdate = gridRelayDopPrefix.equals(v.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
+            fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(v.getValueSetMaxOn()) || gridRelayDopPrefixHome.equals(v.getValueSetMaxOn()) ?
+                    offOnKey + "_1" : offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
         } else if (v.getValueSetMaxOn() != null && v.getValueSetMaxOn() instanceof Boolean) {
             fieldNameValueUpdate = offOnKey;
@@ -631,16 +645,12 @@ public class TuyaDeviceService {
             try {
                 String[] devId = deviceIdWithPower.split(":");
                 String deviceId = devId[0];
-                int[] devParams = new int[2];
+                Object[] devParams = new Object[2];
                 devParams[0] = Integer.parseInt(devId[1]);
                 if (devId.length == 3) {
-                    if ("false".equals(devId[2]) || "true".equals(devId[2])) {
-                        devParams[1] = "false".equals(devId[2]) ? 0 : -1;
-                    } else if (gridRelayDopPrefix.equals(devId[2])) {
-                        devParams[1] = -2;
-                    } else {
-                        devParams[1] = Integer.parseInt(devId[2]);
-                    }
+                    devParams[1] = isBoolean(devId[2]);
+                    devParams[1] = devParams[1] != null ? devParams[1] :
+                            isDecimal(devId[2]) ? Integer.parseInt(devId[2]) : devId[2];
                 } else {
                     devParams[1] = deviceProperties.getTempSetMax();
                 }
@@ -664,7 +674,7 @@ public class TuyaDeviceService {
         }
     }
 
-    private Device initDeviceTuya(String deviceId, int... devParams) throws Exception {
+    private Device initDeviceTuya(String deviceId, Object... devParams) throws Exception {
         Device device = null;
         String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
         RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
@@ -683,15 +693,8 @@ public class TuyaDeviceService {
                     devices.getDevIds().get(deviceId).setStatus(result);
                 }
                 if (devParams.length > 0) {
-                    devices.getDevIds().get(deviceId).setConsumptionPower(devParams[0]);
-                    if (devParams[1] == -2) {
-                        devices.getDevIds().get(deviceId).setValueSetMaxOn(gridRelayDopPrefix);
-                    } else if (devParams[1] <= 0 && devParams[1] > -2) {
-                        devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1] != 0);
-                    } else {
-                        devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1]);
-                    }
-
+                    devices.getDevIds().get(deviceId).setConsumptionPower((Integer) devParams[0]);
+                    devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1]);
                 } else if ("wk".equals(device.getCategory())) {
                     devices.getDevIds().get(deviceId).setConsumptionPower(2000);
                 }
@@ -738,38 +741,62 @@ public class TuyaDeviceService {
         return (System.currentTimeMillis() - this.accessTuyaToken.getT()) > (this.accessTuyaToken.getExpireTimeMilli() - deltaRefresh);
     }
 
-    public void updateGridStateOnLine() {
-        if (this.getGridRelayCodeId() != null) {
-            Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(this.getGridRelayCodeId()).currentStateOnLine();
-            if (gridStateOnLine != null) {
-                String msg = null;
-                if (this.lastUpdateTimeGridStatusInfo == null) {
-                    // first message
-                    msg = telegramService.sendFirstMsgToTelegram(gridStateOnLine);
-                } else {
-                    // next  message
-                    if (gridStateOnLine.getValue() != this.lastUpdateTimeGridStatusInfo.getValue()) {
-                        msg = telegramService.sendMsgToTelegram(this.lastUpdateTimeGridStatusInfo.getKey(), gridStateOnLine);
+    public void updateGridStateOnLineToTelegram(String gridRelayCodeId) {
+        if (!this.debugging) {
+            if (this.getGridRelayCodeIdDacha() != null) {
+                Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(gridRelayCodeId).currentStateOnLine();
+                if (gridStateOnLine != null) {
+                    TelegramBot bot;
+                    String msg = null;
+                    Entry<Long, Boolean> lastUpdateTimeGridStatusInfo;
+                    if (gridRelayCodeId.equals(this.getGridRelayCodeIdDacha())) {
+                        bot = telegramService.getTelegramBotDacha();
+                        lastUpdateTimeGridStatusInfo = this.lastUpdateTimeGridStatusInfoDacha;
+                    } else {
+                        bot = telegramService.getTelegramBotHome();
+                        lastUpdateTimeGridStatusInfo = this.lastUpdateTimeGridStatusInfoHome;
                     }
-                }
-                if (msg != null) {
-                    this.lastUpdateTimeGridStatusInfo = gridStateOnLine;
-                    log.info("\nTelegram send msg: \n{}", msg);
+                    if (lastUpdateTimeGridStatusInfo == null) {
+                        // first message
+                        msg = telegramService.sendFirstMsgToTelegram(bot, gridStateOnLine);
+                    } else {
+                        if (gridStateOnLine.getValue() != lastUpdateTimeGridStatusInfo.getValue()) {
+                            // next  message
+                            msg = telegramService.sendMsgToTelegram(bot, lastUpdateTimeGridStatusInfo.getKey(), gridStateOnLine);
+                        } else {
+                            log.info("Telegram[{}] is not sending messages... because the state has not changed.", bot.getHouseName());
+                        }
+                    }
+                    if (msg != null) {
+                        if (gridRelayCodeId.equals(this.getGridRelayCodeIdDacha())) {
+                            this.lastUpdateTimeGridStatusInfoDacha = gridStateOnLine;
+                        } else {
+                            this.lastUpdateTimeGridStatusInfoHome = gridStateOnLine;
+                        }
+                        log.info("\nTelegram[{}] send msg: \n{}", bot.getHouseName(), msg);
+                    }
                 }
             }
         }
     }
 
-    public String getGridRelayCodeId() {
-        if (this.gridRelayCodeId == null) {
-            this.gridRelayCodeId = this.getGridRelayCode();
+    public String getGridRelayCodeIdDacha() {
+        if (this.gridRelayCodeIdDacha == null) {
+            this.gridRelayCodeIdDacha = this.getGridRelayCode(this.gridRelayDopPrefixDacha);
         }
-        return this.gridRelayCodeId;
+        return this.gridRelayCodeIdDacha;
     }
 
-    public Boolean getGridRelayCodeStateOnLine() {
-        if (getGridRelayCodeId() != null) {
-            Device gridDevice = this.devices.getDevIds().get(getGridRelayCodeId());
+    public String getGridRelayCodeIdHome() {
+        if (this.gridRelayCodeIdHome == null) {
+            this.gridRelayCodeIdHome = this.getGridRelayCode(this.gridRelayDopPrefixHome);
+        }
+        return this.gridRelayCodeIdHome;
+    }
+
+    public Boolean getGridRelayCodeDachaStateOnLine() {
+        if (this.getGridRelayCodeIdDacha() != null) {
+            Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
             if (gridDevice != null) {
                 return gridDevice.getCurrentStateOnLineValue();
             }
@@ -781,44 +808,55 @@ public class TuyaDeviceService {
         this.timeoutSecUpdateMillis = timeoutSecUpdate * 1000;
     }
 
-
-    public void updateOnOffGridRelay() {
-        if (this.devices != null && this.getGridRelayCodeId() != null) {
-            Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(this.getGridRelayCodeId()).currentStateOnLine();
-            if (gridStateOnLine.getValue()) {
-                int curHour = toLocaleDateTimeHour();
-                boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish);
-                Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-                Device device = this.devices.getDevIds().get(getGridRelayCode());
-                DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-                if (deviceUpdate.isUpdate()) {
-                    if (paramOnOff) {
-                        log.info("Grid relay to on, night tariff, exact time: [{}].", curHour);
-                    } else {
-                        log.info("Grid relay to off, night tariff, exact time: [{}].", curHour);
-                    }
-                    queueUpdate.put(device, deviceUpdate);
-                } else {
-                    log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
-                            device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
-                }
-                queueLock.lock();
-                try {
-                    updateThermostats(queueUpdate, false);
-                } finally {
-                    queueLock.unlock();
-                }
-            } else {
-                log.error("Devices is null, Devices not Update.");
-            }
+    public void updateOnOffGridRelayDacha() {
+        if (this.getGridRelayCodeIdDacha() != null) {
+            this.updateOnOffGridRelay(this.getGridRelayCodeIdDacha());
         }
     }
 
+    public void updateOnOffGridRelayHome() {
+        if (this.getGridRelayCodeIdHome() != null) {
+            this.updateOnOffGridRelay(this.getGridRelayCodeIdHome());
+        }
+    }
 
-    private String getGridRelayCode() {
+    public void updateOnOffGridRelay(String gridRelayCodeId) {
+        Device device = this.devices.getDevIds().get(gridRelayCodeId);
+        if (device.currentStateOnLine().getValue()) {
+            int curHour = toLocaleDateTimeHour();
+            boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish);
+            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+            DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
+            if (deviceUpdate.isUpdate()) {
+                if (paramOnOff) {
+                    log.info("Grid relay [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
+                } else {
+                    log.info("Grid relay [{}] to off, night tariff, exact time: [{}].", device.getName(), curHour);
+                }
+                queueUpdate.put(device, deviceUpdate);
+            } else {
+                log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                        device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+            }
+            queueLock.lock();
+            try {
+                updateThermostats(queueUpdate, false);
+            } finally {
+                queueLock.unlock();
+            }
+        } else {
+            log.error("Device [{}] is Offline, Devices not Update.", device.getName());
+        }
+    }
+
+    public void setDebugging(boolean debugging) {
+        this.debugging = debugging;
+    }
+
+    private String getGridRelayCode(String gridRelayDopPrefix) {
         if (this.devices != null && this.devices.getDevIds() != null) {
             for (Entry<String, Device> deviceId : this.devices.getDevIds().entrySet()) {
-                if (this.gridRelayDopPrefix.equals(deviceId.getValue().getValueSetMaxOn())) {
+                if (gridRelayDopPrefix.equals(deviceId.getValue().getValueSetMaxOn())) {
                     return deviceId.getKey();
                 }
             }
