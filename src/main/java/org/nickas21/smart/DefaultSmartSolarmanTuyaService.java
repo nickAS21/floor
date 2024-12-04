@@ -97,7 +97,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             Instant curInst = Instant.now();
             String curInstStr = toLocaleTimeString(curInst);
             if (this.batterySocCur == 0) {
-                String msgProgressBar = "\b\b\bStart: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ";
+                String msgProgressBar = "Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ";
                 this.setProgressBarThread (msgProgressBar);
             } else {
                 initUpdateTimeoutSheduler();
@@ -176,7 +176,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                     infoActionDop);
                         }
                     } catch (Exception e) {
-                        log.error("isDay: [{}] [{}]", isDay, e.getMessage());
+                        log.error("isDay: [{}]", isDay, e);
                     }
                 }
             } else {
@@ -207,7 +207,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
 
             if (this.batterySocCur != 0) {
-                String msgProgressBar = "\b\b\b" + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli())) + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
+                String msgProgressBar = toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli())) + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
                 this.setProgressBarThread(msgProgressBar);
             }
             batterySocCur = batterySocNew;
