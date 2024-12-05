@@ -283,8 +283,8 @@ public class TuyaDeviceService {
         if (valueNew instanceof Boolean) {
             fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(v.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
-           // not update temp -> if:  Home + hour = 8-23 hand mode
-            if (gridRelayDopPrefixHome.equals(v.getValueSetMaxOn())){
+            // not update temp -> if:  Home + hour = 8-23 hand mode
+            if (gridRelayDopPrefixHome.equals(v.getValueSetMaxOn())) {
                 int curHour = toLocaleDateTimeHour();
                 if (curHour >= (timeLocalNightTariffFinish + 1) && curHour < timeLocalNightTariffStart) {
                     valueNew = valueOld;
@@ -443,13 +443,29 @@ public class TuyaDeviceService {
     private LinkedHashMap<String, Device> getDevicesTempSort(boolean order, String... filters) {
         HashMap<String, Integer> devicesPowerNotSort = new HashMap<>();
         LinkedHashMap<String, Device> sortedMap = new LinkedHashMap<>();
-        this.devices.getDevIds().forEach((k, v) -> {
-            for (String f : filters) {
-                if (v.getCategory().equals(f)) {
-                    devicesPowerNotSort.put(k, (Integer) v.getStatusValue(tempCurrentKey, deviceProperties.getTempSetMin()));
+        Object key = null;
+        Object value = null;
+        try {
+            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                try {
+                    key = entry.getKey();
+                    value = entry.getValue();
+                    for (String f : filters) {
+                        if (entry.getValue().getCategory().equals(f)) {
+                            Object statusValue =  entry.getValue().getStatusValue(tempCurrentKey, deviceProperties.getTempSetMin());
+                            Integer statusValueInt = statusValue instanceof com.fasterxml.jackson.databind.node.IntNode ?
+                                    ((com.fasterxml.jackson.databind.node.IntNode) statusValue).intValue() : (Integer)statusValue;
+                            devicesPowerNotSort.put(entry.getKey(), statusValueInt);
+                        }
+                    }
+                } catch (Exception innerException) {
+                    log.error("getDevicesTempSort: Error processing entry: key [{}], value [{}]", key, value, innerException);
                 }
             }
-        });
+        } catch (Exception e) {
+            log.error("getDevicesTempSort: key [{}], value [{}] ", key, value, e);
+        }
+
         List<Map.Entry<String, Integer>> list = new ArrayList<>(devicesPowerNotSort.entrySet());
         if (order) {
             list.sort(Map.Entry.comparingByValue());
