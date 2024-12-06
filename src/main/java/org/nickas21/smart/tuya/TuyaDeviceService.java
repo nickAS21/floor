@@ -86,6 +86,11 @@ public class TuyaDeviceService {
     public final String gridRelayDopPrefixDacha = "gridOnlineDacha";
     public final String gridRelayDopPrefixHome = "gridOnlineHome";
     public final String nameFieldTempCurrent = "temp_current";
+    public final String deviceIdKuhny = "bf6c65fa548db455c5xty8";
+    public final String deviceId3_floor = "bf4f86fd54edc80f6aegzd";
+    public final String deviceIdBadRoom = "bfa270cc48a9f36de9xi6p";
+    public final String deviceIdBoylerWiFi = "bfa0c1041fa8ad83e1oeik";
+    public final Integer tempCurrentKuhnyMin = 3;
 
     private TuyaToken accessTuyaToken;
     public Devices devices;
@@ -245,18 +250,7 @@ public class TuyaDeviceService {
         if (this.devices != null) {
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-                Device device = entry.getValue();
-                for (String f : filters) {
-                    if (f.equals(device.getCategory())) {
-                        DeviceUpdate deviceUpdate = getDeviceUpdate(tempSet, device);
-                        if (deviceUpdate.isUpdate()) {
-                            queueUpdate.put(device, deviceUpdate);
-                        } else {
-                            log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
-                                    device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
-                        }
-                    }
-                }
+                this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, tempSet);
             }
             queueLock.lock();
             try {
@@ -345,7 +339,7 @@ public class TuyaDeviceService {
         int size = queueUpdate.size();
         if (size > 0) {
             // Schedule the task to run at fixed intervals
-            log.warn("Start updateThermostats time size: [{}]", size);
+            log.info("Start updateThermostats time size: [{}]", size);
             if (timeoutSecUpdateMillis == null) {
                 this.setTimeoutSecUpdateMillis(solarmanStationsService.getSolarmanStation().getTimeoutSec() / 2);
             }
@@ -452,9 +446,9 @@ public class TuyaDeviceService {
                     value = entry.getValue();
                     for (String f : filters) {
                         if (entry.getValue().getCategory().equals(f)) {
-                            Object statusValue =  entry.getValue().getStatusValue(tempCurrentKey, deviceProperties.getTempSetMin());
+                            Object statusValue = entry.getValue().getStatusValue(tempCurrentKey, deviceProperties.getTempSetMin());
                             Integer statusValueInt = statusValue instanceof com.fasterxml.jackson.databind.node.IntNode ?
-                                    ((com.fasterxml.jackson.databind.node.IntNode) statusValue).intValue() : (Integer)statusValue;
+                                    ((com.fasterxml.jackson.databind.node.IntNode) statusValue).intValue() : (Integer) statusValue;
                             devicesPowerNotSort.put(entry.getKey(), statusValueInt);
                         }
                     }
@@ -884,5 +878,48 @@ public class TuyaDeviceService {
             }
         }
         return null;
+    }
+
+    /**
+     *  If the temperatureIn Kuhny <= 3
+     */
+    public void updateSwitchThermostat(Boolean switchValue) {
+        Integer tempCurMin = (Integer) this.devices.getDevIds().get(deviceIdKuhny).getStatus().get(nameFieldTempCurrent).getValue();
+        if (tempCurMin != null && tempCurrentKuhnyMin >= tempCurMin) {
+            log.info("UpdateSwitchThermostat");
+            String[] filters = getDeviceProperties().getCategoryForControlPowers();
+            if (this.devices != null) {
+                Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+                for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                    if (!deviceId3_floor.equals(entry.getKey()) &&
+                            !deviceIdBadRoom.equals(entry.getKey()) &&
+                            !deviceIdBoylerWiFi.equals(entry.getKey())) {
+                        this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, switchValue);
+                    }
+                }
+                queueLock.lock();
+                try {
+                    updateThermostats(queueUpdate, false);
+                } finally {
+                    queueLock.unlock();
+                }
+            } else {
+                log.error("Devices is null, Devices not Update.");
+            }
+        }
+    }
+
+    private void deviceUpdateCategory(Device device, String[] filters, Map<Device, DeviceUpdate> queueUpdate, Object valueNew) {
+        for (String f : filters) {
+            if (f.equals(device.getCategory())) {
+                DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, device);
+                if (deviceUpdate.isUpdate()) {
+                    queueUpdate.put(device, deviceUpdate);
+                } else {
+                    log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                            device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                }
+            }
+        }
     }
 }

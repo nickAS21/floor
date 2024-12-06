@@ -63,6 +63,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     private DynamicScheduler scheduler;
     private final boolean  debugging = false;
+    private boolean  switchThermostatReturnAfterUpdate = false;
 
     @Value("${app.version:unknown}")
     String version;
@@ -153,6 +154,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             String infoAction;
                             if (!isDayPrevious) {
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                                if (switchThermostatReturnAfterUpdate){
+                                    this.tuyaDeviceService.updateSwitchThermostat(false);
+                                    switchThermostatReturnAfterUpdate = false;
+                                }
                                 infoAction = "After the night...";
                                 infoActionDop = "TempSetMin";
                                 isDayPrevious = isDay;
@@ -193,6 +198,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 // powerValueRealTimeData.getGridStatusRelay() hour == 23 or hour <= 7: NightTariff
                 int curHour = toLocaleDateTimeHour();
                 if (curHour < (timeLocalNightTariffFinish -1)) {
+                    /**
+                     *  If the temperatureIn Kuhny <= 3
+                     */
+                    if (this.batterySocCur > 0 && !switchThermostatReturnAfterUpdate) {
+                        this.tuyaDeviceService.updateSwitchThermostat(true);
+                        switchThermostatReturnAfterUpdate = true;
+                    }
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
                         log.info("Update parameters isDay [{}]: Increased electricity consumption, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
                         tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
@@ -203,6 +215,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 } else {
                     log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", this.isDay, curHour);
                     tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                    if (switchThermostatReturnAfterUpdate){
+                        this.tuyaDeviceService.updateSwitchThermostat(false);
+                        switchThermostatReturnAfterUpdate = false;
+                    }
                 }
             }
 
