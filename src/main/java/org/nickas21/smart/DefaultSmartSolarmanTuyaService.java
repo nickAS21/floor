@@ -26,9 +26,16 @@ import static org.nickas21.smart.util.HttpUtil.getSunRiseSunset;
 import static org.nickas21.smart.util.HttpUtil.gridRelayStatusKey;
 import static org.nickas21.smart.util.HttpUtil.gridStatusKey;
 import static org.nickas21.smart.util.HttpUtil.productionTotalSolarPowerKey;
+import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
+import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhny5;
+import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhnyMin;
+import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffFinish;
+import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
+import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffStart;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateString;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
+import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeMinutes;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.HttpUtil.totalConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
@@ -63,7 +70,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     private DynamicScheduler scheduler;
     private final boolean  debugging = false;
-    private boolean  switchThermostatReturnAfterUpdate = false;
 
     @Value("${app.version:unknown}")
     String version;
@@ -148,16 +154,20 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 if (this.batterySocCur > 0) {
                     try {
                         if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
+                            // update auto switch dacha heating -> if (time = 7-8 && tempCurrentKuhny >= 5): if hour = 8-23 hand mode
+                            int curHour = toLocaleDateTimeHour();
+                            if (curHour >= (timeLocalNightTariffFinish) && curHour <= (timeLocalNightTariffFinish + 1)) {
+                                Integer tempCur = (Integer) this.tuyaDeviceService.devices.getDevIds().get(this.tuyaDeviceService.deviceIdKuhny).getStatus().get(tempCurrentKey).getValue();
+                                if (tempCur != null && tempCur >= tempCurrentKuhny5) {
+                                    this.tuyaDeviceService.updateSwitchThermostatFirstFloor(false);
+                                }
+                            }
                             boolean isCharge = getIsCharge (batterySocNew);
                             int freePowerCorrect = getFreePowerCorrect(batterySocNew, isCharge);
                             String infoActionDop;
                             String infoAction;
                             if (!isDayPrevious) {
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
-                                if (switchThermostatReturnAfterUpdate){
-                                    this.tuyaDeviceService.updateSwitchThermostat(false);
-                                    switchThermostatReturnAfterUpdate = false;
-                                }
                                 infoAction = "After the night...";
                                 infoActionDop = "TempSetMin";
                                 isDayPrevious = isDay;
@@ -195,15 +205,17 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         log.error("Update parameters idDay [{}] UpdateAllThermostat to min. Error: [{}}]", this.isDay, e.getMessage());
                     }
                 }
-                // powerValueRealTimeData.getGridStatusRelay() hour == 23 or hour <= 7: NightTariff
+                // on/off heating: 23:10 >= time <= 6:50: NightTariff
                 int curHour = toLocaleDateTimeHour();
-                if (curHour < (timeLocalNightTariffFinish -1)) {
-                    /**
-                     *  If the temperatureIn Kuhny <= 3
-                     */
-                    if (this.batterySocCur > 0 && !switchThermostatReturnAfterUpdate) {
-                        this.tuyaDeviceService.updateSwitchThermostat(true);
-                        switchThermostatReturnAfterUpdate = true;
+                int curMinutes = toLocaleDateTimeMinutes();
+                if ((curHour >= timeLocalNightTariffStart && curMinutes >= timeLocalMinutesNightTariffStart) ||
+                        (curHour < timeLocalNightTariffFinish && curMinutes <= timeLocalMinutesNightTariffFinish)) {
+                    // the first
+                    if (this.batterySocCur > 0) {
+                        Integer tempCur = (Integer) this.tuyaDeviceService.devices.getDevIds().get(this.tuyaDeviceService.deviceIdKuhny).getStatus().get(tempCurrentKey).getValue();
+                        if (tempCur != null && tempCur <= tempCurrentKuhnyMin) {
+                            this.tuyaDeviceService.updateSwitchThermostatFirstFloor(true);
+                        }
                     }
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
                         log.info("Update parameters isDay [{}]: Increased electricity consumption, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
@@ -215,10 +227,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 } else {
                     log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", this.isDay, curHour);
                     tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
-                    if (switchThermostatReturnAfterUpdate){
-                        this.tuyaDeviceService.updateSwitchThermostat(false);
-                        switchThermostatReturnAfterUpdate = false;
-                    }
                 }
             }
 

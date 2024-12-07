@@ -22,6 +22,8 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 @Slf4j
 public class HttpUtil {
 
+    public static final Integer tempCurrentKuhnyMin = 2;
+    public static final Integer tempCurrentKuhny5 = 5;
     public static final String offOnKey = "switch";
     public static final String tempSetKey = "temp_set";
     public static final String tempCurrentKey = "temp_current";
@@ -49,7 +51,9 @@ public class HttpUtil {
     public static final Locale locale = Locale.forLanguageTag("en-US");
     public static final TimeZone timeZone = TimeZone.getTimeZone("Europe/Kyiv");
     public static final int timeLocalNightTariffStart = 23;
+    public static final int timeLocalMinutesNightTariffStart = 10;
     public static final int timeLocalNightTariffFinish = 7;
+    public static final int timeLocalMinutesNightTariffFinish = 50;
 
 
     public static String toLocaleTimeString(Long milliSec) {
@@ -85,6 +89,14 @@ public class HttpUtil {
         DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("HH");
         String hour = localDateTime.format(hourFormatter);
         return Integer.parseInt(hour);
+    }
+
+    public static int toLocaleDateTimeMinutes() {
+        Instant curInst = Instant.now();
+        ZonedDateTime localDateTime = curInst.atZone(ZoneId.systemDefault());
+        DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("mm");
+        String min = localDateTime.format(hourFormatter);
+        return Integer.parseInt(min);
     }
 
     public static String toLocaleDateTimeStringToTelegram(Long milliSec) {
