@@ -155,13 +155,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     try {
                         if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
                             // update auto switch dacha heating -> if (time = 7-8 && tempCurrentKuhny >= 5): if hour = 8-23 hand mode
-                            int curHour = toLocaleDateTimeHour();
-                            if (curHour >= (timeLocalNightTariffFinish) && curHour <= (timeLocalNightTariffFinish + 1)) {
-                                Integer tempCur = (Integer) this.tuyaDeviceService.devices.getDevIds().get(this.tuyaDeviceService.deviceIdKuhny).getStatus().get(tempCurrentKey).getValue();
-                                if (tempCur != null && tempCur >= tempCurrentKuhny5) {
-                                    this.tuyaDeviceService.updateSwitchThermostatFirstFloor(false);
-                                }
-                            }
+                            this.tuyaDeviceService.updateSwitchThermostatFirstFloor();
                             boolean isCharge = getIsCharge (batterySocNew);
                             int freePowerCorrect = getFreePowerCorrect(batterySocNew, isCharge);
                             String infoActionDop;
@@ -196,6 +190,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 }
             } else {
                 isDayPrevious = false;
+                if (this.batterySocCur > 0) {
+                    this.tuyaDeviceService.updateSwitchThermostatFirstFloor();
+                }
                 if (!isUpdateToMinAfterIsDayFalse) {
                     log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", this.isDay, toLocaleTimeString(this.sunSetDate));
                     log.info("Night   at: [{}]", toLocaleTimeString(this.sunSetMin));
@@ -210,13 +207,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 int curMinutes = toLocaleDateTimeMinutes();
                 if ((curHour >= timeLocalNightTariffStart && curMinutes >= timeLocalMinutesNightTariffStart) ||
                         (curHour < timeLocalNightTariffFinish && curMinutes <= timeLocalMinutesNightTariffFinish)) {
-                    // the first
-                    if (this.batterySocCur > 0) {
-                        Integer tempCur = (Integer) this.tuyaDeviceService.devices.getDevIds().get(this.tuyaDeviceService.deviceIdKuhny).getStatus().get(tempCurrentKey).getValue();
-                        if (tempCur != null && tempCur <= tempCurrentKuhnyMin) {
-                            this.tuyaDeviceService.updateSwitchThermostatFirstFloor(true);
-                        }
-                    }
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
                         log.info("Update parameters isDay [{}]: Increased electricity consumption, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
                         tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());

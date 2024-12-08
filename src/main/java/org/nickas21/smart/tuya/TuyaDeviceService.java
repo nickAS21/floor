@@ -67,6 +67,8 @@ import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 import static org.nickas21.smart.util.HttpUtil.offOnKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
+import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhny5;
+import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhnyMin;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffStart;
@@ -275,12 +277,6 @@ public class TuyaDeviceService {
         if (valueNew instanceof Boolean) {
             fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(v.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
-            // not update switch home grid -> if:  hour = 8-23 hand mode
-            int curHour = toLocaleDateTimeHour();
-            if (curHour >= (timeLocalNightTariffFinish + 1) && curHour < timeLocalNightTariffStart &&
-                    gridRelayDopPrefixHome.equals(v.getValueSetMaxOn())) {
-                    valueNew = valueOld;
-            }
         } else if (v.getValueSetMaxOn() != null && v.getValueSetMaxOn() instanceof Boolean) {
             fieldNameValueUpdate = offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
@@ -837,9 +833,14 @@ public class TuyaDeviceService {
         Device device = this.devices.getDevIds().get(gridRelayCodeId);
         if (device.currentStateOnLine().getValue()) {
             int curHour = toLocaleDateTimeHour();
-            boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour <= timeLocalNightTariffFinish);
+            boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish);
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
+            log.warn("Grid relay [{}] to isUpdate [{}], old: [{}], new: [{}] night tariff, exact time: [{}].", device.getName(), deviceUpdate.isUpdate(), deviceUpdate.getValueOld(), deviceUpdate.getValueNew(), curHour);
+            // not update switch home/dacha grid -> if:  hour = 8-23 hand mode
+            if (curHour >= (timeLocalNightTariffFinish + 1) && curHour < timeLocalNightTariffStart) {
+                deviceUpdate.setValueNew(deviceUpdate.getValueOld());
+            }
             if (deviceUpdate.isUpdate()) {
                 if (paramOnOff) {
                     log.info("Grid relay [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
@@ -882,26 +883,49 @@ public class TuyaDeviceService {
      *  If the temperatureIn Kuhny >= 5 and 7-8 -> off auto
      *  If the                              8-23 -> off/on hand
      */
-    public void updateSwitchThermostatFirstFloor(Boolean switchValue) {
-        String[] filters = getDeviceProperties().getCategoryForControlPowers();
-        if (this.devices != null) {
-            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-                if (!deviceId3_floor.equals(entry.getKey()) &&
-                        !deviceIdBadRoom.equals(entry.getKey()) &&
-                        !deviceIdBoylerWiFi.equals(entry.getKey())) {
-                    this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, switchValue);
+    public void updateSwitchThermostatFirstFloor() {
+        Integer tempCur = (Integer) this.devices.getDevIds().get(this.deviceIdKuhny).getStatus().get(tempCurrentKey).getValue();
+        if (tempCur != null) {
+            boolean isUpdateSwitchThermostat = false;
+            boolean switchValue = false;
+            int curHour = toLocaleDateTimeHour();
+            if (tempCur <= tempCurrentKuhnyMin){
+                isUpdateSwitchThermostat = true;
+                switchValue = true;
+            } else if (curHour == timeLocalNightTariffFinish) {
+                if (tempCur <= tempCurrentKuhny5) {
+                    isUpdateSwitchThermostat = true;
+                    switchValue = true;
+                } else {
+                    isUpdateSwitchThermostat = true;
+                    switchValue = false;
                 }
             }
-            queueLock.lock();
-            try {
-                log.info("UpdateSwitchThermostatTemp_2");
-                updateThermostats(queueUpdate, false);
-            } finally {
-                queueLock.unlock();
+
+            if (isUpdateSwitchThermostat) {
+                String[] filters = getDeviceProperties().getCategoryForControlPowers();
+                if (this.devices != null) {
+                    Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+                    for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                        if (!deviceId3_floor.equals(entry.getKey()) &&
+                                !deviceIdBadRoom.equals(entry.getKey()) &&
+                                !deviceIdBoylerWiFi.equals(entry.getKey())) {
+                            this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, switchValue);
+                        }
+                    }
+                    queueLock.lock();
+                    try {
+                        log.info("UpdateSwitchThermostatTemp_2");
+                        updateThermostats(queueUpdate, false);
+                    } finally {
+                        queueLock.unlock();
+                    }
+                } else {
+                    log.error("UpdateSwitchThermostatTemp_3. Devices is null, Devices not Update.");
+                }
             }
-        } else {
-            log.error("UpdateSwitchThermostatTemp_3. Devices is null, Devices not Update.");
+
+
         }
     }
 
