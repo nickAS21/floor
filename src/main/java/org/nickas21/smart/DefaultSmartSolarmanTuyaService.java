@@ -154,8 +154,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 if (this.batterySocCur > 0) {
                     try {
                         if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
-                            // update auto switch dacha heating -> if (time = 7-8 && tempCurrentKuhny >= 5): if hour = 8-23 hand mode
-                            this.tuyaDeviceService.updateSwitchThermostatFirstFloor();
                             boolean isCharge = getIsCharge (batterySocNew);
                             int freePowerCorrect = getFreePowerCorrect(batterySocNew, isCharge);
                             String infoActionDop;
@@ -190,10 +188,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 }
             } else {
                 isDayPrevious = false;
-                if (this.batterySocCur > 0) {
-                    this.tuyaDeviceService.updateSwitchThermostatFirstFloor();
-                }
-                if (!isUpdateToMinAfterIsDayFalse) {
+                 if (!isUpdateToMinAfterIsDayFalse) {
                     log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, Less than one hour until sunset,  SunSet start: [{}].", this.isDay, toLocaleTimeString(this.sunSetDate));
                     log.info("Night   at: [{}]", toLocaleTimeString(this.sunSetMin));
                     try {
@@ -220,7 +215,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 }
             }
 
-            if (this.batterySocCur != 0) {
+            if (this.batterySocCur > 0) {
+                // update auto switch dacha heating -> if (time = 7-8 && tempCurrentKuhny >= 5): if hour = 8-23 hand mode
+                this.tuyaDeviceService.updateSwitchThermostatFirstFloor();
                 String msgProgressBar = toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli())) + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
                 this.setProgressBarThread(msgProgressBar);
             }
