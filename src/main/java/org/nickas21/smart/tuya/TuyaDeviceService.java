@@ -903,10 +903,14 @@ public class TuyaDeviceService {
             if (tempCur <= tempCurrentKuhnyMin){
                 isUpdateSwitchThermostat = true;
                 switchValue = true;
+                String msg = "Критична температура на Дачі: [" + tempCur  + "].";
+                this.updateMessageAlarmToTelegram(msg);
             } else if (curHour == timeLocalNightTariffFinish) {
                 if (tempCur <= tempCurrentKuhny5) {
                     isUpdateSwitchThermostat = true;
                     switchValue = true;
+                    String msg = "Увага, після ночі низька температура на Дачі: [" + tempCur  + "].";
+                    this.updateMessageAlarmToTelegram(msg);
                 } else {
                     isUpdateSwitchThermostat = true;
                     switchValue = false;
