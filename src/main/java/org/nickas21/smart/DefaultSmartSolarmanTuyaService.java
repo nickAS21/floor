@@ -26,9 +26,6 @@ import static org.nickas21.smart.util.HttpUtil.getSunRiseSunset;
 import static org.nickas21.smart.util.HttpUtil.gridRelayStatusKey;
 import static org.nickas21.smart.util.HttpUtil.gridStatusKey;
 import static org.nickas21.smart.util.HttpUtil.productionTotalSolarPowerKey;
-import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
-import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhny5;
-import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhnyMin;
 import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffFinish;
 import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
@@ -106,13 +103,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             if (this.batterySocCur == 0) {
                 String msgProgressBar = "Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate*1000)) + ",  after [" + this.timeoutSecUpdate/60 + "] min: ";
                 this.setProgressBarThread (msgProgressBar);
+                tuyaDeviceService.updateMessageAlarmToTelegram(null);
             } else {
                 initUpdateTimeoutSheduler();
                 tuyaDeviceService.updateGridStateOnLineToTelegram(tuyaDeviceService.getGridRelayCodeIdDacha());
                 tuyaDeviceService.updateOnOffGridRelayDacha();
                 tuyaDeviceService.updateGridStateOnLineToTelegram(tuyaDeviceService.getGridRelayCodeIdHome());
                 tuyaDeviceService.updateOnOffGridRelayHome();
-                tuyaDeviceService.updateMessageAlarmToTelegram(null);
             }
 
             log.info("""

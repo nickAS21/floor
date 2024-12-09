@@ -793,10 +793,10 @@ public class TuyaDeviceService {
     public void updateMessageAlarmToTelegram(String msg) {
         if (!this.debugging) {
             TelegramBot bot = telegramService.getTelegramBotAlarm();
-            String message = msg == null ? "Перезавантаження програми.\nПочаток відстеження Alarm message." : msg;  // first
+            String message = msg == null ? "Перезавантаження програми. Початок відстеження Alarm message." : msg;  // first
             telegramService.sendNotification(bot, message);
-            msg = msg == null ? "Restarting the program.\nStart tracking Alarm message." : msg;
-            log.info("\nTelegram[{}] send msg: \n{}", bot.getHouseName(), msg);
+            msg = msg == null ? "Restarting the program. Start tracking Alarm message." : msg;
+            log.info("\nTelegram[{}] send msg: [{}]", bot.getHouseName(), msg);
         }
     }
 
