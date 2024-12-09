@@ -38,16 +38,29 @@ public class TelegramService implements TelegramServiceImpl {
     @Value("${telegram.bot.home.chat-id}")
     private String chatIdHome;
 
+    @Value("${telegram.bot.alarm.username}")
+    private String botUsernameAlarm;
+
+    @Value("${telegram.bot.alarm.token}")
+    private String botTokenAlarm;
+
+    @Value("${telegram.bot.alarm.chat-id}")
+    private String chatIdAlarm;
+
     private TelegramBot telegramBotDacha;
     private TelegramBot telegramBotHome;
+    private TelegramBot telegramBotAlarm;
     private BotSession telegramBotSessionDacha;
     private BotSession telegramBotSessionHome;
+    private BotSession telegramBotSessionAlarm;
 
     public void  init() {
         this.telegramBotDacha = new TelegramBot(botUsernameDacha, botTokenDacha, chatIdDacha, "Dacha");
         this.telegramBotHome = new TelegramBot(botUsernameHome, botTokenHome, chatIdHome, "Home");
+        this.telegramBotAlarm = new TelegramBot(botUsernameAlarm, botTokenAlarm, chatIdAlarm, "Alarm from Smart Homes");
         this.telegramBotSessionDacha = this.initApi(this.telegramBotDacha);
         this.telegramBotSessionHome = this.initApi(this.telegramBotHome);
+        this.telegramBotSessionAlarm = this.initApi(this.telegramBotAlarm);
     }
 
     public Mono<Boolean> sendNotification(TelegramBot bot, String message) {
@@ -60,7 +73,7 @@ public class TelegramService implements TelegramServiceImpl {
         }
     }
 
-    public String sendFirstMsgToTelegram(TelegramBot bot, Entry<Long, Boolean> gridStateOnLine) {
+    public String sendFirstMsgGridStatusToTelegram(TelegramBot bot, Entry<Long, Boolean> gridStateOnLine) {
         String msg = null;
         if (bot.isStateStart()) {
             String timeUpdateStr = toLocaleDateTimeStringToTelegram(gridStateOnLine.getKey());
@@ -74,7 +87,7 @@ public class TelegramService implements TelegramServiceImpl {
         return msg;
     }
 
-    public String sendMsgToTelegram(TelegramBot telegramBot, Long lastUpdateTimeGridStatusInfo, Entry<Long, Boolean> gridStateOnLine) {
+    public String sendMsgGridStatusToTelegram(TelegramBot telegramBot, Long lastUpdateTimeGridStatusInfo, Entry<Long, Boolean> gridStateOnLine) {
         String msg = null;
         if (telegramBot.isStateStart()) {
             String timeBeforeStr = toLocaleDateTimeStringToTelegram(lastUpdateTimeGridStatusInfo);
@@ -111,6 +124,10 @@ public class TelegramService implements TelegramServiceImpl {
 
     public TelegramBot getTelegramBotHome() {
         return telegramBotHome;
+    }
+
+    public TelegramBot getTelegramBotAlarm() {
+        return telegramBotAlarm;
     }
 
     private TelegramBotSession initApi(TelegramBot bot) {

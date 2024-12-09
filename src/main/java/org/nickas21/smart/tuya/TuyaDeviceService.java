@@ -97,6 +97,7 @@ public class TuyaDeviceService {
 
     private String gridRelayCodeIdDacha;
     private String gridRelayCodeIdHome;
+    private String gridRelayCodeIdAlarm;
 
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoDacha;
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoHome;
@@ -767,11 +768,11 @@ public class TuyaDeviceService {
                     }
                     if (lastUpdateTimeGridStatusInfo == null) {
                         // first message
-                        msg = telegramService.sendFirstMsgToTelegram(bot, gridStateOnLine);
+                        msg = telegramService.sendFirstMsgGridStatusToTelegram(bot, gridStateOnLine);
                     } else {
                         if (gridStateOnLine.getValue() != lastUpdateTimeGridStatusInfo.getValue()) {
                             // next  message
-                            msg = telegramService.sendMsgToTelegram(bot, lastUpdateTimeGridStatusInfo.getKey(), gridStateOnLine);
+                            msg = telegramService.sendMsgGridStatusToTelegram(bot, lastUpdateTimeGridStatusInfo.getKey(), gridStateOnLine);
                         } else {
                             log.info("Telegram[{}] is not sending messages... because the state has not changed.", bot.getHouseName());
                         }
@@ -786,6 +787,16 @@ public class TuyaDeviceService {
                     }
                 }
             }
+        }
+    }
+
+    public void updateMessageAlarmToTelegram(String msg) {
+        if (!this.debugging) {
+            TelegramBot bot = telegramService.getTelegramBotAlarm();
+            String message = msg == null ? "Перезавантаження програми.\nПочаток відстеження Alarm message." : msg;  // first
+            telegramService.sendNotification(bot, message);
+            msg = msg == null ? "Restarting the program.\nStart tracking Alarm message." : msg;
+            log.info("\nTelegram[{}] send msg: \n{}", bot.getHouseName(), msg);
         }
     }
 

@@ -65,7 +65,11 @@ telegram:
     home:
       username: "${TELEGRAM_BOT_USERNAME_HOME:xxx}"
       token: "${TELEGRAM_BOT_TOKEN_HOME:xxxx}"
-      chat-id: "${TELEGRAM_CHAT_ID_HOME:-200}"
+      chat-id: "${TELEGRAM_CHAT_ID_HOME:-100}"
+    alarm:
+      username: "${TELEGRAM_BOT_USERNAME_ALARM:xxx}"
+      token: "${TELEGRAM_BOT_TOKEN_ALARM:xxxx}"
+      chat-id: "${TELEGRAM_CHAT_ID_ALARM:-100}"
 
 gmail:
   username: "${GMAIL_USERNAME:nick.kulikov21@gmail.com}"
