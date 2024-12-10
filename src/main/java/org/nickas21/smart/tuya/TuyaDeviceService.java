@@ -194,10 +194,10 @@ public class TuyaDeviceService {
                 if (device.getId().equals(this.getGridRelayCodeIdDacha()) ||
                         device.getId().equals(this.getGridRelayCodeIdHome())) {
                     this.updateGridStateOnLineToTelegram(device.getId());
-                    this.updateOnOffGridRelay(device.getId());
+                    this.updateOnOfSwitchRelay(device.getId());
                 }
             } else if (device.getId().equals(this.getBoilerRelayCodeIdHome())) {
-                this.updateOnOffGridRelay(device.getId());
+                this.updateOnOfSwitchRelay(device.getId());
             }
         }
     }
@@ -861,13 +861,13 @@ public class TuyaDeviceService {
         this.timeoutSecUpdateMillis = timeoutSecUpdate * 1000;
     }
 
-    public void updateOnOffGridRelay() {
-        this.updateOnOffGridRelay(this.getGridRelayCodeIdDacha());
-        this.updateOnOffGridRelay(this.getGridRelayCodeIdHome());
-        this.updateOnOffGridRelay(this.getBoilerRelayCodeIdHome());
+    public void updateOnOfSwitchRelay() {
+        this.updateOnOfSwitchRelay(this.getGridRelayCodeIdDacha());
+        this.updateOnOfSwitchRelay(this.getGridRelayCodeIdHome());
+        this.updateOnOfSwitchRelay(this.getBoilerRelayCodeIdHome());
     }
 
-    public void updateOnOffGridRelay(String gridRelayCodeId) {
+    public void updateOnOfSwitchRelay(String gridRelayCodeId) {
         if (gridRelayCodeId != null) {
             Device device = this.devices.getDevIds().get(gridRelayCodeId);
             if (device.currentStateOnLine().getValue()) {
@@ -898,7 +898,7 @@ public class TuyaDeviceService {
                     queueLock.unlock();
                 }
             } else {
-                log.error("Device [{}] is Offline, Devices not Update.", device.getName());
+                log.warn("Unable to update device relay switch [{}], [{}] is Offline...", device.getName(), device.getName());
             }
         }
     }

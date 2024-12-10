@@ -7,7 +7,6 @@ import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.util.DynamicScheduler;
-import org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -108,7 +107,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             } else {
                 initUpdateTimeoutSheduler();
                 tuyaDeviceService.updateGridStateOnLineToTelegram();
-                tuyaDeviceService.updateOnOffGridRelay();;
+                tuyaDeviceService.updateOnOfSwitchRelay();;
             }
 
             log.info("""
