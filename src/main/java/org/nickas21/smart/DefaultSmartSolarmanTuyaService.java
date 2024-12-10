@@ -7,6 +7,7 @@ import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.util.DynamicScheduler;
+import org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -147,6 +148,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     tuyaDeviceService.getGridRelayCodeDachaStateOnLine(),
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell());
+            tuyaDeviceService.sendBatteryChargeRemaining (batVolNew);
             if (isDay) {
                 isUpdateToMinAfterIsDayFalse = false;
                 if (this.batterySocCur > 0) {

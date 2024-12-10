@@ -16,6 +16,7 @@ import org.nickas21.smart.tuya.tuyaEntity.DeviceUpdate;
 import org.nickas21.smart.tuya.tuyaEntity.Devices;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.JacksonUtil;
+import org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpHeaders;
@@ -35,6 +36,8 @@ import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -97,10 +100,10 @@ public class TuyaDeviceService {
 
     private String gridRelayCodeIdDacha;
     private String gridRelayCodeIdHome;
-    private String gridRelayCodeIdAlarm;
 
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoDacha;
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoHome;
+    private Entry<Long, Double> lastUpdateTimeAlarmTempInfoHome;
 
     private final Lock queueLock = new ReentrantLock();
 
@@ -796,7 +799,23 @@ public class TuyaDeviceService {
             String message = msg == null ? "Перезавантаження програми. Початок відстеження Alarm message." : msg;  // first
             telegramService.sendNotification(bot, message);
             msg = msg == null ? "Restarting the program. Start tracking Alarm message." : msg;
-            log.info("\nTelegram[{}] send msg: [{}]", bot.getHouseName(), msg);
+            log.info("Telegram[{}] send msg: [{}]", bot.getHouseName(), msg);
+        }
+    }
+
+    public void sendBatteryChargeRemaining (double batVolNew){
+        double batteryChargeRemaining =  SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
+        Entry<Long, Double> lastUpdateTimeAlarmTempInfo =  new AbstractMap.SimpleEntry<>(Instant.now().toEpochMilli(), batteryChargeRemaining);
+        if (this.lastUpdateTimeAlarmTempInfoHome == null || !this.lastUpdateTimeAlarmTempInfoHome.getValue().equals(lastUpdateTimeAlarmTempInfo.getValue())) {
+            String msg = "INFO, ";
+            if (batteryChargeRemaining <= 30) {
+                msg = "ERROR, ";
+            } else if (batteryChargeRemaining <= 50) {
+                msg = "WARNING, ";
+            }
+            String msgSoc = msg + "Battery Remaining at the Country House: [" + batteryChargeRemaining + " %].";
+            this.updateMessageAlarmToTelegram(msgSoc);
+            this.lastUpdateTimeAlarmTempInfoHome = lastUpdateTimeAlarmTempInfo;
         }
     }
 
@@ -900,18 +919,20 @@ public class TuyaDeviceService {
             boolean isUpdateSwitchThermostat = false;
             boolean switchValue = false;
             int curHour = toLocaleDateTimeHour();
+            String msg = null;
             if (tempCur <= tempCurrentKuhnyMin){
                 isUpdateSwitchThermostat = true;
                 switchValue = true;
-                String msg = "Критична температура на Дачі: [" + tempCur  + "].";
+                msg = "Critical temperature at the Country House: [" + tempCur  + "].";
                 this.updateMessageAlarmToTelegram(msg);
             } else if (curHour == timeLocalNightTariffFinish) {
                 if (tempCur <= tempCurrentKuhny5) {
                     isUpdateSwitchThermostat = true;
                     switchValue = true;
-                    String msg = "Увага, після ночі низька температура на Дачі: [" + tempCur  + "].";
+                    msg = "Attention, low temperature at Country House after night: [" + tempCur  + "].";
                     this.updateMessageAlarmToTelegram(msg);
                 } else {
+                    msg = "Temperature is more [" + tempCurrentKuhny5 + "] at Country House after night: [" + tempCur  + "].";
                     isUpdateSwitchThermostat = true;
                     switchValue = false;
                 }
@@ -930,7 +951,7 @@ public class TuyaDeviceService {
                     }
                     queueLock.lock();
                     try {
-                        log.info("UpdateSwitchThermostatTemp_2");
+                        log.info("updateSwitchThermostatFirstFloor: [{}]", msg);
                         updateThermostats(queueUpdate, false);
                     } finally {
                         queueLock.unlock();
