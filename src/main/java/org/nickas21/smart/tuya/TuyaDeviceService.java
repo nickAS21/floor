@@ -90,6 +90,7 @@ public class TuyaDeviceService {
 
     public final String gridRelayDopPrefixDacha = "gridOnlineDacha";
     public final String gridRelayDopPrefixHome = "gridOnlineHome";
+    public final String boilerRelayDopPrefixHome = "boilerOnlineHome";
     public final String deviceIdKuhny = "bf6c65fa548db455c5xty8";
     public final String deviceId3_floor = "bf4f86fd54edc80f6aegzd";
     public final String deviceIdBadRoom = "bfa270cc48a9f36de9xi6p";
@@ -100,6 +101,7 @@ public class TuyaDeviceService {
 
     private String gridRelayCodeIdDacha;
     private String gridRelayCodeIdHome;
+    private String boilerRelayCodeIdHome;
 
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoDacha;
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoHome;
@@ -189,14 +191,13 @@ public class TuyaDeviceService {
         }
         if (bizCode != null && device != null) {
             if (device.setBizCode((ObjectNode) msg.getJson())) {
-                if (device.getId().equals(this.getGridRelayCodeIdDacha())) {
-                    this.updateGridStateOnLineToTelegram(this.getGridRelayCodeIdDacha());
-                    this.updateOnOffGridRelayDacha();
-                } else if (device.getId().equals(this.getGridRelayCodeIdHome())) {
-                    this.updateOnOffGridRelayHome();
-                    this.updateGridStateOnLineToTelegram(this.getGridRelayCodeIdHome());
+                if (device.getId().equals(this.getGridRelayCodeIdDacha()) ||
+                        device.getId().equals(this.getGridRelayCodeIdHome())) {
+                    this.updateGridStateOnLineToTelegram(device.getId());
+                    this.updateOnOffGridRelay(device.getId());
                 }
-
+            } else if (device.getId().equals(this.getBoilerRelayCodeIdHome())) {
+                this.updateOnOffGridRelay(device.getId());
             }
         }
     }
@@ -279,7 +280,8 @@ public class TuyaDeviceService {
         String fieldNameValueUpdate;
         Object valueOld;
         if (valueNew instanceof Boolean) {
-            fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(v.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
+            fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(v.getValueSetMaxOn()) ||
+                    boilerRelayDopPrefixHome.equals(v.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
         } else if (v.getValueSetMaxOn() != null && v.getValueSetMaxOn() instanceof Boolean) {
             fieldNameValueUpdate = offOnKey;
@@ -754,6 +756,11 @@ public class TuyaDeviceService {
         return (System.currentTimeMillis() - this.accessTuyaToken.getT()) > (this.accessTuyaToken.getExpireTimeMilli() - deltaRefresh);
     }
 
+    public void updateGridStateOnLineToTelegram() {
+        this.updateGridStateOnLineToTelegram(this.getGridRelayCodeIdDacha());
+        this.updateGridStateOnLineToTelegram(this.getGridRelayCodeIdHome());
+    }
+
     public void updateGridStateOnLineToTelegram(String gridRelayCodeId) {
         if (!this.debugging) {
             if (this.getGridRelayCodeIdDacha() != null) {
@@ -803,9 +810,9 @@ public class TuyaDeviceService {
         }
     }
 
-    public void sendBatteryChargeRemaining (double batVolNew){
-        double batteryChargeRemaining =  SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
-        Entry<Long, Double> lastUpdateTimeAlarmTempInfo =  new AbstractMap.SimpleEntry<>(Instant.now().toEpochMilli(), batteryChargeRemaining);
+    public void sendBatteryChargeRemaining(double batVolNew) {
+        double batteryChargeRemaining = SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
+        Entry<Long, Double> lastUpdateTimeAlarmTempInfo = new AbstractMap.SimpleEntry<>(Instant.now().toEpochMilli(), batteryChargeRemaining);
         if (this.lastUpdateTimeAlarmTempInfoHome == null || !this.lastUpdateTimeAlarmTempInfoHome.getValue().equals(lastUpdateTimeAlarmTempInfo.getValue())) {
             String msg = "INFO, ";
             if (batteryChargeRemaining <= 30) {
@@ -833,6 +840,13 @@ public class TuyaDeviceService {
         return this.gridRelayCodeIdHome;
     }
 
+    public String getBoilerRelayCodeIdHome() {
+        if (this.boilerRelayCodeIdHome == null) {
+            this.boilerRelayCodeIdHome = this.getGridRelayCode(this.boilerRelayDopPrefixHome);
+        }
+        return this.boilerRelayCodeIdHome;
+    }
+
     public Boolean getGridRelayCodeDachaStateOnLine() {
         if (this.getGridRelayCodeIdDacha() != null) {
             Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
@@ -847,49 +861,45 @@ public class TuyaDeviceService {
         this.timeoutSecUpdateMillis = timeoutSecUpdate * 1000;
     }
 
-    public void updateOnOffGridRelayDacha() {
-        if (this.getGridRelayCodeIdDacha() != null) {
-            this.updateOnOffGridRelay(this.getGridRelayCodeIdDacha());
-        }
-    }
-
-    public void updateOnOffGridRelayHome() {
-        if (this.getGridRelayCodeIdHome() != null) {
-            this.updateOnOffGridRelay(this.getGridRelayCodeIdHome());
-        }
+    public void updateOnOffGridRelay() {
+        this.updateOnOffGridRelay(this.getGridRelayCodeIdDacha());
+        this.updateOnOffGridRelay(this.getGridRelayCodeIdHome());
+        this.updateOnOffGridRelay(this.getBoilerRelayCodeIdHome());
     }
 
     public void updateOnOffGridRelay(String gridRelayCodeId) {
-        Device device = this.devices.getDevIds().get(gridRelayCodeId);
-        if (device.currentStateOnLine().getValue()) {
-            int curHour = toLocaleDateTimeHour();
-            boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish);
-            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-            DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-            log.warn("Grid relay [{}] to isUpdate [{}], old: [{}], new: [{}] night tariff, exact time: [{}].", device.getName(), deviceUpdate.isUpdate(), deviceUpdate.getValueOld(), deviceUpdate.getValueNew(), curHour);
-            // not update switch home/dacha grid -> if:  hour = 8-23 hand mode
-            if (curHour >= (timeLocalNightTariffFinish + 1) && curHour < timeLocalNightTariffStart) {
-                deviceUpdate.setValueNew(deviceUpdate.getValueOld());
-            }
-            if (deviceUpdate.isUpdate()) {
-                if (paramOnOff) {
-                    log.info("Grid relay [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
-                } else {
-                    log.info("Grid relay [{}] to off, night tariff, exact time: [{}].", device.getName(), curHour);
+        if (gridRelayCodeId != null) {
+            Device device = this.devices.getDevIds().get(gridRelayCodeId);
+            if (device.currentStateOnLine().getValue()) {
+                int curHour = toLocaleDateTimeHour();
+                boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish);
+                Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+                DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
+//                log.warn("Grid relay [{}] to isUpdate [{}], old: [{}], new: [{}] night tariff, exact time: [{}].", device.getName(), deviceUpdate.isUpdate(), deviceUpdate.getValueOld(), deviceUpdate.getValueNew(), curHour);
+                // not update switch home/dacha grid -> if:  hour = 8-23 hand mode
+                if (curHour >= (timeLocalNightTariffFinish + 1) && curHour < timeLocalNightTariffStart) {
+                    deviceUpdate.setValueNew(deviceUpdate.getValueOld());
                 }
-                queueUpdate.put(device, deviceUpdate);
+                if (deviceUpdate.isUpdate()) {
+                    if (paramOnOff) {
+                        log.info("Grid relay [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
+                    } else {
+                        log.info("Grid relay [{}] to off, night tariff, exact time: [{}].", device.getName(), curHour);
+                    }
+                    queueUpdate.put(device, deviceUpdate);
+                } else {
+                    log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                            device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                }
+                queueLock.lock();
+                try {
+                    updateThermostats(queueUpdate, false);
+                } finally {
+                    queueLock.unlock();
+                }
             } else {
-                log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
-                        device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                log.error("Device [{}] is Offline, Devices not Update.", device.getName());
             }
-            queueLock.lock();
-            try {
-                updateThermostats(queueUpdate, false);
-            } finally {
-                queueLock.unlock();
-            }
-        } else {
-            log.error("Device [{}] is Offline, Devices not Update.", device.getName());
         }
     }
 
@@ -920,19 +930,19 @@ public class TuyaDeviceService {
             boolean switchValue = false;
             int curHour = toLocaleDateTimeHour();
             String msg = null;
-            if (tempCur <= tempCurrentKuhnyMin){
+            if (tempCur <= tempCurrentKuhnyMin) {
                 isUpdateSwitchThermostat = true;
                 switchValue = true;
-                msg = "Critical temperature at the Country House: [" + tempCur  + "].";
+                msg = "Critical temperature at the Country House: [" + tempCur + "].";
                 this.updateMessageAlarmToTelegram(msg);
             } else if (curHour == timeLocalNightTariffFinish) {
                 if (tempCur <= tempCurrentKuhny5) {
                     isUpdateSwitchThermostat = true;
                     switchValue = true;
-                    msg = "Attention, low temperature at Country House after night: [" + tempCur  + "].";
+                    msg = "Attention, low temperature at Country House after night: [" + tempCur + "].";
                     this.updateMessageAlarmToTelegram(msg);
                 } else {
-                    msg = "Temperature is more [" + tempCurrentKuhny5 + "] at Country House after night: [" + tempCur  + "].";
+                    msg = "Temperature is more [" + tempCurrentKuhny5 + "] at Country House after night: [" + tempCur + "].";
                     isUpdateSwitchThermostat = true;
                     switchValue = false;
                 }

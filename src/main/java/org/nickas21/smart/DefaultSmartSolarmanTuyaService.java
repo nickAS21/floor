@@ -107,10 +107,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 tuyaDeviceService.updateMessageAlarmToTelegram(null);
             } else {
                 initUpdateTimeoutSheduler();
-                tuyaDeviceService.updateGridStateOnLineToTelegram(tuyaDeviceService.getGridRelayCodeIdDacha());
-                tuyaDeviceService.updateOnOffGridRelayDacha();
-                tuyaDeviceService.updateGridStateOnLineToTelegram(tuyaDeviceService.getGridRelayCodeIdHome());
-                tuyaDeviceService.updateOnOffGridRelayHome();
+                tuyaDeviceService.updateGridStateOnLineToTelegram();
+                tuyaDeviceService.updateOnOffGridRelay();;
             }
 
             log.info("""
