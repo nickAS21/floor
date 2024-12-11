@@ -80,6 +80,8 @@ import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
+import static org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage.PERCENTAGE_90;
+import static org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage.REST_FLOAT;
 import static org.nickas21.smart.util.StringUtils.isBoolean;
 import static org.nickas21.smart.util.StringUtils.isDecimal;
 
@@ -813,7 +815,13 @@ public class TuyaDeviceService {
     public void sendBatteryChargeRemaining(double batVolNew) {
         double batteryChargeRemaining = SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
         Entry<Long, Double> lastUpdateTimeAlarmTempInfo = new AbstractMap.SimpleEntry<>(Instant.now().toEpochMilli(), batteryChargeRemaining);
-        if (this.lastUpdateTimeAlarmTempInfoHome == null || !this.lastUpdateTimeAlarmTempInfoHome.getValue().equals(lastUpdateTimeAlarmTempInfo.getValue())) {
+        // If null - first
+        // Not equals and (equals 100% or <= 90%)
+        if (this.lastUpdateTimeAlarmTempInfoHome == null ||
+                (!this.lastUpdateTimeAlarmTempInfoHome.getValue().equals(lastUpdateTimeAlarmTempInfo.getValue()) &&
+                        (batteryChargeRemaining == REST_FLOAT.getPercentage() ||
+                                batteryChargeRemaining <= PERCENTAGE_90.getPercentage()))
+        ) {
             String msg = "INFO, ";
             if (batteryChargeRemaining <= 30) {
                 msg = "ERROR, ";
