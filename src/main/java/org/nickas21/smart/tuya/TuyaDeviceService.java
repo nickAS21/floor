@@ -906,7 +906,7 @@ public class TuyaDeviceService {
                     queueLock.unlock();
                 }
             } else {
-                log.warn("Unable to update device relay switch [{}], [{}] is Offline...", device.getName(), device.getName());
+                log.warn("Device relay switch [{}] cannot be updated, is offline...", device.getName());
             }
         }
     }
@@ -969,7 +969,7 @@ public class TuyaDeviceService {
                     }
                     queueLock.lock();
                     try {
-                        log.info("updateSwitchThermostatFirstFloor: [{}]", msg);
+                        log.info("updateSwitchThermostatFirstFloor: {}", msg);
                         updateThermostats(queueUpdate, false);
                     } finally {
                         queueLock.unlock();
