@@ -93,6 +93,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             double batterySocMin = getBatSocMin();
             double batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
+            double batterySocFromSolarman = powerValueRealTimeData.getBatterySocValue();
 
             updateSunRiseSunSetDate();
             setIsDay();
@@ -113,7 +114,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             log.info("""
                             Current data:\s
                             Current real time data: [{}], -Update real time data: [{}],\s
-                            -batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], -batterySocMin: [{} %],\s
+                            -batSocLast: [{} %], -batSocNew: [{} %]/(on inverter [{} %]), -deltaBmsSoc: [{} %], -batterySocMin: [{} %],\s
                             -batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A],\s
                             -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W], freePowerCorrectCnt: [{}], freePowerCorrectMinMax: [{}],\s
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
@@ -122,7 +123,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     toLocaleTimeString(powerValueRealTimeData.getCollectionTime() * 1000),
 
                     this.batterySocCur,
-                    batterySocNew,
+                    batterySocNew, batterySocFromSolarman,
                     String.format( "%.2f", (batterySocNew - this.batterySocCur)),
                     String.format( "%.2f", batterySocMin),
 
@@ -145,7 +146,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     tuyaDeviceService.getGridRelayCodeDachaStateOnLine(),
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell());
-            tuyaDeviceService.sendBatteryChargeRemaining (batVolNew);
+            tuyaDeviceService.sendBatteryChargeRemaining (batVolNew, batterySocFromSolarman);
             if (isDay) {
                 isUpdateToMinAfterIsDayFalse = false;
                 if (this.batterySocCur > 0) {

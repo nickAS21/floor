@@ -812,7 +812,7 @@ public class TuyaDeviceService {
         }
     }
 
-    public void sendBatteryChargeRemaining(double batVolNew) {
+    public void sendBatteryChargeRemaining(double batVolNew, double batterySocFromSolarman) {
         double batteryChargeRemaining = SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
         Entry<Long, Double> lastUpdateTimeAlarmTempInfo = new AbstractMap.SimpleEntry<>(Instant.now().toEpochMilli(), batteryChargeRemaining);
         // If null - first
@@ -828,7 +828,7 @@ public class TuyaDeviceService {
             } else if (batteryChargeRemaining <= 50) {
                 msg = "WARNING, ";
             }
-            String msgSoc = msg + "Battery Remaining at the Country House: [" + batteryChargeRemaining + " %].";
+            String msgSoc = msg + "Battery Remaining at the Country House: [" + batteryChargeRemaining + " %]/(on inverter [" + batterySocFromSolarman + " %]).";
             this.updateMessageAlarmToTelegram(msgSoc);
             this.lastUpdateTimeAlarmTempInfoHome = lastUpdateTimeAlarmTempInfo;
         }
