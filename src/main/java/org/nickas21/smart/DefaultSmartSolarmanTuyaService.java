@@ -192,7 +192,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     try {
                         this.isUpdateToMinAfterIsDayFalse = this.tuyaDeviceService.updateAllThermostatToMin("is Day == false");
                     } catch (Exception e) {
-                        log.error("Update parameters idDay [{}] UpdateAllThermostat to min. Error: [{}}]", this.isDay, e.getMessage());
+                        log.error("Update parameters Is Day [{}] UpdateAllThermostat to min. Error: [{}}]", this.isDay, e.getMessage());
                     }
                 }
                 // on/off heating: 23:10 >= time <= 6:50: NightTariff
@@ -221,7 +221,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
             batterySocCur = batterySocNew;
         } catch (Exception e) {
-            log.error("Update parameters: idDay [{}]", this.isDay, e);
+            log.error("Update parameters: Is Day [{}]", this.isDay, e);
         }
     }
 
