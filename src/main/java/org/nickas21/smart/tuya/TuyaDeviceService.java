@@ -944,13 +944,13 @@ public class TuyaDeviceService {
                 msg = "Critical temperature at the Country House: [" + tempCur + "].";
                 this.updateMessageAlarmToTelegram(msg);
             } else if (curHour == timeLocalNightTariffFinish) {
-                if (tempCur <= tempCurrentKuhny5) {
+                if (tempCur < tempCurrentKuhny5) {
                     isUpdateSwitchThermostat = true;
                     switchValue = true;
-                    msg = "Attention, low temperature at Country House after night: [" + tempCur + "].";
+                    msg = "Attention, low temperature at the Country House after the night: [" + tempCur + "] degrees Celsius.";
                     this.updateMessageAlarmToTelegram(msg);
                 } else {
-                    msg = "Temperature is more [" + tempCurrentKuhny5 + "] at Country House after night: [" + tempCur + "].";
+                    msg = "Temperature is more [" + tempCurrentKuhny5 + "] at the Country House after night: [" + tempCur + "] degrees Celsius.";
                     isUpdateSwitchThermostat = true;
                     switchValue = false;
                 }
