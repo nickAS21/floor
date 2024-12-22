@@ -51,7 +51,8 @@ public class HttpUtil {
     public static final Locale locale = Locale.forLanguageTag("en-US");
     public static final TimeZone timeZone = TimeZone.getTimeZone("Europe/Kyiv");
     public static final int timeLocalNightTariffStart = 23;
-    public static final int timeLocalMinutesNightTariffStart = 10;
+    public static final int timeLocalMinutesNightTariffStart_1 = 10;
+    public static final int timeLocalMinutesNightTariffStart_2 = 15;
     public static final int timeLocalNightTariffFinish = 7;
     public static final int timeLocalMinutesNightTariffFinish = 50;
 

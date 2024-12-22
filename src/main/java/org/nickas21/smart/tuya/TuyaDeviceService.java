@@ -269,6 +269,29 @@ public class TuyaDeviceService {
             log.error("Devices is null, Devices not Update.");
         }
     }
+    public void updateAllThermostatNight_01(Object tempSet) {
+        boolean isUpdate = true;
+        String[] filters = getDeviceProperties().getCategoryForControlPowers();
+        if (this.devices != null) {
+            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                if (isUpdate) {
+                    this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, tempSet);
+                    isUpdate = false;
+                } else {
+                    isUpdate = true;
+                }
+            }
+            queueLock.lock();
+            try {
+                updateThermostats(queueUpdate, false);
+            } finally {
+                queueLock.unlock();
+            }
+        } else {
+            log.error("Devices is null, Devices not Update.");
+        }
+    }
 
     public void updateAllDevicePreDestroy() {
         if (this.devices != null) {
