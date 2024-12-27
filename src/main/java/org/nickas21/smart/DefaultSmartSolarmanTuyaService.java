@@ -196,17 +196,17 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         log.error("Update parameters Is Day [{}] UpdateAllThermostat to min. Error: [{}}]", this.isDay, e.getMessage());
                     }
                 }
-                // on/off heating: 23:10 >= time <= 6:50: NightTariff
+                // on/off heating: 23:10 >= time <= 6:50: NightTariff (1/2 => 23:10; last => 23:25)
                 int curHour = toLocaleDateTimeHour();
                 int curMinutes = toLocaleDateTimeMinutes();
                 if ((curHour >= timeLocalNightTariffStart && curMinutes >= timeLocalMinutesNightTariffStart_1) ||
                         (curHour < timeLocalNightTariffFinish && curMinutes <= timeLocalMinutesNightTariffFinish)) {
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
-                        if (curMinutes >= timeLocalMinutesNightTariffStart_2) {
+                        if (curMinutes >= (timeLocalMinutesNightTariffStart_1 + timeLocalMinutesNightTariffStart_2)) {
                             log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
                             tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
                         } else {
-                            log.info("Update parameters isDay [{}]: IStart Increased electricity consumption only for every second consumer, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
+                            log.info("Update parameters isDay [{}]: Start Increased electricity consumption only for every second consumer, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
                             tuyaDeviceService.updateAllThermostatNight_01(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
                         }
                     } else {
