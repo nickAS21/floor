@@ -53,6 +53,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private PowerValueRealTimeData powerValueRealTimeData;
     private boolean isDay;
     private boolean isDayPrevious;
+    private boolean isUpdateHourChargeBatt;
     private boolean isUpdateToMinAfterIsDayFalse;
     private Instant curDate;
     private Long sunRiseDate;
@@ -162,7 +163,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                 infoAction = "After the night...";
                                 infoActionDop = "TempSetMin";
                                 isDayPrevious = isDay;
-                                tuyaDeviceService.setHourChargeBattery(solarmanStationsService.getSolarmanStation().getDopHourToNightTariffFinish());
+                                isUpdateHourChargeBatt = false;
                             } else if (batterySocNew < batterySocMin) {
                                 // Reducing electricity consumption
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
@@ -204,13 +205,12 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         (curHour < timeLocalNightTariffFinish && curMinutes <= timeLocalMinutesNightTariffFinish)) {
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
                         // battery is charging 100% if not winter
-                        if ((tuyaDeviceService.getHourChargeBattery() ==
-                                solarmanStationsService.getSolarmanStation().getDopHourToNightTariffFinish() ||
-                                tuyaDeviceService.getHourChargeBattery() == 0) &&
+                        if (!isUpdateHourChargeBatt &&
                                 batteryStatusNew.equals(BatteryStatus.STATIC.getType()) &&
                                 batterySocFromSolarman == BatteryStatus.STATIC.getSoc()) {
                             int hourChargeBattery = curHour >= (timeLocalNightTariffStart) ? 0 : curHour + 1;
                             tuyaDeviceService.setHourChargeBattery(hourChargeBattery);
+                            isUpdateHourChargeBatt = true;
                         }
                         if (curMinutes >= (timeLocalMinutesNightTariffStart_1 + timeLocalMinutesNightTariffStart_2)) {
                             log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
