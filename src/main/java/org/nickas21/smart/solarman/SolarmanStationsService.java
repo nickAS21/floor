@@ -62,6 +62,8 @@ public class SolarmanStationsService {
                 .stationConsumptionPower(stationProperties.getStationConsumptionPower())
                 .dopPowerToMax(stationProperties.getDopPowerToMax())
                 .dopPowerToMin(stationProperties.getDopPowerToMin())
+                .dopHourToNightTariffFinish(stationProperties.getDopHourToNightTariffFinish())
+                .seasonsId(stationProperties.getSeasonsId())
                 .build();
         initAfterTokenSuccess();
         if (stations.size() == 0) {

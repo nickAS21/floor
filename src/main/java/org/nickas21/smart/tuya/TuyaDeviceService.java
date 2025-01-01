@@ -7,6 +7,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.service.TelegramService;
 import org.nickas21.smart.data.telegram.TelegramBot;
+import org.nickas21.smart.solarman.Seasons;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaToken;
@@ -117,6 +118,7 @@ public class TuyaDeviceService {
     private final WebClient authClient = WebClient.builder().build();
     private final WebClient webClient;
     private Long timeoutSecUpdateMillis;
+    private int hourChargeBattery;
     private boolean debugging;
 
     @Autowired
@@ -193,13 +195,15 @@ public class TuyaDeviceService {
         }
         if (bizCode != null && device != null) {
             if (device.setBizCode((ObjectNode) msg.getJson())) {
-                if (device.getId().equals(this.getGridRelayCodeIdDacha()) ||
-                        device.getId().equals(this.getGridRelayCodeIdHome())) {
+                if (device.getId().equals(this.getGridRelayCodeIdDacha())) {
                     this.updateGridStateOnLineToTelegram(device.getId());
-                    this.updateOnOfSwitchRelay(device.getId());
+                    this.updateOnOfSwitchRelayDacha();
+                } else if (device.getId().equals(this.getGridRelayCodeIdHome())) {
+                    this.updateGridStateOnLineToTelegram(device.getId());
+                    this.updateOnOfSwitchRelayHome(device.getId());
                 }
             } else if (device.getId().equals(this.getBoilerRelayCodeIdHome())) {
-                this.updateOnOfSwitchRelay(device.getId());
+                this.updateOnOfSwitchRelayHome(device.getId());
             }
         }
     }
@@ -269,6 +273,7 @@ public class TuyaDeviceService {
             log.error("Devices is null, Devices not Update.");
         }
     }
+
     public void updateAllThermostatNight_01(Object tempSet) {
         boolean isUpdate = true;
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
@@ -893,12 +898,12 @@ public class TuyaDeviceService {
     }
 
     public void updateOnOfSwitchRelay() {
-        this.updateOnOfSwitchRelay(this.getGridRelayCodeIdDacha());
-        this.updateOnOfSwitchRelay(this.getGridRelayCodeIdHome());
-        this.updateOnOfSwitchRelay(this.getBoilerRelayCodeIdHome());
+        this.updateOnOfSwitchRelayDacha();
+        this.updateOnOfSwitchRelayHome(this.getGridRelayCodeIdHome());
+        this.updateOnOfSwitchRelayHome(this.getBoilerRelayCodeIdHome());
     }
 
-    public void updateOnOfSwitchRelay(String gridRelayCodeId) {
+    public void updateOnOfSwitchRelayHome(String gridRelayCodeId) {
         if (gridRelayCodeId != null) {
             Device device = this.devices.getDevIds().get(gridRelayCodeId);
             if (device.currentStateOnLine().getValue()) {
@@ -906,8 +911,6 @@ public class TuyaDeviceService {
                 boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish);
                 Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
                 DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-//                log.warn("Grid relay [{}] to isUpdate [{}], old: [{}], new: [{}] night tariff, exact time: [{}].", device.getName(), deviceUpdate.isUpdate(), deviceUpdate.getValueOld(), deviceUpdate.getValueNew(), curHour);
-                // not update switch home/dacha grid -> if:  hour = 8-23 hand mode
                 if (curHour >= (timeLocalNightTariffFinish + 1) && curHour < timeLocalNightTariffStart) {
                     deviceUpdate.setValueNew(deviceUpdate.getValueOld());
                 }
@@ -931,6 +934,43 @@ public class TuyaDeviceService {
             } else {
                 log.warn("Device relay switch [{}] cannot be updated, is offline...", device.getName());
             }
+        }
+    }
+
+    public void updateOnOfSwitchRelayDacha() {
+        Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
+        if (device.currentStateOnLine().getValue()) {
+            int curHour = toLocaleDateTimeHour();
+            int dopHourToNightTariffFinish = Math.max(solarmanStationsService.getSolarmanStation().getDopHourToNightTariffFinish() - this.getHourChargeBattery(), 0);
+            int localNightTariffFinish = isAnyThermostatOn() && solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() ?
+                    timeLocalNightTariffFinish : timeLocalNightTariffFinish - dopHourToNightTariffFinish;
+            boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < localNightTariffFinish);
+            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+            DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
+            if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.SUMMER.getSeasonsId() ||
+                    (curHour >= (localNightTariffFinish + 1) && curHour < timeLocalNightTariffStart)) {
+                deviceUpdate.setValueNew(deviceUpdate.getValueOld());
+            }
+            log.info("Test Summer: localNightTariffFinish: [{}],  isSummer[{}], isAnyThermostatOn [{}], this.getHourChargeBattery() [{}].",localNightTariffFinish, solarmanStationsService.getSolarmanStation().getSeasonsId(), isAnyThermostatOn(), this.getHourChargeBattery());
+            if (deviceUpdate.isUpdate()) {
+                if (paramOnOff) {
+                    log.info("Grid relay [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
+                } else {
+                    log.info("Grid relay [{}] to off, night tariff, exact time: [{}].", device.getName(), curHour);
+                }
+                queueUpdate.put(device, deviceUpdate);
+            } else {
+                log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                        device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+            }
+            queueLock.lock();
+            try {
+                updateThermostats(queueUpdate, false);
+            } finally {
+                queueLock.unlock();
+            }
+        } else {
+            log.warn("Device relay switch [{}] cannot be updated, is offline...", device.getName());
         }
     }
 
@@ -1019,4 +1059,33 @@ public class TuyaDeviceService {
             }
         }
     }
+
+    public void setHourChargeBattery(int hourChargeBattery) {
+        this.hourChargeBattery = hourChargeBattery;
+    }
+
+    public int getHourChargeBattery() {
+        return this.hourChargeBattery;
+    }
+
+    public boolean isAnyThermostatOn() {
+        boolean isAnyOn = false;
+        String[] filters = getDeviceProperties().getCategoryForControlPowers();
+        if (this.devices != null) {
+            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                Device device = entry.getValue();
+                for (String f : filters) {
+                    if (f.equals(device.getCategory())) {
+                        String fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(device.getValueSetMaxOn()) ||
+                                boilerRelayDopPrefixHome.equals(device.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
+                        if(!deviceIdBoylerWiFi.equals(entry.getKey()) && (Boolean) device.getStatusValue(fieldNameValueUpdate, false)){
+                            isAnyOn = true;
+                        }
+                    }
+                }
+            }
+        }
+        return isAnyOn;
+    }
 }
+

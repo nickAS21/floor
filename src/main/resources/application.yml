@@ -55,6 +55,8 @@ smart:
     station-consumption-power:  "${SOLARMAN_STATION_CONSUMPTION_POWER:50.0}"
     dop-power-to-max: "${DOP_POWER_TO_MAX:2000}"
     dop-power-to-min: "${DOP_POWER_TO_MIN:800}"
+    dop-hour-to-night-tariff-finish: "${DOP_HOUR_TO_NIGHT_TARIFF_FINISH:3}"
+    seasons-id: "${SEASONS_ID:1}"
 
 telegram:
   bot:

@@ -29,6 +29,10 @@ public class SolarmanStation {
     private int dopPowerToMax = 2000;
     @Builder.Default
     private int dopPowerToMin = 800;
+    @Builder.Default
+    private int dopHourToNightTariffFinish = 3;
+    @Builder.Default
+    private int seasonsId = 1;  // Summer
     private double locationLat;   //": 50.31023634165624,
     private double locationLng;
 }
