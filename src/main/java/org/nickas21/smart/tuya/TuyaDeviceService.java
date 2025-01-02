@@ -1078,7 +1078,10 @@ public class TuyaDeviceService {
                     if (f.equals(device.getCategory())) {
                         String fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(device.getValueSetMaxOn()) ||
                                 boilerRelayDopPrefixHome.equals(device.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
-                        if(!deviceIdBoylerWiFi.equals(entry.getKey()) && (Boolean) device.getStatusValue(fieldNameValueUpdate, false)){
+                        Object statusValue = device.getStatusValue(fieldNameValueUpdate, false);
+                        Boolean statusValueBoolean = statusValue instanceof com.fasterxml.jackson.databind.node.BooleanNode ?
+                                ((com.fasterxml.jackson.databind.node.BooleanNode) statusValue).booleanValue() : (Boolean) statusValue;
+                        if(!deviceIdBoylerWiFi.equals(entry.getKey()) && statusValueBoolean){
                             isAnyOn = true;
                         }
                     }
