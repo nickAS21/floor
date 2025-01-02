@@ -107,6 +107,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 String msgProgressBar = "Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
                 this.setProgressBarThread(msgProgressBar);
                 tuyaDeviceService.updateMessageAlarmToTelegram(null);
+                tuyaDeviceService.setHourChargeBattery(timeLocalNightTariffFinish);
             } else {
                 initUpdateTimeoutSheduler();
                 tuyaDeviceService.updateGridStateOnLineToTelegram();
