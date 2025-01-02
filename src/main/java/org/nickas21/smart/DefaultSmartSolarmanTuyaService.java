@@ -164,6 +164,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                 infoActionDop = "TempSetMin";
                                 isDayPrevious = isDay;
                                 isUpdateHourChargeBatt = false;
+                                tuyaDeviceService.setHourChargeBattery(timeLocalNightTariffFinish);
                             } else if (batterySocNew < batterySocMin) {
                                 // Reducing electricity consumption
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());

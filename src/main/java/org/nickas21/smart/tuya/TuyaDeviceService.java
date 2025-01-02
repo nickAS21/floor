@@ -941,9 +941,9 @@ public class TuyaDeviceService {
         Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
         if (device.currentStateOnLine().getValue()) {
             int curHour = toLocaleDateTimeHour();
-            int dopHourToNightTariffFinish = Math.max(solarmanStationsService.getSolarmanStation().getDopHourToNightTariffFinish() - this.getHourChargeBattery(), 0);
+            int dopHourToNightTariffFinish = Math.min(this.getHourChargeBattery(), timeLocalNightTariffFinish);
             int localNightTariffFinish = isAnyThermostatOn() && solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() ?
-                    timeLocalNightTariffFinish : timeLocalNightTariffFinish - dopHourToNightTariffFinish;
+                    timeLocalNightTariffFinish : dopHourToNightTariffFinish;
             boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < localNightTariffFinish);
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
@@ -951,7 +951,7 @@ public class TuyaDeviceService {
                     (curHour >= (localNightTariffFinish + 1) && curHour < timeLocalNightTariffStart)) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
-            log.info("Test Summer: localNightTariffFinish: [{}],  Seasons[{}], isAnyThermostatOn [{}], this.getHourChargeBattery() [{}]. DopHourToNightTariffFinish [{}]",localNightTariffFinish, solarmanStationsService.getSolarmanStation().getSeasonsId(), isAnyThermostatOn(), this.getHourChargeBattery(), solarmanStationsService.getSolarmanStation().getDopHourToNightTariffFinish());
+            log.info("Test Summer: localNightTariffFinish: [{}],  Seasons[{}], isAnyThermostatOn [{}], this.getHourChargeBattery() [{}]",localNightTariffFinish, solarmanStationsService.getSolarmanStation().getSeasonsId(), isAnyThermostatOn(), this.getHourChargeBattery());
             if (deviceUpdate.isUpdate()) {
                 if (paramOnOff) {
                     log.info("Grid relay [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);

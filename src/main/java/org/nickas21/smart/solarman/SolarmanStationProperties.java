@@ -15,6 +15,5 @@ public class SolarmanStationProperties {
     private double stationConsumptionPower;
     private int dopPowerToMax;
     private int dopPowerToMin;
-    private int dopHourToNightTariffFinish;
     private int seasonsId;
 }
