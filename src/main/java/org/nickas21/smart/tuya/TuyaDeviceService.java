@@ -951,7 +951,7 @@ public class TuyaDeviceService {
                     (curHour >= (localNightTariffFinish + 1) && curHour < timeLocalNightTariffStart)) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
-            log.info("Test Summer: localNightTariffFinish: [{}],  isSummer[{}], isAnyThermostatOn [{}], this.getHourChargeBattery() [{}].",localNightTariffFinish, solarmanStationsService.getSolarmanStation().getSeasonsId(), isAnyThermostatOn(), this.getHourChargeBattery());
+            log.info("Test Summer: localNightTariffFinish: [{}],  Seasons[{}], isAnyThermostatOn [{}], this.getHourChargeBattery() [{}]. DopHourToNightTariffFinish [{}]",localNightTariffFinish, solarmanStationsService.getSolarmanStation().getSeasonsId(), isAnyThermostatOn(), this.getHourChargeBattery(), solarmanStationsService.getSolarmanStation().getDopHourToNightTariffFinish());
             if (deviceUpdate.isUpdate()) {
                 if (paramOnOff) {
                     log.info("Grid relay [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
