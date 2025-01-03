@@ -107,6 +107,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 String msgProgressBar = "Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
                 this.setProgressBarThread(msgProgressBar);
                 tuyaDeviceService.updateMessageAlarmToTelegram(null);
+                isUpdateHourChargeBatt = false;
                 tuyaDeviceService.setHourChargeBattery(timeLocalNightTariffFinish);
             } else {
                 initUpdateTimeoutSheduler();
@@ -224,8 +225,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 }
 
                 // battery is charge/discharge 85% if  winter
-                if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in") &&
-                        !isUpdateHourChargeBatt &&
+                if (!isUpdateHourChargeBatt &&
                         (curHour >= (timeLocalNightTariffStart - 1) || curHour < timeLocalNightTariffFinish) &&
                         batterySocFromSolarman >= BatteryStatus.CHARGING.getSoc()) {
                     int hourChargeBattery = curHour < timeLocalNightTariffStart ? timeLocalNightTariffStart - 1 : curHour;
