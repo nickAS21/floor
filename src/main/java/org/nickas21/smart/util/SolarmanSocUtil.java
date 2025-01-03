@@ -18,8 +18,9 @@ public class SolarmanSocUtil {
 
     private static final TreeMap<Integer, Double> percentageToVoltageMap = new TreeMap<>();
     static {
-        percentageToVoltageMap.put(100, 54.6);
-        percentageToVoltageMap.put(99, 53.34);
+        percentageToVoltageMap.put(100, 55.6);
+        percentageToVoltageMap.put(99, 54.6);
+        percentageToVoltageMap.put(98, 53.34);
         percentageToVoltageMap.put(97, 53.32);
         percentageToVoltageMap.put(95, 53.30);
         percentageToVoltageMap.put(90, 53.28);

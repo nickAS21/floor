@@ -203,17 +203,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 // on/off heating: 23:10 >= time <= 6:50: NightTariff (1/2 => 23:10; last => 23:25)
                 int curHour = toLocaleDateTimeHour();
                 int curMinutes = toLocaleDateTimeMinutes();
+
                 if ((curHour >= timeLocalNightTariffStart && curMinutes >= timeLocalMinutesNightTariffStart_1) ||
                         (curHour < timeLocalNightTariffFinish && curMinutes <= timeLocalMinutesNightTariffFinish)) {
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
-                        // battery is charging 100% if not winter
-                        if (!isUpdateHourChargeBatt &&
-                                batteryStatusNew.equals(BatteryStatus.STATIC.getType()) &&
-                                batterySocFromSolarman == BatteryStatus.STATIC.getSoc()) {
-                            int hourChargeBattery = curHour >= (timeLocalNightTariffStart) ? 0 : curHour + 1;
-                            tuyaDeviceService.setHourChargeBattery(hourChargeBattery);
-                            isUpdateHourChargeBatt = true;
-                        }
                         if (curMinutes >= (timeLocalMinutesNightTariffStart_1 + timeLocalMinutesNightTariffStart_2)) {
                             log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
                             tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
@@ -228,6 +221,16 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 } else {
                     log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", this.isDay, curHour);
                     tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                }
+
+                // battery is charge/discharge 85% if  winter
+                if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in") &&
+                        !isUpdateHourChargeBatt &&
+                        (curHour >= (timeLocalNightTariffStart - 1) || curHour < timeLocalNightTariffFinish) &&
+                        batterySocFromSolarman >= BatteryStatus.CHARGING.getSoc()) {
+                    int hourChargeBattery = curHour < timeLocalNightTariffStart ? timeLocalNightTariffStart - 1 : curHour;
+                    tuyaDeviceService.setHourChargeBattery(hourChargeBattery);
+                    isUpdateHourChargeBatt = true;
                 }
             }
 

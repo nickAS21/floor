@@ -941,17 +941,36 @@ public class TuyaDeviceService {
         Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
         if (device.currentStateOnLine().getValue()) {
             int curHour = toLocaleDateTimeHour();
-            int dopHourToNightTariffFinish = Math.min(this.getHourChargeBattery(), timeLocalNightTariffFinish);
-            int localNightTariffFinish = isAnyThermostatOn() && solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() ?
-                    timeLocalNightTariffFinish : dopHourToNightTariffFinish;
-            boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < localNightTariffFinish);
+            boolean paramOnOff = false;
+            // NightTariff
+            if (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
+                // if AnyThermostat-On && WINTER
+                if (isAnyThermostatOn() && solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId()) {
+                    paramOnOff = true;
+                }
+                // paramOnOff = true if: is NightTariff && this.getHourChargeBattery() in NightTariff
+                // - curHour == 23 && HourChargeBattery != 22 && HourChargeBattery != 23
+                else if (curHour == timeLocalNightTariffStart && this.getHourChargeBattery() < timeLocalNightTariffFinish) {
+                    paramOnOff = true;
+                }
+                // - (curHour >= 0 && curHour < 7) && curHour < HourChargeBattery
+                else if (curHour < timeLocalNightTariffFinish && curHour < this.getHourChargeBattery()) {
+                    paramOnOff = true;
+                }
+            }
+
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-            if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.SUMMER.getSeasonsId() ||
-                    (curHour >= (localNightTariffFinish + 1) && curHour < timeLocalNightTariffStart)) {
+            //  manual control
+            // - if SUMMER
+            if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.SUMMER.getSeasonsId()) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
-            log.info("Test Summer: localNightTariffFinish: [{}],  Seasons[{}], isAnyThermostatOn [{}], this.getHourChargeBattery() [{}]",localNightTariffFinish, solarmanStationsService.getSolarmanStation().getSeasonsId(), isAnyThermostatOn(), this.getHourChargeBattery());
+            // - if is Day after timeLocalNightTariffFinish + 1 before timeLocalNightTariffStart - 1
+            else if (curHour > timeLocalNightTariffFinish && curHour < timeLocalNightTariffStart) {
+                deviceUpdate.setValueNew(deviceUpdate.getValueOld());
+            }
+            log.info("Test Summer: this.getHourChargeBattery(): [{}], isAnyThermostatOn: [{}], Seasons: [{}]", this.getHourChargeBattery(), isAnyThermostatOn(), solarmanStationsService.getSolarmanStation().getSeasonsId());
             if (deviceUpdate.isUpdate()) {
                 if (paramOnOff) {
                     log.info("Grid relay [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
@@ -1081,7 +1100,7 @@ public class TuyaDeviceService {
                         Object statusValue = device.getStatusValue(fieldNameValueUpdate, false);
                         Boolean statusValueBoolean = statusValue instanceof com.fasterxml.jackson.databind.node.BooleanNode ?
                                 ((com.fasterxml.jackson.databind.node.BooleanNode) statusValue).booleanValue() : (Boolean) statusValue;
-                        if(!deviceIdBoylerWiFi.equals(entry.getKey()) && statusValueBoolean){
+                        if (!deviceIdBoylerWiFi.equals(entry.getKey()) && statusValueBoolean) {
                             isAnyOn = true;
                         }
                     }

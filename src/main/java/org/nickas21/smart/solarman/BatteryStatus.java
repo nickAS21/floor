@@ -3,7 +3,7 @@ package org.nickas21.smart.solarman;
 import lombok.Getter;
 
 public enum BatteryStatus {
-    CHARGING("Charging", 95.00),
+    CHARGING("Charging", 85.00),
     STATIC("Static", 100.00),
     DISCHARGING("Discharging", 20.00);
 
