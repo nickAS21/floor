@@ -949,13 +949,11 @@ public class TuyaDeviceService {
                     paramOnOff = true;
                 }
                 // paramOnOff = true if: is NightTariff && this.getHourChargeBattery() in NightTariff
-                // - curHour == 23 && HourChargeBattery != 22 && HourChargeBattery != 23
-                else if (curHour == timeLocalNightTariffStart && this.getHourChargeBattery() < timeLocalNightTariffFinish) {
-                    paramOnOff = true;
-                }
-                // - (curHour >= 0 && curHour < 7) && curHour < HourChargeBattery
-                else if (curHour < timeLocalNightTariffFinish && curHour < this.getHourChargeBattery()) {
-                    paramOnOff = true;
+                // -  HourChargeBattery < 7 ... => HourChargeBattery != 22 && HourChargeBattery != 23
+                // -- curHour == 23 || curHour < HourChargeBattery
+                else if (this.getHourChargeBattery() < timeLocalNightTariffFinish &&
+                        (curHour == timeLocalNightTariffStart || this.getHourChargeBattery() > curHour)) {
+                    paramOnOff = true;;
                 }
             }
 

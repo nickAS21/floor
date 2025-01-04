@@ -228,7 +228,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 if (!isUpdateHourChargeBatt &&
                         (curHour >= (timeLocalNightTariffStart - 1) || curHour < timeLocalNightTariffFinish) &&
                         batterySocFromSolarman >= BatteryStatus.CHARGING.getSoc()) {
-                    int hourChargeBattery = curHour < timeLocalNightTariffStart ? timeLocalNightTariffStart - 1 : curHour;
+                    int hourChargeBattery = Math.min(curHour, (timeLocalNightTariffStart - 1));
                     tuyaDeviceService.setHourChargeBattery(hourChargeBattery);
                     isUpdateHourChargeBatt = true;
                 }
