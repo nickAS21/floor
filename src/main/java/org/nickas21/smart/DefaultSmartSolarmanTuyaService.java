@@ -53,7 +53,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private PowerValueRealTimeData powerValueRealTimeData;
     private boolean isDay;
     private boolean isDayPrevious;
-    private boolean isUpdateHourChargeBatt;
     private boolean isUpdateToMinAfterIsDayFalse;
     private Instant curDate;
     private Long sunRiseDate;
@@ -107,12 +106,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 String msgProgressBar = "Start: " + curInstStr + ". Init parameters to TempSetMin: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
                 this.setProgressBarThread(msgProgressBar);
                 tuyaDeviceService.updateMessageAlarmToTelegram(null);
-                isUpdateHourChargeBatt = false;
-                tuyaDeviceService.setHourChargeBattery(timeLocalNightTariffFinish);
             } else {
                 initUpdateTimeoutSheduler();
                 tuyaDeviceService.updateGridStateOnLineToTelegram();
-                tuyaDeviceService.updateOnOfSwitchRelay();
+                tuyaDeviceService.updateOnOfSwitchRelay(batterySocFromSolarman);
             }
 
             log.info("""
@@ -120,7 +117,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             Current real time data: [{}], -Update real time data: [{}],\s
                             -batSocLast: [{} %], -batSocNew: [{} %]/(on inverter [{} %]), -deltaBmsSoc: [{} %], -batterySocMin: [{} %],\s
                             -batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A],\s
-                            -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W], freePowerCorrectCnt: [{}], freePowerCorrectMinMax: [{}],\s
+                            -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],\s
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
                             -relayStatus: [{}], -gridStatusSolarman: [{}], -gridStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].""",
                     curInstStr,
@@ -139,8 +136,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     powerValueRealTimeData.getProductionTotalSolarPowerValue(),
                     powerValueRealTimeData.getConsumptionTotalPowerValue(),
                     stationConsumptionPower,
-                    freePowerCorrectCnt,
-                    freePowerCorrectMinMax,
 
                     powerValueRealTimeData.getBatteryDailyCharge(),
                     powerValueRealTimeData.getBatteryDailyDischarge(),
@@ -165,8 +160,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                 infoAction = "After the night...";
                                 infoActionDop = "TempSetMin";
                                 isDayPrevious = isDay;
-                                isUpdateHourChargeBatt = false;
-                                tuyaDeviceService.setHourChargeBattery(timeLocalNightTariffFinish);
                             } else if (batterySocNew < batterySocMin) {
                                 // Reducing electricity consumption
                                 tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
@@ -222,15 +215,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 } else {
                     log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", this.isDay, curHour);
                     tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
-                }
-
-                // battery is charge/discharge 85% if  winter
-                if (!isUpdateHourChargeBatt &&
-                        (curHour >= (timeLocalNightTariffStart - 1) || curHour < timeLocalNightTariffFinish) &&
-                        batterySocFromSolarman >= BatteryStatus.CHARGING.getSoc()) {
-                    int hourChargeBattery = Math.min(curHour, (timeLocalNightTariffStart - 1));
-                    tuyaDeviceService.setHourChargeBattery(hourChargeBattery);
-                    isUpdateHourChargeBatt = true;
                 }
             }
 
@@ -445,6 +429,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 freePowerCorrectCnt = 0;
             }
         }
+        log.info("""
+            FreePowerCorrectCnt: [{}], freePowerCorrect: [{}]""",
+                freePowerCorrectCnt, freePowerCorrect);
         return freePowerCorrect;
     }
 
