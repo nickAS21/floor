@@ -10,7 +10,9 @@ import org.nickas21.smart.util.DynamicScheduler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
 import java.time.Instant;
+
 import static org.nickas21.smart.util.HttpUtil.batteryCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.batteryDailyChargeKey;
 import static org.nickas21.smart.util.HttpUtil.batteryDailyDischargeKey;
@@ -198,14 +200,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 int curHour = toLocaleDateTimeHour();
                 int curMinutes = toLocaleDateTimeMinutes();
 
-                if ((curHour >= timeLocalNightTariffStart && curMinutes >= timeLocalMinutesNightTariffStart_1) ||
-                        (curHour < timeLocalNightTariffFinish && curMinutes <= timeLocalMinutesNightTariffFinish)) {
+                if (curHour >= timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
                         if (curMinutes >= (timeLocalMinutesNightTariffStart_1 + timeLocalMinutesNightTariffStart_2)) {
-                            log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
+                            log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, NightTariffStart_1, exact time: [{}].", this.isDay, curHour);
                             tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
-                        } else {
-                            log.info("Update parameters isDay [{}]: Start Increased electricity consumption only for every second consumer, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
+                        } else if (curMinutes >= (timeLocalMinutesNightTariffStart_1)) {
+                            log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
                             tuyaDeviceService.updateAllThermostatNight_01(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
                         }
                     } else {
@@ -430,7 +431,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
         }
         log.info("""
-            FreePowerCorrectCnt: [{}], freePowerCorrect: [{}]""",
+                        FreePowerCorrectCnt: [{}], freePowerCorrect: [{}]""",
                 freePowerCorrectCnt, freePowerCorrect);
         return freePowerCorrect;
     }
