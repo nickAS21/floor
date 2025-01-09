@@ -203,10 +203,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 if (curHour >= timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
                         if (curMinutes >= (timeLocalMinutesNightTariffStart_1 + timeLocalMinutesNightTariffStart_2)) {
-                            log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, NightTariffStart_1, exact time: [{}].", this.isDay, curHour);
+                            log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
                             tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
                         } else if (curMinutes >= (timeLocalMinutesNightTariffStart_1)) {
-                            log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
+                            log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, NightTariffStart_1, exact time: [{}].", this.isDay, curHour);
                             tuyaDeviceService.updateAllThermostatNight_01(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
                         }
                     } else {
