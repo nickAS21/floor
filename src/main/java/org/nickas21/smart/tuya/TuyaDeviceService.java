@@ -44,12 +44,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -274,15 +276,19 @@ public class TuyaDeviceService {
     public void updateAllThermostatNight_01(Object tempSet) {
         boolean isUpdate = true;
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
+        Set<String> filterSet = new HashSet<>(Arrays.asList(filters));
         if (this.devices != null) {
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-                if (isUpdate) {
-                    this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, tempSet);
-                    isUpdate = false;
-                } else {
-                    isUpdate = true;
+                if (filterSet.contains(entry.getValue().getCategory())) {
+                    if (isUpdate) {
+                        this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, tempSet);
+                        isUpdate = false;
+                    } else {
+                        isUpdate = true;
+                    }
                 }
+
             }
             queueLock.lock();
             try {
