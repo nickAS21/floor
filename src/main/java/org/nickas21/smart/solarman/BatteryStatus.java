@@ -3,7 +3,7 @@ package org.nickas21.smart.solarman;
 import lombok.Getter;
 
 public enum BatteryStatus {
-    CHARGING("Charging", 70.00),        // if more is not charging at night
+    CHARGING("Charging", 55.00),        // if more is not charging at night
     STATIC("Static", 98.00),
     DISCHARGING("Discharging", 50.00); //  if less is charging at night
 
