@@ -53,7 +53,7 @@ public class HttpUtil {
     public static final int timeLocalNightTariffStart = 23;
     public static final int timeLocalMinutesNightTariffStart_1 = 10;
     public static final int timeLocalMinutesNightTariffStart_2 = 15;
-    public static final int timeLocalNightTariffFinish = 7;
+    public static final int timeLocalNightTariffFinish = 6;
     public static final int timeLocalMinutesNightTariffFinish = 50;
 
 
