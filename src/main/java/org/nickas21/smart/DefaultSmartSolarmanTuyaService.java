@@ -196,11 +196,14 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                         log.error("Update parameters Is Day [{}] UpdateAllThermostat to min. Error: [{}}]", this.isDay, e.getMessage());
                     }
                 }
-                // on/off heating: 23:10 >= time <= 6:50: NightTariff (1/2 => 23:10; last => 23:25)
+                // on/off heating: 23:10 >= time <= 6:50: NightTariff (1/2 => 23:15; last => 23:25)
+                // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
+                // Поправка                      00:13                     23:00
                 int curHour = toLocaleDateTimeHour();
                 int curMinutes = toLocaleDateTimeMinutes();
 
-                if (curHour >= timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
+//                if (curHour >= timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
+                if (curHour < timeLocalNightTariffFinish) {
                     if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
                         if (curMinutes >= (timeLocalMinutesNightTariffStart_1 + timeLocalMinutesNightTariffStart_2)) {
                             log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);

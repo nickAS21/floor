@@ -50,10 +50,12 @@ public class HttpUtil {
 
     public static final Locale locale = Locale.forLanguageTag("en-US");
     public static final TimeZone timeZone = TimeZone.getTimeZone("Europe/Kyiv");
+    // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
+    // Поправка                      00:13                     23:00
     public static final int timeLocalNightTariffStart = 23;
-    public static final int timeLocalMinutesNightTariffStart_1 = 10;
+    public static final int timeLocalMinutesNightTariffStart_1 = 15;
     public static final int timeLocalMinutesNightTariffStart_2 = 15;
-    public static final int timeLocalNightTariffFinish = 6;
+    public static final int timeLocalNightTariffFinish = 7;
     public static final int timeLocalMinutesNightTariffFinish = 50;
 
 

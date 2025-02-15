@@ -956,7 +956,10 @@ public class TuyaDeviceService {
             // For tests
             int updateSwitchRelayDachaOnOffOnNightTests = 2;
             boolean anyThermostatOnTests = isAnyThermostatOn();
-            if (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
+//            if (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
+            // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
+            // Поправка                      00:13                     23:00
+            if (curHour < timeLocalNightTariffFinish) {
                 // if AnyThermostat-On && WINTER
                 if (anyThermostatOnTests && solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId()) {
                     paramOnOff = true;
@@ -976,7 +979,12 @@ public class TuyaDeviceService {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
             // - if is Day after timeLocalNightTariffFinish + 1 before timeLocalNightTariffStart - 1
-            else if (curHour > timeLocalNightTariffFinish && curHour < timeLocalNightTariffStart) {
+//            else if (curHour > timeLocalNightTariffFinish && curHour < timeLocalNightTariffStart) {
+
+            // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
+            // Поправка                      00:13                     23:00
+            // - if is Day after timeLocalNightTariffFinish + 1 before timeLocalNightTariffStart - 1  ==(0 - 1) == 23
+            else if (curHour > timeLocalNightTariffFinish) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
             // For tests
