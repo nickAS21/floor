@@ -77,9 +77,11 @@ import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhny5;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhnyMin;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
+import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffFinish;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffStart;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
+import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeMinutes;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
@@ -910,10 +912,22 @@ public class TuyaDeviceService {
         if (gridRelayCodeId != null) {
             Device device = this.devices.getDevIds().get(gridRelayCodeId);
             if (device.currentStateOnLine().getValue()) {
+                // on:            from 23:00 to 6:50
+                // off:            from  6:50 to 8:00
+                // is not change: from  8:00 to 23:00
                 int curHour = toLocaleDateTimeHour();
-                boolean paramOnOff = (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish);
+                int curMinutes = toLocaleDateTimeMinutes();
+                boolean paramOnOff = curHour == timeLocalNightTariffStart;
+                if (!paramOnOff && curHour < timeLocalNightTariffFinish) {
+                    if (curHour == (timeLocalNightTariffFinish - 1)) {
+                        paramOnOff = curMinutes >= timeLocalMinutesNightTariffFinish;
+                    } else {
+                        paramOnOff = true;
+                    }
+                }
                 Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
                 DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
+                // if day Tariff (8:00 - 23:00) - value is not change
                 if (curHour > timeLocalNightTariffFinish && curHour < timeLocalNightTariffStart) {
                     deviceUpdate.setValueNew(deviceUpdate.getValueOld());
                 }
