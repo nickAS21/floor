@@ -920,7 +920,7 @@ public class TuyaDeviceService {
                 boolean paramOnOff = curHour == timeLocalNightTariffStart;
                 if (!paramOnOff && curHour < timeLocalNightTariffFinish) {
                     if (curHour == (timeLocalNightTariffFinish - 1)) {
-                        paramOnOff = curMinutes >= timeLocalMinutesNightTariffFinish;
+                        paramOnOff = curMinutes < timeLocalMinutesNightTariffFinish;
                     } else {
                         paramOnOff = true;
                     }
