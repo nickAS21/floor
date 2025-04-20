@@ -1063,7 +1063,7 @@ public class TuyaDeviceService {
                 switchValue = true;
                 msg = "Critical temperature at the Country House: [" + tempCur + "].";
                 this.updateMessageAlarmToTelegram(msg);
-            } else if (curHour == timeLocalNightTariffFinish) {
+            } else if (curHour == timeLocalNightTariffFinish && solarmanStationsService.getSolarmanStation().getSeasonsId() != Seasons.SUMMER.getSeasonsId()) {
                 if (tempCur < tempCurrentKuhny5) {
                     isUpdateSwitchThermostat = true;
                     switchValue = true;
