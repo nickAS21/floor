@@ -99,22 +99,4 @@ alarm_error: "${SOLARMAN_BMS_SOC_ALARM_ERROR:59.0}"
 
 
 
-## Running the application as docker container
-
-```bash
-docker run -e SPARKPLUG_SERVER_URL='tcp://thingsboard.cloud:1883' -e SPARKPLUG_CLIENT_MQTT_USERNAME='YOUR_THINGSBOARD_DEVICE_TOKEN' thingsboard/tb-sparkplug-emulator:latest
-```
-
-### Building from sources
-
-```shell
-mvn clean install
-```
-
-### Running as plain java application
-
-```shell
-java -jar sparkplug-1.0-SNAPSHOT-jar-with-dependencies.jar
-```
-
 

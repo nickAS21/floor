@@ -20,7 +20,9 @@ import static org.nickas21.smart.util.HttpUtil.batteryPowerKey;
 import static org.nickas21.smart.util.HttpUtil.batterySocKey;
 import static org.nickas21.smart.util.HttpUtil.batteryStatusKey;
 import static org.nickas21.smart.util.HttpUtil.batteryVoltageKey;
+import static org.nickas21.smart.util.HttpUtil.bmsCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.bmsSocKey;
+import static org.nickas21.smart.util.HttpUtil.bmsVoltageKey;
 import static org.nickas21.smart.util.HttpUtil.consumptionTotalPowerKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergySellKey;
@@ -89,17 +91,23 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     public void setBmsSocCur() {
         try {
             updatePowerValue();
+            double batCurNew = powerValueRealTimeData.getBatteryCurrentValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
-            double batterySocNew = getPercentageVoltage(batVolNew);
+            double bmsVolNew = powerValueRealTimeData.getBmsVoltageValue();
+            double bmsCurNew = powerValueRealTimeData.getBmsCurrentValue();
+            // old if battery mode == USER
+            // double batterySocNew = getPercentageVoltage(batVolNew);
+            // double batterySocFromSolarman = powerValueRealTimeData.getBatterySocValue();
+            double batterySocNew = powerValueRealTimeData.getBatterySocValue();
             double batterySocMin = getBatSocMin();
             double batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
-            double batterySocFromSolarman = powerValueRealTimeData.getBatterySocValue();
+
 
             updateSunRiseSunSetDate();
             setIsDay();
 
-            String batteryPowerNewStr = -batteryPowerNew + " W";
+//            String batteryPowerNewStr = -batteryPowerNew + " W";
             Instant curInst = Instant.now();
             String curInstStr = toLocaleTimeString(curInst);
             if (this.batterySocCur == 0) {
@@ -109,30 +117,31 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             } else {
                 initUpdateTimeoutSheduler();
                 tuyaDeviceService.updateGridStateOnLineToTelegram();
-                tuyaDeviceService.updateOnOfSwitchRelay(batterySocFromSolarman);
+                // old if matter mode == USER
+//                tuyaDeviceService.updateOnOfSwitchRelay(batterySocFromSolarman);
+                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew);
             }
 
             log.info("""
                             Current data:\s
                             Current real time data: [{}], -Update real time data: [{}],\s
-                            -batSocLast: [{} %], -batSocNew: [{} %]/(on inverter [{} %]), -deltaBmsSoc: [{} %], -batterySocMin: [{} %],\s
-                            -batteryStatus: [{}], -batVolNew: [{} V], -batCurrentNew: [{} A],\s
-                            -batteryPower: [{}], -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],\s
+                            -batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], -batterySocMin: [{} %],\s
+                            -batteryStatus: [{}], -batteryPower: [{} W], -batVolNew: [{} V], -batCurrentNew: [{} A],  -bmsVolNew: [{} V], , -bmsCurrentNew: [{} A]\s
+                            -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],\s
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
                             -relayStatus: [{}], -gridStatusSolarman: [{}], -gridStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh].""",
                     curInstStr,
                     toLocaleTimeString(powerValueRealTimeData.getCollectionTime() * 1000),
 
-                    this.batterySocCur,
-                    batterySocNew, batterySocFromSolarman,
+                    this.batterySocCur, batterySocNew,
+//                    batterySocFromSolarman,
                     String.format("%.2f", (batterySocNew - this.batterySocCur)),
                     String.format("%.2f", batterySocMin),
 
-                    batteryStatusNew,
-                    batVolNew,
-                    powerValueRealTimeData.getBatteryCurrentValue(),
+                    batteryStatusNew, batteryPowerNew,
+                    batVolNew, batCurNew,
+                    bmsVolNew, bmsCurNew,
 
-                    batteryPowerNewStr,
                     powerValueRealTimeData.getProductionTotalSolarPowerValue(),
                     powerValueRealTimeData.getConsumptionTotalPowerValue(),
                     stationConsumptionPower,
@@ -145,7 +154,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     tuyaDeviceService.getGridRelayCodeDachaStateOnLine(),
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell());
-            tuyaDeviceService.sendBatteryChargeRemaining(batVolNew, batterySocFromSolarman);
+            tuyaDeviceService.sendBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, batterySocNew, batteryPowerNew, batteryStatusNew);
             if (isDay) {
                 isUpdateToMinAfterIsDayFalse = false;
                 if (this.batterySocCur > 0) {
@@ -254,10 +263,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 .map(RealTimeDataValue::getValue).orElse(null);
         double batteryPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryPowerKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
-        double batteryCurrentValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryCurrentKey)).findFirst()
+        double bmsVoltageValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(bmsVoltageKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+         double bmsCurrentValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(bmsCurrentKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
         double batteryVoltageValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryVoltageKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+        double batteryCurrentValueFact = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryCurrentKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+        double batteryCurrentValue =  batteryCurrentValueFact == 0 && batteryVoltageValue != 0 ? Math.round((batteryPowerValue/batteryVoltageValue) * 1000.0) / 1000.0 : batteryCurrentValueFact;
         double batteryDailyChargeValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryDailyChargeKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
         double batteryDailyDischargeValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryDailyDischargeKey)).findFirst()
@@ -302,6 +316,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         powerValueRealTimeData.setBatteryPowerValue(batteryPowerValue);
         powerValueRealTimeData.setBatteryCurrentValue(batteryCurrentValue);
         powerValueRealTimeData.setBatteryVoltageValue(batteryVoltageValue);
+        powerValueRealTimeData.setBmsVoltageValue(bmsVoltageValue);
+        powerValueRealTimeData.setBmsCurrentValue(bmsCurrentValue);
         powerValueRealTimeData.setBatteryDailyCharge(batteryDailyChargeValue);
         powerValueRealTimeData.setBatteryDailyDischarge(batteryDailyDischargeValue);
         powerValueRealTimeData.setProductionTotalSolarPowerValue(productionTotalSolarPowerValue);

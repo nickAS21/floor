@@ -841,13 +841,17 @@ public class TuyaDeviceService {
             String message = msg == null ? "Перезавантаження програми. Початок відстеження Alarm message." : msg;  // first
             telegramService.sendNotification(bot, message);
             msg = msg == null ? "Restarting the program. Start tracking Alarm message." : msg;
-            log.info("Telegram[{}] send msg: [{}]", bot.getHouseName(), msg);
+            log.info("Telegram: [{}] send msg: {}", bot.getHouseName(), msg);
         }
     }
 
-    public void sendBatteryChargeRemaining(double batVolNew, double batterySocFromSolarman) {
-        double batteryChargeRemaining = SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
+    public void sendBatteryChargeRemaining(double batVolNew, double batCurNew, double bmsVolNew, double bmsCurNew, double batterySocNew,
+                                           double  batteryPowerNew, String batteryStatusNew) {
+        // if battery == USER
+//        double batteryChargeRemaining = SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
+        double batteryChargeRemaining = batterySocNew;
         Entry<Long, Double> lastUpdateTimeAlarmTempInfo = new AbstractMap.SimpleEntry<>(Instant.now().toEpochMilli(), batteryChargeRemaining);
+
         // If null - first
         // Not equals and (equals 100% or <= 90%)
         if (this.lastUpdateTimeAlarmTempInfoHome == null ||
@@ -861,7 +865,18 @@ public class TuyaDeviceService {
             } else if (batteryChargeRemaining <= 50) {
                 msg = "WARNING, ";
             }
-            String msgSoc = msg + "Battery Remaining at the Country House: [" + batteryChargeRemaining + " %]/(on inverter [" + batterySocFromSolarman + " %]).";
+            // if battery == USER
+//            String msgSoc = msg + "Battery Remaining at the Country House: [" + batteryChargeRemaining + " %]/(on inverter [" + batterySocFromSolarman + " %]).";
+            double bmsPower = Math.round((bmsVolNew * bmsCurNew) * 100.0) / 100.0;
+            String msgSoc = msg + "Battery Remaining at the Country House:\n" +
+                    "- SOCs: [" + batteryChargeRemaining + " %];\n" +
+                    "- BatteryStatus: [" + batteryStatusNew + "];\n" +
+                    "- BmsPower: [" + bmsPower + " W];\n" +
+                    "- BmsVoltage: [" + bmsVolNew + " V];\n" +
+                    "- BmsCurrent: [" + bmsCurNew + " A];\n" +
+                    "- Powers: [" + batteryPowerNew + " W];\n" +
+                    "- Voltages: [" + batVolNew + " V];\n" +
+                    "- Currents: [" + batCurNew + " A].";
             this.updateMessageAlarmToTelegram(msgSoc);
             this.lastUpdateTimeAlarmTempInfoHome = lastUpdateTimeAlarmTempInfo;
         }

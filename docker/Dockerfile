@@ -1,6 +1,6 @@
 
-FROM thingsboard/openjdk11:bullseye-slim
+FROM thingsboard/openjdk17:bookworm-slim
 
-COPY ./*SNAPSHOT-jar-with-dependencies.jar /
+COPY ./*SNAPSHOT.jar /app.jar
 
-CMD ["java", "-jar", "/*SNAPSHOT-jar-with-dependencies.jar"]
+CMD ["java", "-jar", "/app.jar"]

@@ -17,6 +17,8 @@ public class PowerValueRealTimeData {
     double batteryPowerValue;       // unit W
     double batteryCurrentValue;  // unit A
     double batteryVoltageValue;  // unit V
+    double bmsVoltageValue;  // unit V
+    double bmsCurrentValue;  // unit A
     double batterySocValue;      // unit %
     double batteryDailyCharge;   // unit kWh
     double batteryDailyDischarge;// unit kWh
