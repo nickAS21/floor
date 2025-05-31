@@ -27,7 +27,12 @@ public class HttpUtil {
     public static final String offOnKey = "switch";
     public static final String tempSetKey = "temp_set";
     public static final String tempCurrentKey = "temp_current";
+    public static final String invProtocolVerKey = "PTCv1";
+    public static final String invMAINKey = "MAIN";
+    public static final String invHMIKey = "HMI";
+    public static final String invTempKey = "AC_T";    // ℃
     public static final String bmsSocKey = "BMS_SOC";
+    public static final String bmsTempKey = "BMST";    // ℃
     public static final String totalSolarPowerKey = "S_P_T";
     public static final String totalEnergySellKey = "E_S_TO";
     public static final String dailyEnergySellKey = "E_S_D";

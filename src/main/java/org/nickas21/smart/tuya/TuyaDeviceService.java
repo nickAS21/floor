@@ -845,7 +845,7 @@ public class TuyaDeviceService {
         }
     }
 
-    public void sendBatteryChargeRemaining(double batVolNew, double batCurNew, double bmsVolNew, double bmsCurNew, double batterySocNew,
+    public void sendBatteryChargeRemaining(double batVolNew, double batCurNew, double bmsVolNew, double bmsCurNew, double bmsTempNew, double batterySocNew,
                                            double  batteryPowerNew, String batteryStatusNew) {
         // if battery == USER
 //        double batteryChargeRemaining = SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
@@ -873,6 +873,7 @@ public class TuyaDeviceService {
                     "- BatteryStatus: [" + batteryStatusNew + "];\n" +
                     "- BmsPower: [" + bmsPower + " W];\n" +
                     "- BmsVoltage: [" + bmsVolNew + " V];\n" +
+                    "- BmsTemperature: [" + bmsTempNew + "  ℃];\n" +
                     "- BmsCurrent: [" + bmsCurNew + " A];\n" +
                     "- Powers: [" + batteryPowerNew + " W];\n" +
                     "- Voltages: [" + batVolNew + " V];\n" +
