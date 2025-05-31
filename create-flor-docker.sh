@@ -28,3 +28,7 @@ fi
 # kubectl rollout restart deployment smart-solar-tuya-deployment
   # Run
 #kubectl scale deployment my-deployment --replicas=1
+  # Poda
+# kubectl get pods
+  # Logs
+# kubectl logs smart-solar-tuya-deployment-6bf88854d6-shr6x
