@@ -101,14 +101,17 @@ public class TuyaConnection implements TuyaConnectionIn {
                 .messageListener((incomingData) -> {
                     String decryptedData = "";
                     try {
-                        MessageVO vo = JacksonUtil.fromBytes(incomingData.getData(), MessageVO.class);
-                        if (vo != null) {
-
-                            decryptedData = TuyaMessageUtil.decrypt(vo.getData(), accessKey.substring(8, 24));
-                            JsonNode dataNode = JacksonUtil.fromString(decryptedData, JsonNode.class);
-                            TuyaConnectionMsg msg = new TuyaConnectionMsg(dataNode);
-                            this.process(msg);
-                        }
+                        if (incomingData != null) {
+                            MessageVO vo = JacksonUtil.fromBytes(incomingData.getData(), MessageVO.class);
+                            if (vo != null) {
+                                decryptedData = TuyaMessageUtil.decrypt(vo.getData(), accessKey.substring(8, 24));
+                                JsonNode dataNode = JacksonUtil.fromString(decryptedData, JsonNode.class);
+                                TuyaConnectionMsg msg = new TuyaConnectionMsg(dataNode);
+                                this.process(msg);
+                            }
+                        } else {
+                            log.error("Message incomingData is null, decryptedData [{}]",decryptedData);
+                         }
                     } catch (Exception e) {
                         resultHandler("Input Decoder", decryptedData, e);
                     }

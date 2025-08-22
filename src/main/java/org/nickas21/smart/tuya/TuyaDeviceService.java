@@ -18,7 +18,6 @@ import org.nickas21.smart.tuya.tuyaEntity.DeviceUpdate;
 import org.nickas21.smart.tuya.tuyaEntity.Devices;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.JacksonUtil;
-import org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpHeaders;
@@ -84,8 +83,8 @@ import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeMinutes;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
-import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
+import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 import static org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage.PERCENTAGE_90;
 import static org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage.REST_FLOAT;
 import static org.nickas21.smart.util.StringUtils.isBoolean;
@@ -769,9 +768,6 @@ public class TuyaDeviceService {
                 } else {
                     if (responseEntity.getBody().has("code") && responseEntity.getBody().has("msg")) {
                         log.error("code: [{}], msg: [{}]", responseEntity.getBody().get("code").asInt(), responseEntity.getBody().get("msg").asText());
-                        if (responseEntity.getBody().get("code").asInt() == 28841002) {
-                            System.exit(0);
-                        }
                     }
                     return null;
                 }
