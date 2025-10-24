@@ -77,6 +77,7 @@ import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhny5;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhnyMin;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
 import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffFinish;
+import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart_1;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffStart;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
@@ -982,10 +983,10 @@ public class TuyaDeviceService {
             // For tests
             int updateSwitchRelayDachaOnOffOnNightTests = 2;
             boolean anyThermostatOnTests = isAnyThermostatOn();
-//            if (curHour == timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
-            // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
-            // Поправка                      00:13                     23:00
-            if (curHour < timeLocalNightTariffFinish) {
+            int curMinutes = toLocaleDateTimeMinutes();
+            // Проблема: якщо реальний час:  Дача лічильник  => +1:17 станом на 10/10/2025
+            // Поправка                   з   00:17  замість 23:00
+            if ((curHour == 0 && curMinutes > timeLocalMinutesNightTariffStart_1) || (curHour > 0 && curHour < timeLocalNightTariffFinish)) {
                 // if AnyThermostat-On && WINTER
                 if (anyThermostatOnTests && solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId()) {
                     paramOnOff = true;
@@ -1004,16 +1005,11 @@ public class TuyaDeviceService {
             if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.SUMMER.getSeasonsId()) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
-            // - if is Day after timeLocalNightTariffFinish + 1 before timeLocalNightTariffStart - 1
-//            else if (curHour > timeLocalNightTariffFinish && curHour < timeLocalNightTariffStart) {
-
-            // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
-            // Поправка                      00:13                     23:00
             // - if is Day after timeLocalNightTariffFinish + 1 before timeLocalNightTariffStart - 1  ==(0 - 1) == 23
             else if (curHour > timeLocalNightTariffFinish) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
-            // For tests
+            // For control
             log.info("""
                     Test Seasons [{}]: paramOnOff: [{}] isUpdateSwitchRelayDachaOnOffOnNight: [{}], this.isUpdateHourChargeBatt: [{}], isAnyThermostatOn: [{}]""",
                     solarmanStationsService.getSolarmanStation().getSeasonsId(),
