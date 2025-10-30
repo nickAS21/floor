@@ -996,11 +996,12 @@ public class TuyaDeviceService {
             }
             // For control
             log.info("""
-                    Test Seasons [{}]: paramOnOff: [{}] this.isUpdateHourChargeBatt: [{}], isAnyThermostatOn: [{}]""",
-                    solarmanStationsService.getSolarmanStation().getSeasonsId(),
+                    Test Seasons: [{}], paramOnOff: [{}], this.isUpdateHourChargeBatt: [{}], isAnyThermostatOn: [{}], isNightTariff: [{}]""",
+                    Seasons.fromTypeById(solarmanStationsService.getSolarmanStation().getSeasonsId()),
                     paramOnOff,
                     this.isUpdateHourChargeBatt,
-                    isAnyThermostatOn());
+                    isAnyThermostatOn(),
+                    isNightTariff);
             if (deviceUpdate.isUpdate()) {
                 if (paramOnOff) {
                     log.info("Grid relay Dacha [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
@@ -1111,10 +1112,10 @@ public class TuyaDeviceService {
 
     /**
      * 1) batterySocFromSolarman <= 30% - bad and return true
-     * battery is charge/discharge 75% if  winter
+     * battery is charge/discharge 60% if  winter
      * paramOnOff = true/false if: is NightTariff && this.getHourChargeBattery() in NightTariff
      * -  HourChargeBattery < 7 ... =>  HourChargeBattery >= 23
-     * -- batterySocFromSolarman >= 75% - ok
+     * -- batterySocFromSolarman >= 60% - ok
      */
     public boolean isUpdateSwitchRelayDachaOnOffOnNight(double batterySocFromSolarman) {
         if (!this.isUpdateHourChargeBatt) {

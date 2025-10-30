@@ -26,4 +26,12 @@ public enum Seasons {
         }
         return null;
     }
+    public static Seasons fromTypeById(int seasonsId) {
+        for (Seasons to : Seasons.values()) {
+            if (to.seasonsId == seasonsId) {
+                return to;
+            }
+        }
+        return null;
+    }
 }
