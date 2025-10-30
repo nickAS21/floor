@@ -971,52 +971,36 @@ public class TuyaDeviceService {
         Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
         if (device.currentStateOnLine().getValue()) {
             int curHour = toLocaleDateTimeHour();
-            boolean paramOnOff = false;
-            // Test
-            // 1 - день
-            // - WINTER
-            // 2 - ніч 84 % : 23:00, 0:00 6:00 7:00 8:00 8:00
-            // 3 - ніч 86 % : 23:00, 0:00 6:00 7:00 8:00 8:00
-            // SUMMER
-
-            // NightTariff
-            // For tests
-            int updateSwitchRelayDachaOnOffOnNightTests = 2;
-            boolean anyThermostatOnTests = isAnyThermostatOn();
             int curMinutes = toLocaleDateTimeMinutes();
             // Проблема: якщо реальний час:  Дача лічильник  => +1:17 станом на 10/10/2025
             // Поправка                   з   00:17  замість 23:00
-            if ((curHour == 0 && curMinutes > timeLocalMinutesNightTariffStart_1) || (curHour > 0 && curHour < timeLocalNightTariffFinish)) {
-                // if AnyThermostat-On && WINTER
-                if (anyThermostatOnTests && solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId()) {
-                    paramOnOff = true;
-                } else {
-                    paramOnOff = this.isUpdateSwitchRelayDachaOnOffOnNight(batterySocFromSolarman);
-                    updateSwitchRelayDachaOnOffOnNightTests = paramOnOff ? 1 : 0;
-                }
-            } else {
-                this.isUpdateHourChargeBatt = false;
+            boolean isNightTariff = curHour == 0 && curMinutes > timeLocalMinutesNightTariffStart_1 || curHour > 0 && curHour < timeLocalNightTariffFinish;
+            this.isUpdateHourChargeBatt = isNightTariff && this.isUpdateHourChargeBatt;
+            // SUMMER or is not NightTariff
+            boolean paramOnOff = false;
+            if (batterySocFromSolarman <= BatteryStatus.ALARM.getSoc()) {
+                paramOnOff = true;
+            } else if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId()) {  // solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() && isNightTariff
+                paramOnOff = this.isUpdateSwitchRelayDachaOnOffOnNight(batterySocFromSolarman);
             }
-
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-            //  manual control
-            // - if SUMMER
-            if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.SUMMER.getSeasonsId()) {
+            if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.SUMMER.getSeasonsId() || !isNightTariff) { //  manual control
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
-            // - if is Day after timeLocalNightTariffFinish + 1 before timeLocalNightTariffStart - 1  ==(0 - 1) == 23
-            else if (curHour > timeLocalNightTariffFinish) {
+            // TODO
+            boolean anyThermostatOnTests = isAnyThermostatOn();
+
+            if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.SUMMER.getSeasonsId() || curHour > timeLocalNightTariffFinish) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
             // For control
             log.info("""
-                    Test Seasons [{}]: paramOnOff: [{}] isUpdateSwitchRelayDachaOnOffOnNight: [{}], this.isUpdateHourChargeBatt: [{}], isAnyThermostatOn: [{}]""",
+                    Test Seasons [{}]: paramOnOff: [{}] this.isUpdateHourChargeBatt: [{}], isAnyThermostatOn: [{}]""",
                     solarmanStationsService.getSolarmanStation().getSeasonsId(),
                     paramOnOff,
-                    updateSwitchRelayDachaOnOffOnNightTests == 0 ? "false" : updateSwitchRelayDachaOnOffOnNightTests == 1 ? "true" : "non",
                     this.isUpdateHourChargeBatt,
-                    anyThermostatOnTests);
+                    isAnyThermostatOn());
             if (deviceUpdate.isUpdate()) {
                 if (paramOnOff) {
                     log.info("Grid relay Dacha [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
@@ -1025,7 +1009,7 @@ public class TuyaDeviceService {
                 }
                 queueUpdate.put(device, deviceUpdate);
             } else {
-                log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                log.info("Device Relay Dacha switch: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
                         device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
             }
             queueLock.lock();
@@ -1035,7 +1019,7 @@ public class TuyaDeviceService {
                 queueLock.unlock();
             }
         } else {
-            log.warn("Device relay switch [{}] cannot be updated, is offline...", device.getName());
+            log.warn("Device Relay Dacha switch [{}] cannot be updated, is offline...", device.getName());
         }
     }
 
@@ -1126,25 +1110,20 @@ public class TuyaDeviceService {
     }
 
     /**
-     * battery is charge/discharge 85% if  winter
+     * 1) batterySocFromSolarman <= 30% - bad and return true
+     * battery is charge/discharge 75% if  winter
      * paramOnOff = true/false if: is NightTariff && this.getHourChargeBattery() in NightTariff
      * -  HourChargeBattery < 7 ... =>  HourChargeBattery >= 23
-     * -- batterySocFromSolarman >= 85% - ok
-     * -- batterySocFromSolarman <= 50% - bad and return true
-     * @param batterySocFromSolarman
-     * @return
+     * -- batterySocFromSolarman >= 75% - ok
      */
     public boolean isUpdateSwitchRelayDachaOnOffOnNight(double batterySocFromSolarman) {
-        if (this.isUpdateHourChargeBatt){
-            if (batterySocFromSolarman <= BatteryStatus.DISCHARGING.getSoc()){
-                this.isUpdateHourChargeBatt = false;
-                return true;
-            } else {
+        if (!this.isUpdateHourChargeBatt) {
+            if (batterySocFromSolarman > BatteryStatus.CHARGING.getSoc()) {
                 return false;
+            } else {
+                this.isUpdateHourChargeBatt = true;
+                return true;
             }
-        } else if (batterySocFromSolarman >= BatteryStatus.CHARGING.getSoc()){
-            this.isUpdateHourChargeBatt = true;
-            return false;
         } else {
             return true;
         }
