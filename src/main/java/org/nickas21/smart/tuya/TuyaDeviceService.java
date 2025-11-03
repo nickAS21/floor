@@ -70,6 +70,7 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.POST_DEVICE_COMMANDS_URL_
 import static org.nickas21.smart.tuya.constant.TuyaApi.TOKEN_GRANT_TYPE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.VALUE;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
+import static org.nickas21.smart.util.HttpUtil.deviceIdTempScaleVanna;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 import static org.nickas21.smart.util.HttpUtil.offOnKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
@@ -328,8 +329,14 @@ public class TuyaDeviceService {
             }
         } else {
             fieldNameValueUpdate = tempSetKey;
-            valueNew = Objects.equals(valueNew, deviceProperties.getTempSetMin()) ? valueNew : v.getValueSetMaxOn();
-            valueOld = v.getStatusValue(fieldNameValueUpdate, deviceProperties.getTempSetMin());
+            if (deviceIdTempScaleVanna.equals(v.getId())){
+                valueNew = Objects.equals(valueNew, deviceProperties.getTempSetMin()) ? Integer.valueOf((Integer) valueNew * 10) : v.getValueSetMaxOn() != null ? (Integer)v.getValueSetMaxOn() * 10 : null;
+                valueOld = v.getStatusValue(fieldNameValueUpdate, deviceProperties.getTempSetMin() * 10);
+            } else {
+                valueNew = Objects.equals(valueNew, deviceProperties.getTempSetMin()) ? valueNew : v.getValueSetMaxOn();
+                valueOld = v.getStatusValue(fieldNameValueUpdate, deviceProperties.getTempSetMin());
+            }
+
         }
         return new DeviceUpdate(fieldNameValueUpdate, valueNew, valueOld);
     }
@@ -834,11 +841,15 @@ public class TuyaDeviceService {
 
     public void updateMessageAlarmToTelegram(String msg) {
         if (!this.debugging) {
-            TelegramBot bot = telegramService.getTelegramBotAlarm();
             String message = msg == null ? "Перезавантаження програми. Початок відстеження Alarm message." : msg;  // first
-            telegramService.sendNotification(bot, message);
-            msg = msg == null ? "Restarting the program. Start tracking Alarm message." : msg;
-            log.info("Telegram: [{}] send msg: {}", bot.getHouseName(), msg);
+            TelegramBot bot = telegramService.getTelegramBotAlarm();
+            if  (bot != null) {
+                telegramService.sendNotification(bot, message);
+//                msg = msg == null ? "Restarting the program. Start tracking Alarm message." : msg;
+                log.info("Telegram: [{}] send msg: {}", bot.getHouseName(), msg);
+            } else {
+                log.error("Telegram: bot [null], no send msg: {}", msg);
+            }
         }
     }
 

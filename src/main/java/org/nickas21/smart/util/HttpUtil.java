@@ -26,6 +26,7 @@ public class HttpUtil {
     public static final Integer tempCurrentKuhny5 = 5;
     public static final String offOnKey = "switch";
     public static final String tempSetKey = "temp_set";
+    public static final String deviceIdTempScaleVanna = "bfe02a3417a1a4774alyab";
     public static final String tempCurrentKey = "temp_current";
     public static final String invProtocolVerKey = "PTCv1";
     public static final String invMAINKey = "MAIN";
