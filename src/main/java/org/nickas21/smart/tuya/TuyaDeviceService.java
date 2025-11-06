@@ -59,6 +59,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.nickas21.smart.solarman.BatteryStatus.ALARM;
+import static org.nickas21.smart.solarman.BatteryStatus.DISCHARGING;
 import static org.nickas21.smart.tuya.constant.TuyaApi.CODE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.COMMANDS;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_DEVICES_ID_URL_PATH;
@@ -868,9 +870,9 @@ public class TuyaDeviceService {
                                 batteryChargeRemaining <= PERCENTAGE_90.getPercentage()))
         ) {
             String msg = "INFO, ";
-            if (batteryChargeRemaining <= 30) {
+            if (batteryChargeRemaining <= ALARM.getSoc()) {
                 msg = "ERROR, ";
-            } else if (batteryChargeRemaining <= 50) {
+            } else if (batteryChargeRemaining <= DISCHARGING.getSoc()) {
                 msg = "WARNING, ";
             }
             // if battery == USER
@@ -989,7 +991,7 @@ public class TuyaDeviceService {
             this.isUpdateHourChargeBatt = isNightTariff && this.isUpdateHourChargeBatt;
             // SUMMER or is not NightTariff
             boolean paramOnOff = false;
-            if (batterySocFromSolarman <= BatteryStatus.ALARM.getSoc()) {
+            if (batterySocFromSolarman <= ALARM.getSoc()) {
                 paramOnOff = true;
             } else if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId()) {  // solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() && isNightTariff
                 paramOnOff = this.isUpdateSwitchRelayDachaOnOffOnNight(batterySocFromSolarman);
