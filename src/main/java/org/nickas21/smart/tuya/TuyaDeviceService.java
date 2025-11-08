@@ -998,23 +998,18 @@ public class TuyaDeviceService {
             }
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-            if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.SUMMER.getSeasonsId() || !isNightTariff) { //  manual control
-                deviceUpdate.setValueNew(deviceUpdate.getValueOld());
-            }
-            // TODO
-            boolean anyThermostatOnTests = isAnyThermostatOn();
-
+            //  manual control
             if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.SUMMER.getSeasonsId() || curHour > timeLocalNightTariffFinish) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
             // For control
             log.info("""
-                    Test Seasons: [{}], paramOnOff: [{}], this.isUpdateHourChargeBatt: [{}], isAnyThermostatOn: [{}], isNightTariff: [{}]""",
+                    UpdateOnOfSwitchRelayDacha Test => Seasons: [{}], paramOnOff: [{}], this.isUpdateHourChargeBatt: [{}], isNightTariff: [{}], isChange [{}]""",
                     Seasons.fromTypeById(solarmanStationsService.getSolarmanStation().getSeasonsId()),
                     paramOnOff,
                     this.isUpdateHourChargeBatt,
-                    isAnyThermostatOn(),
-                    isNightTariff);
+                    isNightTariff,
+                    deviceUpdate.isUpdate());
             if (deviceUpdate.isUpdate()) {
                 if (paramOnOff) {
                     log.info("Grid relay Dacha [{}] to on, night tariff, exact time: [{}].", device.getName(), curHour);
@@ -1141,29 +1136,6 @@ public class TuyaDeviceService {
         } else {
             return true;
         }
-    }
-
-    public boolean isAnyThermostatOn() {
-        boolean isAnyOn = false;
-        String[] filters = getDeviceProperties().getCategoryForControlPowers();
-        if (this.devices != null) {
-            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-                Device device = entry.getValue();
-                for (String f : filters) {
-                    if (f.equals(device.getCategory())) {
-                        String fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(device.getValueSetMaxOn()) ||
-                                boilerRelayDopPrefixHome.equals(device.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
-                        Object statusValue = device.getStatusValue(fieldNameValueUpdate, false);
-                        Boolean statusValueBoolean = statusValue instanceof com.fasterxml.jackson.databind.node.BooleanNode ?
-                                ((com.fasterxml.jackson.databind.node.BooleanNode) statusValue).booleanValue() : (Boolean) statusValue;
-                        if (!deviceIdBoylerWiFi.equals(entry.getKey()) && statusValueBoolean) {
-                            isAnyOn = true;
-                        }
-                    }
-                }
-            }
-        }
-        return isAnyOn;
     }
 }
 
