@@ -15,6 +15,7 @@ import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
@@ -22,6 +23,14 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.EMPTY_HASH;
 @Slf4j
 public class HttpUtil {
 
+    /**
+     * Handle mode or delete or bad devices
+     */
+    public static final Map<String, String> devicesInHandleMode = new ConcurrentHashMap<>(Map.of(
+            "bf631d733725a51234iv5r", "Golego Floor Koridor",  // handle
+            "bf4a64ba5a2b2ee05bp6wx", "Golego Floor Kuhny",   // handle
+            "bfa0c1041fa8ad83e1oeik", "Boiler_Dacha_WiFi"         // bad devices old
+    ));
     public static final Integer tempCurrentKuhnyMin = 2;
     public static final Integer tempCurrentKuhny5 = 5;
     public static final String offOnKey = "switch";
@@ -161,5 +170,9 @@ public class HttpUtil {
         log.info("Sunrise at: [{}]", toLocaleTimeString(result[0]));
         log.info("Sunset  at: [{}]", toLocaleTimeString(result[1]));
         return result;
+    }
+
+    public static boolean isDeviceInHandleMode(String deviceId){
+        return devicesInHandleMode.get(deviceId) != null;
     }
 }

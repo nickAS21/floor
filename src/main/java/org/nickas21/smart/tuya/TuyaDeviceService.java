@@ -74,6 +74,7 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.VALUE;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
 import static org.nickas21.smart.util.HttpUtil.deviceIdTempScaleVanna;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
+import static org.nickas21.smart.util.HttpUtil.isDeviceInHandleMode;
 import static org.nickas21.smart.util.HttpUtil.offOnKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhny5;
@@ -170,7 +171,7 @@ public class TuyaDeviceService {
             if (device == null) {
                 log.warn("Device is null. Failed to create new device ... [{}]", msg);
             } else {
-                log.warn("Device is null. Successful creation of a new device with id [{}] category [{}] consumptionPower [{}]",
+                log.warn("Device is not null. Successful creation of a new device with id [{}] category [{}] consumptionPower [{}]",
                         device.getId(), device.getCategory(), device.getConsumptionPower());
             }
         }
@@ -735,33 +736,37 @@ public class TuyaDeviceService {
 
     private Device initDeviceTuya(String deviceId, Object... devParams) throws Exception {
         Device device = null;
-        String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
-        RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
-        ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
-        if (responseEntity != null && responseEntity.getBody() != null) {
-            JsonNode result = responseEntity.getBody().get("result");
-            device = treeToValue(result, Device.class);
-            device.setStatusOnline(result);
-            devices.getDevIds().put(deviceId, device);
-            path = String.format(GET_DEVICE_STATUS_URL_PATH, deviceId);
-            requestEntity = createGetTuyaRequest(path, false);
-            responseEntity = sendRequest(requestEntity);
-            if (responseEntity != null) {
-                if (responseEntity.getBody() != null && responseEntity.getBody().has("result")) {
-                    result = responseEntity.getBody().get("result");
-                    devices.getDevIds().get(deviceId).setStatus(result);
-                }
-                if (devParams.length > 0) {
-                    devices.getDevIds().get(deviceId).setConsumptionPower((Integer) devParams[0]);
-                    devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1]);
-                } else if ("wk".equals(device.getCategory())) {
-                    devices.getDevIds().get(deviceId).setConsumptionPower(2000);
+        if (!isDeviceInHandleMode(deviceId)) {
+            String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
+            RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
+            ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
+            if (responseEntity != null && responseEntity.getBody() != null) {
+                JsonNode result = responseEntity.getBody().get("result");
+                device = treeToValue(result, Device.class);
+                device.setStatusOnline(result);
+                devices.getDevIds().put(deviceId, device);
+                path = String.format(GET_DEVICE_STATUS_URL_PATH, deviceId);
+                requestEntity = createGetTuyaRequest(path, false);
+                responseEntity = sendRequest(requestEntity);
+                if (responseEntity != null) {
+                    if (responseEntity.getBody() != null && responseEntity.getBody().has("result")) {
+                        result = responseEntity.getBody().get("result");
+                        devices.getDevIds().get(deviceId).setStatus(result);
+                    }
+                    if (devParams.length > 0) {
+                        devices.getDevIds().get(deviceId).setConsumptionPower((Integer) devParams[0]);
+                        devices.getDevIds().get(deviceId).setValueSetMaxOn(devParams[1]);
+                    } else if ("wk".equals(device.getCategory())) {
+                        devices.getDevIds().get(deviceId).setConsumptionPower(2000);
+                    }
+                } else {
+                    log.error("Init tuya Device with Id [{}}] failed... ", deviceId);
                 }
             } else {
-                log.error("Init tuya Device with Id [{}}] failed... ", deviceId);
+                log.warn("Device with id [{}] is not available", deviceId);
             }
         } else {
-            log.warn("Device with id [{}] is not available", deviceId);
+            log.error("Device with id [{}] is not available. Device in handle mode or bad or delete", deviceId);
         }
         return device;
     }
@@ -982,7 +987,9 @@ public class TuyaDeviceService {
 
     public void updateOnOfSwitchRelayDacha(double batterySocFromSolarman) {
         Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
-        if (device.currentStateOnLine().getValue()) {
+        if (device == null) {
+            log.error("Device Relay Dacha switch is null... , is offline... and is not update");
+        } else if (device.currentStateOnLine().getValue()) {
             int curHour = toLocaleDateTimeHour();
             int curMinutes = toLocaleDateTimeMinutes();
             // Проблема: якщо реальний час:  Дача лічильник  => +1:17 станом на 10/10/2025
