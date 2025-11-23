@@ -4,7 +4,8 @@ import lombok.Getter;
 
 public enum BatteryStatus {
     STATIC("Static", 98.00),
-    CHARGING("Charging", 60.00),            // if more is not charging at night
+    CHARGING_60("Charging", 60.00),            // if more is not charging at night
+    CHARGING_50("Charging", 50.00),            // if more is not charging at night
     DISCHARGING("Discharging", 40.00),      //  if less is charging at night and winter
     ALARM("Alarm", 30.00);                  //  if less is charging all
 

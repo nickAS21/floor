@@ -55,6 +55,7 @@ import static org.nickas21.smart.util.StringUtils.stopThread;
 @Service
 public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService {
     private double batterySocCur;
+    private boolean batterySocCriticalNightCharging60 = false; // false == 50; true == 60
     private double stationConsumptionPower;
     private PowerValueRealTimeData powerValueRealTimeData;
     private boolean isDay;
@@ -129,7 +130,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 tuyaDeviceService.updateGridStateOnLineToTelegram();
                 // old if matter mode == USER
 //                tuyaDeviceService.updateOnOfSwitchRelay(batterySocFromSolarman);
-                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew);
+                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, this.batterySocCriticalNightCharging60);
             }
 
             log.info("""
@@ -484,7 +485,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     }
 
     private boolean getIsCharge(double batterySocNew) {
-        return BatteryStatus.CHARGING.getType().equals(powerValueRealTimeData.getBatteryStatusValue())
+        return BatteryStatus.CHARGING_60.getType().contains(powerValueRealTimeData.getBatteryStatusValue())
                 || BatteryStatus.STATIC.getType().equals(powerValueRealTimeData.getBatteryStatusValue())
                 || solarmanStationsService.getSolarmanStation().getBatSocMax() <= batterySocNew;
 

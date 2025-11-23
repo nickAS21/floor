@@ -933,8 +933,8 @@ public class TuyaDeviceService {
         this.timeoutSecUpdateMillis = timeoutSecUpdate * 1000;
     }
 
-    public void updateOnOfSwitchRelay(double batterySocFromSolarman) {
-        this.updateOnOfSwitchRelayDacha(batterySocFromSolarman);
+    public void updateOnOfSwitchRelay(double batterySocFromSolarman, boolean batterySocCriticalNightCharging60) {
+        this.updateOnOfSwitchRelayDacha(batterySocFromSolarman, batterySocCriticalNightCharging60);
         this.updateOnOfSwitchRelayHome(this.getGridRelayCodeIdHome());
         this.updateOnOfSwitchRelayHome(this.getBoilerRelayCodeIdHome());
     }
@@ -985,7 +985,7 @@ public class TuyaDeviceService {
         }
     }
 
-    public void updateOnOfSwitchRelayDacha(double batterySocFromSolarman) {
+    public void updateOnOfSwitchRelayDacha(double batterySocFromSolarman, boolean batterySocCriticalNightCharging60) {
         Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
         if (device == null) {
             log.error("Device Relay Dacha switch is null... , is offline... and is not update");
@@ -1001,7 +1001,7 @@ public class TuyaDeviceService {
             if (batterySocFromSolarman <= ALARM.getSoc()) {
                 paramOnOff = true;
             } else if (solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId()) {  // solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() && isNightTariff
-                paramOnOff = this.isUpdateSwitchRelayDachaOnOffOnNight(batterySocFromSolarman);
+                paramOnOff = this.isUpdateSwitchRelayDachaOnOffOnNight(batterySocFromSolarman, batterySocCriticalNightCharging60);
             }
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
@@ -1130,11 +1130,13 @@ public class TuyaDeviceService {
      * battery is charge/discharge 60% if  winter
      * paramOnOff = true/false if: is NightTariff && this.getHourChargeBattery() in NightTariff
      * -  HourChargeBattery < 7 ... =>  HourChargeBattery >= 23
-     * -- batterySocFromSolarman >= 60% - ok
+     * -- batterySocFromSolarman (batterySocCriticalNightCharging60 = true && > 60% - ok) || (batterySocCriticalNightCharging60 = false && > 50% - ok)
      */
-    public boolean isUpdateSwitchRelayDachaOnOffOnNight(double batterySocFromSolarman) {
+    public boolean isUpdateSwitchRelayDachaOnOffOnNight(double batterySocFromSolarman, boolean batterySocCriticalNightCharging60) {
         if (!this.isUpdateHourChargeBatt) {
-            if (batterySocFromSolarman > BatteryStatus.CHARGING.getSoc()) {
+            if (batterySocCriticalNightCharging60 && batterySocFromSolarman > BatteryStatus.CHARGING_60.getSoc()) {
+                return false;
+            } else if (!batterySocCriticalNightCharging60 && batterySocFromSolarman > BatteryStatus.CHARGING_50.getSoc()) {
                 return false;
             } else {
                 this.isUpdateHourChargeBatt = true;
