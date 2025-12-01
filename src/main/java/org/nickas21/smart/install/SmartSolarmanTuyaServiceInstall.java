@@ -7,6 +7,7 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.service.TelegramService;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.TuyaConnection;
+import org.nickas21.smart.usr.UsrTcpWiFiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,9 @@ public class SmartSolarmanTuyaServiceInstall {
     @Autowired
     TelegramService telegramService;
 
+    @Autowired
+    UsrTcpWiFiService usrTcpWiFiService;
+
     @Value("${app.test_front:false}")
     boolean testFront;
 
@@ -38,6 +42,7 @@ public class SmartSolarmanTuyaServiceInstall {
             smartSolarmanTuyaService.solarmanRealTimeDataStart();
             telegramService.init();
         }
+        usrTcpWiFiService.init();
     }
 
     @PreDestroy

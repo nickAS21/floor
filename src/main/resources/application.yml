@@ -83,6 +83,11 @@ logging.level:
   ch.qos.logback: OFF
   org.apache.pulsar: OFF
 
+usr:
+  client:
+    portStart: "${USR_CLIENT_PORT_START:8891}"
+    batteriesCnt: "${USR_CLIENT_BATTERIES_CNT:8}"
+
 ---
 spring:
   config.activate.on-cloud-platform: kubernetes

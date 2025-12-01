@@ -6,6 +6,7 @@ import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.usr.UsrTcpWiFiService;
 import org.nickas21.smart.util.DynamicScheduler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -83,6 +84,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     @Autowired
     TuyaDeviceService tuyaDeviceService;
+
+    @Autowired
+    UsrTcpWiFiService usrTcpWiFiService;
 
     @Override
     public void solarmanRealTimeDataStart() {
