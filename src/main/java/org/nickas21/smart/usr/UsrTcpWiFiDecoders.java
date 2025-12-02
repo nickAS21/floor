@@ -9,7 +9,6 @@ import java.util.List;
 
 import static org.nickas21.smart.usr.unit.UsrTcpWiFiUtils.bytesToHex;
 import static org.nickas21.smart.usr.unit.UsrTcpWifiBalanceThreadholds.getBalanceStatus;
-import static org.nickas21.smart.usr.unit.UsrTcpWifiError.decodeErrorFlags;
 import static org.nickas21.smart.usr.unit.UsrTcpWifiError.formatErrorCodeOutput;
 
 @Slf4j
@@ -27,12 +26,12 @@ public class UsrTcpWiFiDecoders {
     private static final int lenSoc = 1;
     private static final int lenBmsStatus = 2;
     private static final int lenBmsStatus1_2 = 4;
-    private static final int lenErrorInfoData = 3;
-    private static final int lenReserve = 1;
+    private static final int lenErrorInfoData = 2;
+    private static final int lenReserve = 2;
     // C1
     private static final int lenCellsAllLen = 1;
     private static final int lenCellsCnt = 1;
-    private static final int lenLifeCycles = 2;
+    private static final int lenSocRemaining = 2;
     private static final int lenVerM = 1;
 
 
@@ -56,9 +55,8 @@ public class UsrTcpWiFiDecoders {
             i += lenBmsStatus1_2;
             int bmsStatus2 = (bb.getInt(i));
             i += lenBmsStatus1_2;
-            int errorInfoData = (bb.getShort(i) & 0xFFFFFF);
+            int errorInfoData = bb.getShort(i) & 0xFFFF;
             i += lenErrorInfoData;
-            int reserve = payloadBytes[i] & 0xFF;
             String errorOutput = formatErrorCodeOutput(errorInfoData, 9);
 
             StringBuilder out = new StringBuilder();
@@ -104,12 +102,12 @@ public class UsrTcpWiFiDecoders {
             byte[] cellsData = new byte[lenCells];
             System.arraycopy(cellsDataAll, i, cellsData, 0, lenCells);
             i += lenCells;
-            int lifeCycles = ((bbCellsAll.getShort(i) & 0xFFFF));
-            i += lenLifeCycles;
+            double socRemaining = (bbCellsAll.getShort(i) & 0xFFFF) / 10.0;
+            i += lenSocRemaining;
             int soc = cellsDataAll[i] & 0xFF;
             i += lenSoc;
-            int errorInfoData = (bb.getShort(i) & 0xFFFFFF);
-            int soh = (int) Math.round(100 - (lifeCycles * SOH_LOSS_PER_CYCLE));
+            int errorInfoData = bb.getShort(i) & 0xFFFF;
+            i += lenErrorInfoData;
 
             // Voltages
             List<Integer> voltages = new ArrayList<>();
@@ -133,9 +131,8 @@ public class UsrTcpWiFiDecoders {
             out.append("#  | Name             | Value\n");
             out.append("---|------------------|------------\n");
             out.append(String.format("1  | Ver:             | V%02d%02d\n", majorVersion, minorVersion));
-            out.append(String.format("2  | Life Cycles:     | %d\n", lifeCycles));
+            out.append(String.format("2  | SOC Remaining:   | %.2f %%\n", socRemaining));
             out.append(String.format("3  | SOC:             | %d %%\n",soc));
-            out.append(String.format("4  | SOH:             | %d %%\n", soh));
             out.append(String.format("5  | SUM_V:           | %.2f V\n", sumV));
             out.append(String.format("6  | Cell%02d_MIN:      | %.3f V\n", idxMin, minMv / 1000.0));
             out.append(String.format("7  | Cell%02d_MAX:      | %.3f V\n", idxMax, maxMv / 1000.0));
@@ -173,25 +170,23 @@ public class UsrTcpWiFiDecoders {
             i += lenCurrentACur;
             int soc = payloadBytes[i] & 0xFF;
             i += lenSoc;
-            int bmsStatus = (bb.getShort(i) & 0xFFFF);
-            String bmsStatusStr = UsrTcpWifiStatus.fromCode(bmsStatus).getStatus();
+            int bmsStatus = bb.getShort(i) & 0xFFFF;
+            String bmsStatusStr = UsrTcpWifiStatus.fromStatusByeCode(bmsStatus);
             i += lenBmsStatus;
             i += lenBmsStatus1_2;
             i += lenBmsStatus1_2;
-            int errorInfoData = (bb.getShort(i) & 0xFFFFFF);
-            List<String> errors = decodeErrorFlags(errorInfoData);
+            int errorInfoData = bb.getShort(i) & 0xFFFF;
             i += lenErrorInfoData;
-            int reserve = payloadBytes[i] & 0xFF;
-            String errorOutput = formatErrorCodeOutput(errorInfoData, 9);
+            String errorOutput = formatErrorCodeOutput(errorInfoData, 7);
 
             StringBuilder out = new StringBuilder();
             out.append("\n--- DETAILS DECODE C0 (BMS General Status - INFO) ---\n");
             out.append(String.format("1  | Voltage Min (V)  | %.2f V\n", voltageVMin));
             out.append(String.format("2  | Voltage (V)      | %.2f V\n", voltageVCur));
             out.append(String.format("3  | Current (A)      | %.2f A\n", currentACur));
-            out.append(String.format("4  | SOC (%%)         | %d %%\n", soc));
+            out.append(String.format("4  | SOC (%%)          | %d %%\n", soc));
             out.append(String.format("5  | BMS status       | %s\n", bmsStatusStr));
-            out.append(String.format("8  | Error info Data  | 0x%s (%dB)\n", Integer.toHexString(errorInfoData).toUpperCase(), lenErrorInfoData));
+            out.append(String.format("6  | Error info Data  | 0x%s (%dB)\n", Integer.toHexString(errorInfoData).toUpperCase(), lenErrorInfoData));
             out.append(errorOutput).append("\n");
             out.append("------------------------------------------------\n");
             return out.toString();

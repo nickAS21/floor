@@ -39,4 +39,9 @@ public enum UsrTcpWifiStatus {
     public String getStatus() {
         return status;
     }
+
+    public static String fromStatusByeCode(int code) {
+        UsrTcpWifiStatus usrTcpWifiStatus = fromCode(code);
+        return usrTcpWifiStatus == null ?  String.format("UNKNOWN_ERROR_CODE (0x%s})", Integer.toHexString(code)) : usrTcpWifiStatus.status;
+    }
 }

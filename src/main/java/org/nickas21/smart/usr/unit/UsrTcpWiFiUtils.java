@@ -51,12 +51,22 @@ public final class UsrTcpWiFiUtils {
 
     public static int parseBytesToIntBigEndian(byte[] data, int offset, int length) {
         int value = 0;
+
+        // скільки байтів треба додати зліва, щоб стало рівно 4
+        int missingBytes = 4 - length;
+
+        // додаємо відсутні старші байти (значення 0)
+        for (int i = 0; i < missingBytes; i++) {
+            value = (value << 8);
+        }
+
+        // додаємо реальні байти
         for (int i = 0; i < length; i++) {
             value = (value << 8) | (data[offset + i] & 0xFF);
         }
+
         return value;
     }
-
 
     // Utility: bytes -> HEX uppercase
     public static String bytesToHex(byte[] bytes) {

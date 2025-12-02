@@ -1,78 +1,73 @@
 package org.nickas21.smart.usr.unit;
 
+import lombok.Getter;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * Enum for managing and mapping error codes received from the BMS.
  * Maps error bitmasks (Hex Integers) to human-readable descriptions.
  */
+@Getter
 public enum UsrTcpWifiError {
 
-    // --- BYTE 1 FAULTS (Critical/General: Bits 31-24) ---
+
+    // --- BYTE 1 (біти 15–8) ---
     CRITICAL(0x20, "CRITICAL_FAULT", 1),
     WARNING(0x10, "WARNING: STATE AFTER CRITICAL FAULT", 1),
 
-    // --- BYTE 2 FAULTS (Specific: Bits 23-16) ---
-    UNIT_LOW_CHARGE(0x08, "CRITICALLY_LOW_CHARGE (<18%)", 2),
-    CELLS_UNBALANCE(0x04, "CELL_UNBALANCE", 2),
-    CELLS_UNDER_VOLTAGE(0x02, "UNDER_VOLTAGE_CELL", 2),
-    CELLS_OVER_VOLTAGE(0x01, "OVER_VOLTAGE_CELL", 2);
+    // --- BYTE 0 (біти 7–0) ---
+    UNIT_LOW_CHARGE(0x08, "CRITICALLY_LOW_CHARGE (<18%)", 0),
+    CELLS_UNBALANCE(0x04, "UNBALANCE_CELLS", 0),
+    CELLS_UNDER_VOLTAGE(0x02, "UNDER_VOLTAGE_CELLS", 0),
+    CELLS_OVER_VOLTAGE(0x01, "OVER_VOLTAGE_CELLS", 0);
 
-
-    private final int code;
+    private final int mask;
+    private final int byteIndex;
     private final String description;
-    private final int byteType; // 1 or 2
 
-
-    // Constructor
-    UsrTcpWifiError(int code, String description, int byteType) {
-        this.code = code;
+    UsrTcpWifiError(int mask, String description, int byteIndex) {
+        this.mask = mask;
         this.description = description;
-        this.byteType = byteType;
+        this.byteIndex = byteIndex;
     }
 
-    /**
-     * Finds the enum member that matches the exact code value.
-     * NOTE: This method is O(N) complexity as it iterates through all members.
-     */
-    public static UsrTcpWifiError fromCode(int code) {
-        for (UsrTcpWifiError to : UsrTcpWifiError.values()) {
-            if (to.code == code) {
-                return to;
-            }
-        }
-        return null;
+    public boolean isSet(int value) {
+        int byteValue = (value >> (byteIndex * 8)) & 0xFF;
+        return (byteValue & mask) != 0;
     }
 
-    public static List<String> decodeErrorFlags(int errorCodeInt) {
-        List<String> messages = new ArrayList<>();
+    public static List<UsrTcpWifiError> parse(int value) {
+        return Arrays.stream(values())
+                .filter(f -> f.isSet(value))
+                .toList();
+    }
 
-        // Extract BYTE1 (Critical/General) from bits 31-24 (4th byte)
-        int byte1 = (errorCodeInt >> 24) & 0xFF;
+    public static List<String> parseDescriptions(int value) {
+        return Arrays.stream(values())
+                .filter(f -> f.isSet(value))
+                .map(f -> f.getDescription()
+                        + " (0x"
+                        + Integer.toHexString(f.getMask()).toUpperCase()
+                        + ")")
+                .toList();
+    }
 
-        // Extract BYTE2 (Specific) from bits 23-16 (3rd byte)
-        int byte2 = (errorCodeInt >> 16) & 0xFF;
-
-        // Iterate through ALL enum members to check the bitmasks
-        for (UsrTcpWifiError error : UsrTcpWifiError.values()) {
-
-            int targetByte = error.getByteType() == 1 ? byte1 : byte2;
-
-            // Check if the corresponding byte (byte1 or byte2) has the fault bit set
-            if ((targetByte & error.getCode()) != 0) {
-                // Check that the fault belongs to the currently processed byte
-                if (error.getByteType() == 1 && error.getCode() == (byte1 & error.getCode())) {
-                    messages.add(error.getDescription() + " (0x" + Integer.toHexString(error.getCode()).toUpperCase() + ")");
-                } else if (error.getByteType() == 2 && error.getCode() == (byte2 & error.getCode())) {
-                    messages.add(error.getDescription() + " (0x" + Integer.toHexString(error.getCode()).toUpperCase() + ")");
-                }
-            }
-        }
+    public static List<String> decodeErrorFlags(int errorValue) {
+        List<String> messages =  Arrays.stream(UsrTcpWifiError.values())
+                .filter(f -> f.isSet(errorValue))
+                .map(f -> f.getDescription()
+                        + " (0x"
+                        + Integer.toHexString(f.getMask()).toUpperCase()
+                        + ")")
+                .toList();
 
         // Check for UNKNOWN codes in the lowest 2 bytes (bits 15-0)
-        if (messages.isEmpty() && (errorCodeInt & 0xFFFF) != 0) {
-            messages.add("UNKNOWN_ERROR_CODE (0x" + Integer.toHexString(errorCodeInt).toUpperCase() + ")");
+        if (messages.isEmpty() && errorValue != 0) {
+            messages = new ArrayList<>();
+            messages.add("UNKNOWN_ERROR_CODE (0x" + Integer.toHexString(errorValue).toUpperCase() + ")");
         }
 
         return messages;
@@ -92,16 +87,4 @@ public enum UsrTcpWifiError {
         return String.format("%d  | Error_Code:      | %s", number, details);
     }
 
-
-    public int getCode() {
-        return code;
-    }
-
-    public int getByteType() {
-        return byteType;
-    }
-
-    public String getDescription() {
-        return description;
-    }
 }
