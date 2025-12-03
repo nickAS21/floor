@@ -56,5 +56,21 @@ public class StringUtils {
     public static Boolean isBoolean(String str) {
         return "true".equals(str) ? Boolean.TRUE : "false".equals(str) ? Boolean.FALSE : null;
     }
+
+    public static String bytesToHex(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) return "";
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) sb.append(String.format("%02X", b));
+        return sb.toString();
+    }
+
+    public static byte[] hexToBytes(String hex) {
+        int len = hex.length();
+        byte[] arr = new byte[len / 2];
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), 16);
+        }
+        return arr;
+    }
 }
 

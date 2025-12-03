@@ -7,7 +7,7 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.service.TelegramService;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.TuyaConnection;
-import org.nickas21.smart.usr.UsrTcpWiFiService;
+import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
