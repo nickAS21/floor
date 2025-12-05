@@ -26,6 +26,7 @@ public class UsrTcpWiFiDecoders {
     public static final int ID_END = ID_START + ID_LEN;
     private static final int CRC_LEN = 2;
     public static final int MIN_PACKET_LENGTH = ID_END + CRC_LEN;
+    public static final int PORT_MASTER = 8898;
 
     // C0
     private static final int lenVoltageMinV = 2;
@@ -45,7 +46,7 @@ public class UsrTcpWiFiDecoders {
     public static String keyVoltage = "voltage";
 
 
-    public static void decodeC0Payload(byte[] payloadBytes, UsrTcpWifiC0Data c0Data, UsrTcpWiFiErrorRecord errorRecord, Instant timestamp) {
+    public static void decodeC0Payload(byte[] payloadBytes, UsrTcpWifiC0Data c0Data, UsrTcpWiFiErrorRecord errorRecord, String hostAddress, Instant timestamp) {
         try {
             int i = 0;
             ByteBuffer bb = ByteBuffer.wrap(payloadBytes);
@@ -68,7 +69,7 @@ public class UsrTcpWiFiDecoders {
             i += lenErrorInfoData;
 
             c0Data.updateC0Data(voltageMinV, voltageCurV, currentCurA, socPercent, bmsStatus,
-                                bmsStatus1, bmsStatus2, errorInfoData, timestamp);
+                                bmsStatus1, bmsStatus2, errorInfoData, hostAddress, timestamp);
 
             StringBuilder out = new StringBuilder();
             out.append("\n--- DETAILS DECODE C0 (BMS General Status) ---\n");

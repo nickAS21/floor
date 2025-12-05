@@ -860,8 +860,8 @@ public class TuyaDeviceService {
         }
     }
 
-    public void sendBatteryChargeRemaining(double batVolNew, double batCurNew, double bmsVolNew, double bmsCurNew, double bmsTempNew, double batterySocNew,
-                                           double  batteryPowerNew, String batteryStatusNew) {
+    public void sendDachaBatteryChargeRemaining(double batVolNew, double batCurNew, double bmsVolNew, double bmsCurNew, double bmsTempNew, double batterySocNew,
+                                                double  batteryPowerNew, String batteryStatusNew, String usrBmsSummary) {
         // if battery == USER
 //        double batteryChargeRemaining = SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
         double batteryChargeRemaining = batterySocNew;
@@ -883,16 +883,20 @@ public class TuyaDeviceService {
             // if battery == USER
 //            String msgSoc = msg + "Battery Remaining at the Country House: [" + batteryChargeRemaining + " %]/(on inverter [" + batterySocFromSolarman + " %]).";
             double bmsPower = Math.round((bmsVolNew * bmsCurNew) * 100.0) / 100.0;
-            String msgSoc = msg + "Battery Remaining at the Country House:\n" +
-                    "- SOCs: [" + batteryChargeRemaining + " %];\n" +
+            String  msgSoc = msg + "Battery Remaining at the Country House:\n" +
+                    "- SOC: [" + batteryChargeRemaining + " %];\n" +
                     "- BatteryStatus: [" + batteryStatusNew + "];\n" +
                     "- BmsPower: [" + bmsPower + " W];\n" +
                     "- BmsVoltage: [" + bmsVolNew + " V];\n" +
                     "- BmsTemperature: [" + bmsTempNew + "  ℃];\n" +
                     "- BmsCurrent: [" + bmsCurNew + " A];\n" +
-                    "- Powers: [" + batteryPowerNew + " W];\n" +
-                    "- Voltages: [" + batVolNew + " V];\n" +
-                    "- Currents: [" + batCurNew + " A].";
+                    "- Powers: [" + batteryPowerNew + " W];\n";
+            if (usrBmsSummary == null) {
+                msgSoc = msgSoc + "- Voltages: [" + batVolNew + " V];\n" +
+                        "- Currents: [" + batCurNew + " A].";
+            } else {
+                msgSoc = msgSoc + "Usr Battery Remaining at the Golego:\n" + usrBmsSummary;
+            }
             this.updateMessageAlarmToTelegram(msgSoc);
             this.lastUpdateTimeAlarmTempInfoHome = lastUpdateTimeAlarmTempInfo;
         }

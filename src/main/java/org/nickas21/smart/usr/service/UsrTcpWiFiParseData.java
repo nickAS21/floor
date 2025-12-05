@@ -28,7 +28,6 @@ import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C1;
 import static org.nickas21.smart.usr.data.UsrTcpWifiBalanceThresholds.CRITICAL_LIMIT;
 import static org.nickas21.smart.usr.data.UsrTcpWifiBalanceThresholds.EMERGENCY_MAX;
 import static org.nickas21.smart.util.StringUtils.bytesToHex;
-import static org.nickas21.smart.util.StringUtils.stringToBytesBas64;
 
 @Slf4j
 @Service
@@ -105,7 +104,7 @@ public class UsrTcpWiFiParseData {
                     UsrTcpWiFiErrorRecord errorRecord = this.batteryRegistry.getBattery(port).getErrRecord();
                     if (C0.equals(msgType)) {
                         UsrTcpWifiC0Data c0Data = this.batteryRegistry.getBattery(port).getC0Data();
-                        UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, errorRecord, nowInstant);
+                        UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, errorRecord, hostAddress, nowInstant);
                         this.batteryRegistry.getBattery(port).setLastTime(nowInstant);
                         String infoC0BmsMsg = c0Data.decodeC0BmsInfoPayload(output);
                         if (!infoC0BmsMsg.isBlank()) {
@@ -128,13 +127,7 @@ public class UsrTcpWiFiParseData {
                         // 764862063274;8897;C1;len;c1Data.balanceS
                         if (c1Data.getBalanceS() != null &&
                                 (c1Data.getBalanceS().equals(CRITICAL_LIMIT) || c1Data.getBalanceS().equals(EMERGENCY_MAX))) {
-                            byte[] errorMsgBalance = stringToBytesBas64(c1Data.getBalanceS().getDescription());
-//                            this.logWriter.writeError(new UsrTcpWiFiPacketRecord(
-//                                    timestamp,
-//                                    port,
-//                                    ErrorLogType.B1.name(),
-//                                    errorMsgBalance.length,
-//                                    errorMsgBalance));
+                            byte[] errorMsgBalance = c1Data.getBalanceS().getDescription().getBytes(java.nio.charset.StandardCharsets.US_ASCII);
                             pendingErrorRecords.add(
                                     new UsrTcpWiFiPacketRecord(
                                             timestamp,
@@ -151,13 +144,7 @@ public class UsrTcpWiFiParseData {
                         // 1764862063274;8897;C1;len;2008
                         // 1764862063274;8897;C1;len;1007 => c1Data.errOutput
                         if (c1Data.getErrorInfoData() != null && c1Data.getErrorInfoData() > 0) {
-                            byte[] errorMsgInfoData = stringToBytesBas64(c1Data.getErrOutput());
-//                            this.logWriter.writeError(new UsrTcpWiFiPacketRecord(
-//                                    timestamp,
-//                                    port,
-//                                    ErrorLogType.E1.name(),
-//                                    errorMsgInfoData.length,
-//                                    errorMsgInfoData));
+                            byte[] errorMsgInfoData = c1Data.getErrOutput().getBytes();
                             pendingErrorRecords.add(
                                     new UsrTcpWiFiPacketRecord(
                                             timestamp,
@@ -183,12 +170,6 @@ public class UsrTcpWiFiParseData {
                     // write to file last
                     // 1764862062785;8895;C0;21;140014AAFFF75A00040000000A0000000500000000
                     // 1764862063274;8897;C1;43;28100CDF0CD50CDF0CDB0CEA0CDB0CE80CEB0CF00CE20CE70CEB0CEA0CF50CF90CFC03F25F000000000C10
-//                    this.logWriter.writeLast(new UsrTcpWiFiPacketRecord(
-//                            timestamp,
-//                            port,
-//                            typeFrameName,
-//                            payloadBytes.length,
-//                            payloadBytes));
                     lastLastRecord = new UsrTcpWiFiPacketRecord(
                             timestamp,
                             port,
@@ -245,6 +226,28 @@ public class UsrTcpWiFiParseData {
             return false;
         }
         return true;
+    }
+
+    public String getBmsSummary(int port){
+        UsrTcpWifiC0Data c0Data = this.batteryRegistry.getBattery(port).getC0Data();
+        UsrTcpWifiC1Data c1Data = this.batteryRegistry.getBattery(port).getC1Data();
+        if (c0Data.getTimestamp() == null || c1Data.getTimestamp() == null) return null;
+        try {
+            StringBuilder out = new StringBuilder();
+            out.append(String.format("- HostAddress: %s\n", c0Data.getHostAddress()));
+            out.append(String.format("- SOC: %d %%\n", c0Data.getSocPercent()));
+            out.append(String.format("- Voltage: %.2f V\n", c0Data.getVoltageCurV()));
+            out.append(String.format("- Current: %.2f A\n", c0Data.getCurrentCurA()));
+            out.append(String.format("- BMS status %s\n", c0Data.getBmsStatusStr()));
+            out.append(String.format("- Cells delta: %.3f V\n", c1Data.getDeltaMv() / 1000.0));
+            if (c0Data.getErrorInfoData() > 0) {
+                out.append(String.format("- Error info Data:  | 0x%s\n", Integer.toHexString(c0Data.getErrorInfoData()).toUpperCase()));
+            }
+            return out.toString();
+        } catch (Exception e) {
+            log.error("CRITICAL DECODE ERROR C0", e);
+            return null;
+        }
     }
 
 

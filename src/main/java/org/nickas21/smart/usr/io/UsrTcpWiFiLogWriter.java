@@ -13,14 +13,14 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 
-import static org.nickas21.smart.util.StringUtils.bytesToHex;
-
 @Component
 public class UsrTcpWiFiLogWriter implements Closeable {
 
     private BufferedWriter writerLast;
     private BufferedWriter writerError;
 
+    @Value("${usr.tcp.file-cur:usrTcpWiFiCur.log}")
+    private String fileCur;
 
     @Value("${usr.tcp.logs-dir:}")
     String logsDir;
@@ -45,25 +45,14 @@ public class UsrTcpWiFiLogWriter implements Closeable {
 
     // ---- ЗАПИС В LAST ----
     public synchronized void writeLast(UsrTcpWiFiPacketRecord rec) throws IOException {
-        writerLast.write(getLine(rec));
+        writerLast.write(rec.toLine());
         writerLast.flush();
     }
 
     // ---- ЗАПИС В ERROR ----
     public synchronized void writeError(UsrTcpWiFiPacketRecord rec) throws IOException {
-        writerError.write(getLine(rec));
+        writerError.write(rec.toLine());
         writerError.flush();
-    }
-
-
-    private String getLine(UsrTcpWiFiPacketRecord rec) throws IOException {
-        String hexPayload = bytesToHex(rec.payload());
-        return
-                rec.timestamp() + ";" +
-                        rec.port() + ";" +
-                        rec.type() + ";" +
-                        rec.payloadLength() + ";" +
-                        hexPayload + "\n";
     }
 
     @Override

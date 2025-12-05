@@ -6,6 +6,7 @@ import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.util.DynamicScheduler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.PORT_MASTER;
 import static org.nickas21.smart.util.HttpUtil.batteryCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.batteryDailyChargeKey;
 import static org.nickas21.smart.util.HttpUtil.batteryDailyDischargeKey;
@@ -84,6 +86,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     @Autowired
     TuyaDeviceService tuyaDeviceService;
 
+    @Autowired
+    UsrTcpWiFiParseData usrTcpWiFiParseData;
+
     @Override
     public void solarmanRealTimeDataStart() {
         this.batterySocCur = 0;
@@ -133,6 +138,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, this.batterySocCriticalNightCharging60);
             }
 
+            String usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(PORT_MASTER);
             log.info("""
                             Current data:\s
                             Current real time data: [{}], -Update real time data: [{}],\s
@@ -142,12 +148,13 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
                             -relayStatus: [{}], -gridStatusSolarman: [{}], -gridStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh],
                             -AC (inverter) Temperature:  [{} grad C].
-                        """,
+                            - usrBmsSummary:\s
+                             {}
+                       """,
                     curInstStr,
                     toLocaleTimeString(powerValueRealTimeData.getCollectionTime() * 1000),
 
                     this.batterySocCur, batterySocNew,
-//                    batterySocFromSolarman,
                     String.format("%.2f", (batterySocNew - this.batterySocCur)),
                     String.format("%.2f", batterySocMin),
 
@@ -168,8 +175,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     tuyaDeviceService.getGridRelayCodeDachaStateOnLine(),
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell(),
-                    powerValueRealTimeData.getInverterTempValue());
-            tuyaDeviceService.sendBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, bmsTempNew, batterySocNew, batteryPowerNew, batteryStatusNew);
+                    powerValueRealTimeData.getInverterTempValue(),
+                    usrBmsSummary == null ? "null" : usrBmsSummary);
+            tuyaDeviceService.sendDachaBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, bmsTempNew,
+                    batterySocNew, batteryPowerNew, batteryStatusNew, usrBmsSummary);
             if (isDay) {
                 isUpdateToMinAfterIsDayFalse = false;
                 if (this.batterySocCur > 0) {

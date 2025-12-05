@@ -26,14 +26,14 @@ public class UsrTcpWifiC0Data {
     private long bmsStatus2;
     private int errorInfoData;
     private String errorOutput;
-
+    private String hostAddress;
     private Instant timestamp;
 
     // -----------------------------
     //   MAIN UPDATE METHOD
     // -----------------------------
     public void updateC0Data(double voltageMinV, double voltageCurV, double currentCurA, int socPercent, int bmsStatus,
-                             long bmsStatus1, long bmsStatus2, int errorInfoData, Instant timestamp) {
+                             long bmsStatus1, long bmsStatus2, int errorInfoData, String hostAddress, Instant timestamp) {
         this.voltageMinV = voltageMinV;
         this.voltageCurV = voltageCurV;
         this.currentCurA = currentCurA;
@@ -44,6 +44,7 @@ public class UsrTcpWifiC0Data {
         this.bmsStatus2 = bmsStatus2;
         this.errorInfoData = errorInfoData;
         this.errorOutput = formatErrorCodeOutput(this.errorInfoData);
+        this.hostAddress =  hostAddress;
         this.timestamp = timestamp;
     }
 
