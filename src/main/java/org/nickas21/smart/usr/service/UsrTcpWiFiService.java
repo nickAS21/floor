@@ -50,6 +50,9 @@ public class UsrTcpWiFiService {
     // INIT CONFIG
     // --------------------------
     public void init() {
+        if (logsDir == null || logsDir.isBlank()) {
+            logsDir = "/tmp/usr-bms";   // fallback for Kubernetes
+        }
         log.info("Starting USR TCP WiFi listeners...");
         for (int port : ports) {
             Thread t = new Thread(() -> listenOnPort(port), "usr-tcp-listener-" + port);

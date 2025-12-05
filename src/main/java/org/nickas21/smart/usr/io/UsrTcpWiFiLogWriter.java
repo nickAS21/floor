@@ -11,6 +11,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @Component
@@ -33,6 +35,22 @@ public class UsrTcpWiFiLogWriter implements Closeable {
 
     @PostConstruct
     public void init() throws IOException {
+        try {
+            initInternal();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    public void initInternal() throws IOException {
+        if (logsDir == null || logsDir.isBlank()) {
+            logsDir = "/tmp/usr-bms";   // fallback for Kubernetes
+        }
+
+        Path dir = Paths.get(logsDir);
+        Files.createDirectories(dir);
+
         this.writerLast = openWriter(fileLast);
         this.writerError = openWriter(fileError);
     }

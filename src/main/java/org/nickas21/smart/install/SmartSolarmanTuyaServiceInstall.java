@@ -41,8 +41,8 @@ public class SmartSolarmanTuyaServiceInstall {
             solarmanStationsService.init();
             smartSolarmanTuyaService.solarmanRealTimeDataStart();
             telegramService.init();
+            usrTcpWiFiService.init();
         }
-        usrTcpWiFiService.init();
     }
 
     @PreDestroy
