@@ -1,5 +1,8 @@
 package org.nickas21.smart.usr.data;
 
+import lombok.Getter;
+
+@Getter
 public enum UsrTcpWifiBalanceThresholds {
 
     EXCELLENT_MAX(10, "Excellent", "BALANCE CELLS is very good"),
@@ -17,18 +20,6 @@ public enum UsrTcpWifiBalanceThresholds {
         this.code = code;
         this.state = state;
         this.description = description;
-    }
-
-    public int getCode() {
-        return code;
-    }
-
-    public String getState() {
-        return state;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     /**

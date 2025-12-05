@@ -2,6 +2,9 @@ package org.nickas21.smart.util;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 @Slf4j
 public class StringUtils {
 
@@ -71,6 +74,24 @@ public class StringUtils {
             arr[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), 16);
         }
         return arr;
+    }
+    public static byte[] intToBytesBigEndian(Integer value) {
+        return new byte[]{(byte) ((value >> 8) & 0xFF), (byte) (value & 0xFF)};
+    }
+
+    public static byte[] stringToBytesBas64 (String errorMsg) {
+        return Base64.getEncoder()
+                .encode(errorMsg.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static String bytesBase64ToString(byte[] base64Bytes) {
+        // 1. Отримуємо декодер Base64
+        byte[] decodedBytes = Base64.getDecoder()
+                // 2. Декодуємо Base64 масив байтів
+                .decode(base64Bytes);
+
+        // 3. Створюємо новий рядок із декодованих байтів, використовуючи UTF-8
+        return new String(decodedBytes, StandardCharsets.UTF_8);
     }
 }
 

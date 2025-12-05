@@ -13,10 +13,13 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 
+import static org.nickas21.smart.util.StringUtils.bytesToHex;
+
 @Component
 public class UsrTcpWiFiLogWriter implements Closeable {
 
-    private BufferedWriter writer;
+    private BufferedWriter writerLast;
+    private BufferedWriter writerError;
 
 
     @Value("${usr.tcp.logs-dir:}")
@@ -25,34 +28,48 @@ public class UsrTcpWiFiLogWriter implements Closeable {
     @Value("${usr.tcp.file-last:}")
     String fileLast;
 
+    @Value("${usr.tcp.file-error:}")
+    String fileError;
+
     @PostConstruct
     public void init() throws IOException {
-        File file = Paths.get(logsDir, fileLast).toFile();
-        this.writer = new BufferedWriter(
+        this.writerLast = openWriter(fileLast);
+        this.writerError = openWriter(fileError);
+    }
+
+    private BufferedWriter openWriter(String name) throws IOException {
+        File file = Paths.get(logsDir, name).toFile();
+        return new BufferedWriter(
                 new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8));
     }
 
-    public synchronized void append(UsrTcpWiFiPacketRecord rec) throws IOException {
+    // ---- ЗАПИС В LAST ----
+    public synchronized void writeLast(UsrTcpWiFiPacketRecord rec) throws IOException {
+        writerLast.write(getLine(rec));
+        writerLast.flush();
+    }
+
+    // ---- ЗАПИС В ERROR ----
+    public synchronized void writeError(UsrTcpWiFiPacketRecord rec) throws IOException {
+        writerError.write(getLine(rec));
+        writerError.flush();
+    }
+
+
+    private String getLine(UsrTcpWiFiPacketRecord rec) throws IOException {
         String hexPayload = bytesToHex(rec.payload());
-        writer.write(
+        return
                 rec.timestamp() + ";" +
                         rec.port() + ";" +
                         rec.type() + ";" +
                         rec.payloadLength() + ";" +
-                        hexPayload
-        );
-        writer.write("\n");
-        writer.flush();
+                        hexPayload + "\n";
     }
 
     @Override
     public void close() throws IOException {
-        writer.close();
+        writerLast.close();
+        writerError.close();
     }
 
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) sb.append(String.format("%02X", b));
-        return sb.toString();
-    }
 }
