@@ -1,7 +1,7 @@
 package org.nickas21.smart.usr.io;
 
-import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedWriter;
@@ -11,52 +11,31 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
+@Slf4j
 @Component
 public class UsrTcpWiFiLogWriter implements Closeable {
 
     private BufferedWriter writerLast;
     private BufferedWriter writerError;
 
-    @Value("${usr.tcp.file-cur:usrTcpWiFiCur.log}")
-    private String fileCur;
+    private String  logDir;
 
-    @Value("${usr.tcp.logs-dir:}")
-    String logsDir;
-
-    @Value("${usr.tcp.file-last:}")
-    String fileLast;
-
-    @Value("${usr.tcp.file-error:}")
-    String fileError;
-
-    @PostConstruct
-    public void init() throws IOException {
+    public void init(String  logDir, UsrTcpWiFiProperties usrTcpWiFiProperties) throws IOException {
         try {
-            initInternal();
+            log.info("UsrTcpWiFiLogWriter init... logDir: {}", logDir);
+            this.logDir = logDir;
+            this.writerLast = openWriter(usrTcpWiFiProperties.getFileLast());
+            this.writerError = openWriter(usrTcpWiFiProperties.getFileError());
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed start ", e);
             throw e;
         }
     }
 
-    public void initInternal() throws IOException {
-        if (logsDir == null || logsDir.isBlank()) {
-            logsDir = "/tmp/usr-bms";   // fallback for Kubernetes
-        }
-
-        Path dir = Paths.get(logsDir);
-        Files.createDirectories(dir);
-
-        this.writerLast = openWriter(fileLast);
-        this.writerError = openWriter(fileError);
-    }
-
     private BufferedWriter openWriter(String name) throws IOException {
-        File file = Paths.get(logsDir, name).toFile();
+        File file = Paths.get(this.logDir, name).toFile();
         return new BufferedWriter(
                 new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8));
     }

@@ -4,8 +4,14 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties("usr.client")
+@ConfigurationProperties("usr.tcp")
 public class UsrTcpWiFiProperties {
     private Integer portStart = 8891;
     private Integer batteriesCnt = 8;
+    private String logsDir = "./logs/";
+    private String fileError = "srTcpWiFiError.log";
+    private String fileLast= "usrTcpWiFiLast.log";
+    private String fileCur = "usrTcpWiFiCur.log";
+    private Integer offline = 120;
+    private Integer removeAll = 259200; //   259200 - 3 days
 }

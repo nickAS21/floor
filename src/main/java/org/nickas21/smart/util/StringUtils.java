@@ -67,6 +67,10 @@ public class StringUtils {
         return sb.toString();
     }
 
+    public static String intToHex(Integer value) {
+        return bytesToHex((intToBytesBigEndian(value)));
+    }
+
     public static byte[] hexToBytes(String hex) {
         int len = hex.length();
         byte[] arr = new byte[len / 2];

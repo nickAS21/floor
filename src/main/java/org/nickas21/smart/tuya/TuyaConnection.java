@@ -9,7 +9,6 @@ import org.nickas21.smart.tuya.mq.MqPulsarConsumer;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaMessageUtil;
 import org.nickas21.smart.util.JacksonUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 
@@ -23,10 +22,9 @@ public class TuyaConnection implements TuyaConnectionIn {
     private final TuyaConnectionProperties tuyaConnectionConfiguration;
 
 
-    @Autowired()
-    private TuyaDeviceService tuyaDeviceService;
-    @Autowired()
-    private TelegramService telegramService;
+    private final TuyaDeviceService tuyaDeviceService;
+
+    private final TelegramService telegramService;
 
     public void init() {
         mqPulsarConsumer = createMqConsumer(this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk());

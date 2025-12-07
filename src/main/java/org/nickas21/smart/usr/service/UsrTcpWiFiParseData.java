@@ -28,6 +28,7 @@ import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C1;
 import static org.nickas21.smart.usr.data.UsrTcpWifiBalanceThresholds.CRITICAL_LIMIT;
 import static org.nickas21.smart.usr.data.UsrTcpWifiBalanceThresholds.EMERGENCY_MAX;
 import static org.nickas21.smart.util.StringUtils.bytesToHex;
+import static org.nickas21.smart.util.StringUtils.intToHex;
 
 @Slf4j
 @Service
@@ -42,7 +43,6 @@ public class UsrTcpWiFiParseData {
     private static final long WRITE_INTERVAL = 240_000; // 4 min
     private long lastWriteTimeError = 0;
     private long lastWriteTimeLast = 0;
-    private UsrTcpWiFiPacketRecord lastLastRecord = null;
 
     public UsrTcpWiFiParseData(UsrTcpWiFiLogWriter logWriter, UsrTcpWiFiBatteryRegistry batteryRegistry) {
         this.logWriter = logWriter;
@@ -104,19 +104,25 @@ public class UsrTcpWiFiParseData {
                     UsrTcpWiFiErrorRecord errorRecord = this.batteryRegistry.getBattery(port).getErrRecord();
                     if (C0.equals(msgType)) {
                         UsrTcpWifiC0Data c0Data = this.batteryRegistry.getBattery(port).getC0Data();
-                        UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, errorRecord, hostAddress, nowInstant);
-                        this.batteryRegistry.getBattery(port).setLastTime(nowInstant);
+                        UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, hostAddress, nowInstant);
+                        if (c0Data.getErrorInfoData() > 0) {
+                            this.batteryRegistry.getBattery(port).setErrRecord(new UsrTcpWiFiErrorRecord(c0Data.getTimestamp(), intToHex(c0Data.getErrorInfoData()), c0Data.getErrorOutput()));
+                        }
+                        this.batteryRegistry.getBattery(port).setLastTime(c0Data.getTimestamp());
                         String infoC0BmsMsg = c0Data.decodeC0BmsInfoPayload(output);
                         if (!infoC0BmsMsg.isBlank()) {
                             log.info("""
                                     {}
                                     """, infoC0BmsMsg.trim());
                         }
-
                     } else {
                         UsrTcpWifiC1Data c1Data = this.batteryRegistry.getBattery(port).getC1Data();
                         UsrTcpWiFiDecoders.decodeC1Payload(payloadBytes, c1Data, errorRecord, nowInstant);
-                        this.batteryRegistry.getBattery(port).setLastTime(nowInstant);
+                        if (c1Data.getErrorInfoData() > 0) {
+                            this.batteryRegistry.getBattery(port).setErrRecord(new UsrTcpWiFiErrorRecord(
+                                    c1Data.getTimestamp(), intToHex(c1Data.getErrorInfoData()), c1Data.getErrorOutput()));
+                        }
+                        this.batteryRegistry.getBattery(port).setLastTime(c1Data.getTimestamp());
                         String infoC1BmsMsg = c1Data.decodeC1BmsInfoPayload();
                         if (!infoC1BmsMsg.isBlank()) {
                             log.info("""
@@ -144,7 +150,7 @@ public class UsrTcpWiFiParseData {
                         // 1764862063274;8897;C1;len;2008
                         // 1764862063274;8897;C1;len;1007 => c1Data.errOutput
                         if (c1Data.getErrorInfoData() != null && c1Data.getErrorInfoData() > 0) {
-                            byte[] errorMsgInfoData = c1Data.getErrOutput().getBytes();
+                            byte[] errorMsgInfoData = c1Data.getErrorOutput().getBytes();
                             pendingErrorRecords.add(
                                     new UsrTcpWiFiPacketRecord(
                                             timestamp,
@@ -170,7 +176,7 @@ public class UsrTcpWiFiParseData {
                     // write to file last
                     // 1764862062785;8895;C0;21;140014AAFFF75A00040000000A0000000500000000
                     // 1764862063274;8897;C1;43;28100CDF0CD50CDF0CDB0CEA0CDB0CE80CEB0CF00CE20CE70CEB0CEA0CF50CF90CFC03F25F000000000C10
-                    lastLastRecord = new UsrTcpWiFiPacketRecord(
+                    UsrTcpWiFiPacketRecord lastLastRecord = new UsrTcpWiFiPacketRecord(
                             timestamp,
                             port,
                             typeFrameName,
@@ -178,7 +184,7 @@ public class UsrTcpWiFiParseData {
                             payloadBytes);
                     long now = System.currentTimeMillis();
                     // ----- write Last every 4 minutes -----
-                    if (lastLastRecord != null && now - lastWriteTimeLast >= WRITE_INTERVAL) {
+                    if (now - lastWriteTimeLast >= WRITE_INTERVAL) {
                         logWriter.writeLast(lastLastRecord);
                         lastWriteTimeLast = now;
                     }
@@ -249,6 +255,4 @@ public class UsrTcpWiFiParseData {
             return null;
         }
     }
-
-
 }

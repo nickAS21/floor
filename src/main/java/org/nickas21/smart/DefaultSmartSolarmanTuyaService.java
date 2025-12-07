@@ -10,6 +10,7 @@ import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.util.DynamicScheduler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -87,6 +88,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     TuyaDeviceService tuyaDeviceService;
 
     @Autowired
+    @Lazy
     UsrTcpWiFiParseData usrTcpWiFiParseData;
 
     @Override

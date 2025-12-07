@@ -37,7 +37,7 @@ public class UsrTcpWifiC1Data {
     private JsonNode maxCellV;
     private int deltaMv;
     private UsrTcpWifiBalanceThresholds balanceS;
-    private String errOutput;
+    private String errorOutput;
     private String version;
 
     // -----------------------------
@@ -73,7 +73,7 @@ public class UsrTcpWifiC1Data {
         this.maxCellV = computeMaxCell();
         this.deltaMv = computeDeltaMv();
         this.balanceS = computeBalanceStatus();
-        this.errOutput = computeErrOutput();
+        this.errorOutput = computeErrOutput();
     }
 
     // -----------------------------
@@ -143,7 +143,7 @@ public class UsrTcpWifiC1Data {
         out.append(String.format("7  | DELTA:           | %.3f V\n", this.deltaMv / 1000.0));
         out.append(String.format("8  | Balance:         | %s\n", this.balanceS));
 
-        out.append(this.errOutput).append("\n\n");
+        out.append(this.errorOutput).append("\n\n");
 
         out.append("1.2) Cells Table:\n#\tHEX     mV      V\n");
         for (int i = 0; i < this.cellsCount; i++) {

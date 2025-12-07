@@ -1,5 +1,8 @@
 package org.nickas21.smart.usr.data;
 
+import lombok.Getter;
+
+@Getter
 public enum UsrTcpWifiStatus {
 
     CHARGING(1, "Charging"),
@@ -13,14 +16,6 @@ public enum UsrTcpWifiStatus {
     UsrTcpWifiStatus(int code, String status) {
         this.code = code;
         this.status = status;
-    }
-
-    public int getCode() {
-        return code;
-    }
-
-    public String getStatus() {
-        return status;
     }
 
     /**

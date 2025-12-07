@@ -46,7 +46,7 @@ public class UsrTcpWiFiDecoders {
     public static String keyVoltage = "voltage";
 
 
-    public static void decodeC0Payload(byte[] payloadBytes, UsrTcpWifiC0Data c0Data, UsrTcpWiFiErrorRecord errorRecord, String hostAddress, Instant timestamp) {
+    public static void decodeC0Payload(byte[] payloadBytes, UsrTcpWifiC0Data c0Data, String hostAddress, Instant timestamp) {
         try {
             int i = 0;
             ByteBuffer bb = ByteBuffer.wrap(payloadBytes);

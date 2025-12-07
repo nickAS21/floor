@@ -5,7 +5,7 @@ server:
 app:
   version: '@project.version@'
   title: '@project.description@'
-  test_front: false
+  test_front: "${APP_TEST_FRONT:false}"
 
 springdoc:
   api-docs:
@@ -84,17 +84,16 @@ logging.level:
   org.apache.pulsar: OFF
 
 usr:
-  client:
+  tcp:
     portStart: "${USR_CLIENT_PORT_START:8891}"
     batteriesCnt: "${USR_CLIENT_BATTERIES_CNT:8}"
-  tcp:
     logs-dir: "${USR_TCP_LOGS_DIR:./logs/}"
     file-error: "${USR_TCP_FILE_ERROR:usrTcpWiFiError.log}"
     file-last: "${USR_TCP_FILE_LAST:usrTcpWiFiLast.log}"
     file-cur: "${USR_TCP_FILE_CUR:usrTcpWiFiCur.log}"
     offline: "${USR_TCP_OFFLINE_SECONDS:120}"
     #  259200 - 3 days
-    removal: "${USR_TCP_REMOVAL_SECONDS:259200}"
+    remove-All: "${USR_TCP_REMOVE_ALL_SECONDS:259200}"
 
 ---
 spring:

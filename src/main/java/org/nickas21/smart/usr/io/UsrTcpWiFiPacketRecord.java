@@ -20,7 +20,14 @@ public record UsrTcpWiFiPacketRecord(
     }
 
     public static UsrTcpWiFiPacketRecord fromLine(String line) {
+        if (line == null || line.isBlank()) return null; // Додано перевірку
+
+        // Розділяємо рядок на 5 частин
         String[] arr = line.split(";", 5);
+        if (arr.length < 5) {
+            // Можна додати логування помилки формату тут, якщо потрібно
+            return null;
+        }
 
         long ts = Long.parseLong(arr[0]);
         int port =Integer.parseInt(arr[1]);

@@ -1,8 +1,11 @@
 package org.nickas21.smart.usr.data;
 
+import lombok.Getter;
+
 import java.util.HashMap;
 import java.util.Map;
 
+@Getter
 public enum UsrTcpWiFiMessageType {
 
     A2((byte) 0xA2, "BMS Version"),
@@ -17,14 +20,6 @@ public enum UsrTcpWiFiMessageType {
     UsrTcpWiFiMessageType(byte code, String description) {
         this.code = code;
         this.description = description;
-    }
-
-    public byte getCode() {
-        return code;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     // lookup map

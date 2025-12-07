@@ -24,7 +24,7 @@ public class UsrTcpWifiC0Data {
     private String bmsStatusStr;
     private long bmsStatus1;
     private long bmsStatus2;
-    private int errorInfoData;
+    private Integer errorInfoData;
     private String errorOutput;
     private String hostAddress;
     private Instant timestamp;
@@ -43,9 +43,13 @@ public class UsrTcpWifiC0Data {
         this.bmsStatus1 = bmsStatus1;
         this.bmsStatus2 = bmsStatus2;
         this.errorInfoData = errorInfoData;
-        this.errorOutput = formatErrorCodeOutput(this.errorInfoData);
+        this.errorOutput = computeErrOutput();
         this.hostAddress =  hostAddress;
         this.timestamp = timestamp;
+    }
+
+    private String computeErrOutput() {
+        return this.errorInfoData == null ? null : formatErrorCodeOutput(this.errorInfoData);
     }
 
     public String decodeC0BmsInfoPayload(String output) {
