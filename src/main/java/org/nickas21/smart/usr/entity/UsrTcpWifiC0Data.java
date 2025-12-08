@@ -3,10 +3,13 @@ package org.nickas21.smart.usr.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecord;
 
 import java.time.Instant;
+import java.util.Arrays;
 
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.lenErrorInfoData;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C0;
 import static org.nickas21.smart.usr.data.UsrTcpWifiError.formatErrorCodeOutput;
 import static org.nickas21.smart.usr.data.UsrTcpWifiStatus.fromCode;
 
@@ -26,14 +29,15 @@ public class UsrTcpWifiC0Data {
     private long bmsStatus2;
     private Integer errorInfoData;
     private String errorOutput;
-    private String hostAddress;
     private Instant timestamp;
+    private byte[] payloadBytesCur;
+    private byte[] payloadBytesLastSaved;
 
     // -----------------------------
     //   MAIN UPDATE METHOD
     // -----------------------------
     public void updateC0Data(double voltageMinV, double voltageCurV, double currentCurA, int socPercent, int bmsStatus,
-                             long bmsStatus1, long bmsStatus2, int errorInfoData, String hostAddress, Instant timestamp) {
+                             long bmsStatus1, long bmsStatus2, int errorInfoData, Instant timestamp, byte[] payloadBytes) {
         this.voltageMinV = voltageMinV;
         this.voltageCurV = voltageCurV;
         this.currentCurA = currentCurA;
@@ -44,8 +48,8 @@ public class UsrTcpWifiC0Data {
         this.bmsStatus2 = bmsStatus2;
         this.errorInfoData = errorInfoData;
         this.errorOutput = computeErrOutput();
-        this.hostAddress =  hostAddress;
         this.timestamp = timestamp;
+        this.payloadBytesCur = payloadBytes;
     }
 
     private String computeErrOutput() {
@@ -54,24 +58,37 @@ public class UsrTcpWifiC0Data {
 
     public String decodeC0BmsInfoPayload(String output) {
         try {
-            StringBuilder out = new StringBuilder();
-            out.append("\n" + output + "\n");
-            out.append("#  | Name             | Value\n");
-            out.append("---|------------------|------------\n");
-            out.append(String.format("1  | Voltage Min (V)  | %.2f V\n", this.getVoltageMinV()));
-            out.append(String.format("2  | Voltage (V)      | %.2f V\n", this.getVoltageCurV()));
-            out.append(String.format("3  | Current (A)      | %.2f A\n", this.getCurrentCurA()));
-            out.append(String.format("4  | SOC (%%)          | %d %%\n", this.getSocPercent()));
-            out.append(String.format("5  | BMS status       | %s\n", this.getBmsStatusStr()));
-            out.append(String.format("6  | Error info Data  | 0x%s (%dB)\n", Integer.toHexString(this.getErrorInfoData()).toUpperCase(), lenErrorInfoData));
-            out.append("------------------------------------------------\n");
-            out.append(this.errorOutput).append("\n");
-            out.append("------------------------------------------------\n");
-            return out.toString();
+            return "\n\n--- DETAILS DECODE C0 ---\n" +
+                    output + "\n" +
+                    "#  | Name             | Value\n" +
+                    "---|------------------|------------\n" +
+                    String.format("1  | SOC (%%)          | %d %%\n", this.getSocPercent()) +
+                    String.format("2  | Voltage (V)      | %.2f V\n", this.getVoltageCurV()) +
+                    String.format("3  | Current (A)      | %.2f A\n", this.getCurrentCurA()) +
+                    String.format("4  | Voltage Min (V)  | %.2f V\n", this.getVoltageMinV()) +
+                    String.format("5  | BMS status       | %s\n", this.getBmsStatusStr()) +
+                    String.format("6  | Error info Data  | 0x%s (%dB)\n", Integer.toHexString(this.getErrorInfoData()).toUpperCase(), lenErrorInfoData) +
+                    "------------------------------------------------\n" +
+                    this.errorOutput + "\n" +
+                    "------------------------------------------------\n";
 
         } catch (Exception e) {
             log.error("CRITICAL DECODE ERROR C0", e);
             return "\n--- CRITICAL DECODE ERROR C0 ---\n" + e.getMessage() + "\n";
+        }
+    }
+
+    public UsrTcpWiFiPacketRecord getInfoForRecords(int port){
+        if (Arrays.equals(this.payloadBytesCur, this.payloadBytesLastSaved)) {
+            return null;
+        } else {
+            this.payloadBytesLastSaved = this.payloadBytesCur;
+            return new UsrTcpWiFiPacketRecord(
+                    this.timestamp.toEpochMilli(),
+                    port,
+                    C0.name(),
+                    this.payloadBytesLastSaved.length,
+                    this.payloadBytesLastSaved);
         }
     }
 }

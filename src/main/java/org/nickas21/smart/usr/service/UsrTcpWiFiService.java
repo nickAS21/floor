@@ -56,7 +56,7 @@ public class UsrTcpWiFiService {
             }
             Files.createDirectories(Paths.get(logsDir));
             log.info("LogsDir: [{}], Starting USR TCP WiFi listeners...", logsDir);
-            usrTcpWiFiLogWriter.init(this.logsDir, this. usrTcpWiFiProperties);
+            usrTcpWiFiLogWriter.init(this.logsDir, this.usrTcpWiFiProperties, ports);
             for (int port : ports) {
                 Thread t = new Thread(() -> listenOnPort(port), "usr-tcp-listener-" + port);
                 t.setDaemon(true);
@@ -103,7 +103,7 @@ public class UsrTcpWiFiService {
                 if (read == 0) continue;
                 buffer.write(readBuf, 0, read);
 
-                byte[] after = usrTcpWiFiParseData.parseAndProcessData(buffer.toByteArray(), port, conn.getInetAddress().getHostAddress());
+                byte[] after = usrTcpWiFiParseData.parseAndProcessData(buffer.toByteArray(), port);
                 buffer.reset();
                 buffer.write(after);
             }

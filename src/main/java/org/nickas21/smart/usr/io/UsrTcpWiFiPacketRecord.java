@@ -16,7 +16,7 @@ public record UsrTcpWiFiPacketRecord(
                 port + ";" +
                 type + ";" +
                 (payloadLength & 0xFFFF) + ";" +
-                bytesToHex(payload);
+                bytesToHex(payload) + "\n";
     }
 
     public static UsrTcpWiFiPacketRecord fromLine(String line) {

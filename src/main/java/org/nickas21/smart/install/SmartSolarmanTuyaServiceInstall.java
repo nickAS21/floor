@@ -41,8 +41,9 @@ public class SmartSolarmanTuyaServiceInstall {
             solarmanStationsService.init();
             smartSolarmanTuyaService.solarmanRealTimeDataStart();
             telegramService.init();
-            usrTcpWiFiService.init();
         }
+        // TO DO move to UP after finish tests front with BMS Golego
+        usrTcpWiFiService.init();
     }
 
     @PreDestroy

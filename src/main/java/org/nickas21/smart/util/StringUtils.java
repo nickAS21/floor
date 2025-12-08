@@ -3,6 +3,9 @@ package org.nickas21.smart.util;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
 @Slf4j
@@ -10,6 +13,7 @@ public class StringUtils {
 
     private static volatile boolean stopProgressBar = false;
     private static final int size = 60;
+    public static final String datePattern = "yyyy-MM-dd HH:mm:ss.SSS";
 
     public static boolean isBlank(String source) {
         return source == null || source.isEmpty() || source.trim().isEmpty();
@@ -82,6 +86,19 @@ public class StringUtils {
     public static byte[] intToBytesBigEndian(Integer value) {
         return new byte[]{(byte) ((value >> 8) & 0xFF), (byte) (value & 0xFF)};
     }
+
+    public static String formatTimestamp(long timestamp) {
+        return Instant.ofEpochMilli(timestamp)
+                .atZone(ZoneId.systemDefault())
+                .format(DateTimeFormatter.ofPattern(datePattern));
+    }
+
+
+    public static String getCurrentTimeString(Instant now) {
+        DateTimeFormatter f = DateTimeFormatter.ofPattern(datePattern);
+        return "[" + f.format(now.atZone(ZoneId.systemDefault())) + "]";
+    }
+
 
     public static byte[] stringToBytesBas64 (String errorMsg) {
         return Base64.getEncoder()

@@ -12,7 +12,7 @@ public enum UsrTcpWiFiMessageType {
     D0((byte) 0xD0, "BMS Id Ident"),
     C0((byte) 0xC0, "BMS General Status"),
     C1((byte) 0xC1, "BMS Cell Voltages"),
-    UNKNOWN((byte) 0x00, "Unknown");
+    UNKNOWN((byte) 0x00, "Unknown"); // код не використовується
 
     private final byte code;
     private final String description;
@@ -22,12 +22,13 @@ public enum UsrTcpWiFiMessageType {
         this.description = description;
     }
 
-    // lookup map
     private static final Map<Byte, UsrTcpWiFiMessageType> LOOKUP = new HashMap<>();
 
     static {
         for (UsrTcpWiFiMessageType t : values()) {
-            LOOKUP.put(t.code, t);
+            if (t != UNKNOWN) {
+                LOOKUP.put(t.code, t);
+            }
         }
     }
 

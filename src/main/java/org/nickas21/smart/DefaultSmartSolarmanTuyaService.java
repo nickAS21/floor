@@ -6,6 +6,7 @@ import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.util.DynamicScheduler;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,24 +104,20 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     public void setBmsSocCur() {
         try {
             updatePowerValue();
+            UsrTcpWiFiBmsSummary usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(PORT_MASTER);
             double batCurNew = powerValueRealTimeData.getBatteryCurrentValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
             double bmsVolNew = powerValueRealTimeData.getBmsVoltageValue();
             double bmsCurNew = powerValueRealTimeData.getBmsCurrentValue();
             double bmsTempNew = powerValueRealTimeData.getBmsTempValue();
-            // old if battery mode == USER
-            // double batterySocNew = getPercentageVoltage(batVolNew);
-            // double batterySocFromSolarman = powerValueRealTimeData.getBatterySocValue();
             double batterySocNew = powerValueRealTimeData.getBatterySocValue();
             double batterySocMin = getBatSocMin();
             double batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
 
-
             updateSunRiseSunSetDate();
             setIsDay();
 
-//            String batteryPowerNewStr = -batteryPowerNew + " W";
             Instant curInst = Instant.now();
             String curInstStr = toLocaleTimeString(curInst);
             if (this.batterySocCur == 0) {
@@ -135,12 +132,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             } else {
                 initUpdateTimeoutSheduler();
                 tuyaDeviceService.updateGridStateOnLineToTelegram();
-                // old if matter mode == USER
-//                tuyaDeviceService.updateOnOfSwitchRelay(batterySocFromSolarman);
                 tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, this.batterySocCriticalNightCharging60);
             }
 
-            String usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(PORT_MASTER);
             log.info("""
                             Current data:\s
                             Current real time data: [{}], -Update real time data: [{}],\s
@@ -150,7 +144,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
                             -relayStatus: [{}], -gridStatusSolarman: [{}], -gridStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh],
                             -AC (inverter) Temperature:  [{} grad C].
-                            - usrBmsSummary:\s
+                            - usrBmsSummary: batSocLast: [{} %] \s
                              {}
                        """,
                     curInstStr,
@@ -178,8 +172,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell(),
                     powerValueRealTimeData.getInverterTempValue(),
-                    usrBmsSummary == null ? "null" : usrBmsSummary);
-            tuyaDeviceService.sendDachaBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, bmsTempNew,
+                    usrBmsSummary == null ? 0 : usrBmsSummary.socPercent(),
+                    usrBmsSummary == null ? "null" : usrBmsSummary.bmsSummary());
+            tuyaDeviceService.sendDachaGolegoBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, bmsTempNew,
                     batterySocNew, batteryPowerNew, batteryStatusNew, usrBmsSummary);
             if (isDay) {
                 isUpdateToMinAfterIsDayFalse = false;

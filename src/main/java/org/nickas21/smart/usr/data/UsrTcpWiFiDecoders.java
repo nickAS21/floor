@@ -1,7 +1,6 @@
 package org.nickas21.smart.usr.data;
 
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.usr.entity.UsrTcpWiFiErrorRecord;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
 
@@ -46,7 +45,7 @@ public class UsrTcpWiFiDecoders {
     public static String keyVoltage = "voltage";
 
 
-    public static void decodeC0Payload(byte[] payloadBytes, UsrTcpWifiC0Data c0Data, String hostAddress, Instant timestamp) {
+    public static void decodeC0Payload(byte[] payloadBytes, UsrTcpWifiC0Data c0Data, Instant timestamp) {
         try {
             int i = 0;
             ByteBuffer bb = ByteBuffer.wrap(payloadBytes);
@@ -69,27 +68,13 @@ public class UsrTcpWiFiDecoders {
             i += lenErrorInfoData;
 
             c0Data.updateC0Data(voltageMinV, voltageCurV, currentCurA, socPercent, bmsStatus,
-                                bmsStatus1, bmsStatus2, errorInfoData, hostAddress, timestamp);
-
-            StringBuilder out = new StringBuilder();
-            out.append("\n--- DETAILS DECODE C0 (BMS General Status) ---\n");
-            out.append(String.format("1  | Voltage Min (V)  | %.2f V\n", c0Data.getVoltageMinV()));
-            out.append(String.format("2  | Voltage (V)      | %.2f V\n", c0Data.getVoltageCurV()));
-            out.append(String.format("3  | Current (A)      | %.2f A\n", c0Data.getCurrentCurA()));
-            out.append(String.format("4  | SOC (%%)          | %d %%\n", c0Data.getSocPercent()));
-            out.append(String.format("5  | BMS status       | %s\n", c0Data.getBmsStatusStr()));
-            out.append(String.format("6  | BMS status1      | 0x%s (%dB)\n", Long.toHexString(c0Data.getBmsStatus1()).toUpperCase(), lenBmsStatus1_2));
-            out.append(String.format("7  | BMS status2      | 0x%s (%dB)\n", Long.toHexString(c0Data.getBmsStatus2()).toUpperCase(), lenBmsStatus1_2));
-            out.append(String.format("8  | Error info Data  | 0x%s (%dB)\n", Integer.toHexString(c0Data.getErrorInfoData()).toUpperCase(), lenErrorInfoData));
-            out.append(c0Data.getErrorOutput()).append("\n");
-            out.append("------------------------------------------------\n");
-
+                                bmsStatus1, bmsStatus2, errorInfoData, timestamp, payloadBytes);
         } catch (Exception e) {
             log.error("CRITICAL DECODE ERROR C0", e);
         }
     }
 
-    public static void decodeC1Payload(byte[] payloadBytes, UsrTcpWifiC1Data c1Data, UsrTcpWiFiErrorRecord errorRecord, Instant timestamp) {
+    public static void decodeC1Payload(byte[] payloadBytes, UsrTcpWifiC1Data c1Data, Instant timestamp) {
         try {
             int i = 0;
             ByteBuffer bb = ByteBuffer.wrap(payloadBytes);
@@ -127,35 +112,7 @@ public class UsrTcpWiFiDecoders {
                 cellVoltagesV.put(i, voltage);
             }
             c1Data.updateC1Data(cellsCount, cellVoltagesV, lifeCyclesCount, socPercent,
-                                errorInfoData, majorVersion, minorVersion, timestamp);
-
-//
-//            StringBuilder out = new StringBuilder();
-//            out.append("\n--- DETAILS DECODE C1 ---\n");
-//            out.append("1.3) Cells Info Table:\n");
-//            out.append("#  | Name             | Value\n");
-//            out.append("---|------------------|------------\n");
-//            out.append(String.format("1  | Ver:             | %s\n", c1Data.getVersion()));
-//            out.append(String.format("2  | Life Cycles:     | %d\n", c1Data.getLifeCyclesCount()));
-//            out.append(String.format("3  | SOC:             | %d %%\n", c1Data.getSocPercent()));
-//            out.append(String.format("4  | SUM_V:           | %.2f V\n", c1Data.getSumCellsV()));
-//            out.append(String.format("5  | Cell%02d_MIN:      | %.3f V\n", c1Data.getMinCellV().get(keyIdx).asInt(), c1Data.getMinCellV().get(keyVoltage).floatValue()));
-//            out.append(String.format("6  | Cell%02d_MAX:      | %.3f V\n", c1Data.getMaxCellV().get(keyIdx).asInt(), c1Data.getMaxCellV().get(keyVoltage).floatValue()));
-//            out.append(String.format("7  | DELTA:           | %.3f V\n", c1Data.getDeltaMv() / 1000.0));
-//            out.append(String.format("8  | Balance:         | %s\n", c1Data.getBalanceS()));
-//
-//            String errOutput = formatErrorCodeOutput(errorInfoData);
-//            out.append(errOutput).append("\n\n");
-//
-//            out.append("1.4) Cells Table:\n#\tHEX     mV      V\n");
-//            for (i = 0; i < cellsCount; i++) {
-//                Float v = c1Data.getCellVoltagesV().get(i);
-//                int mv = (int) (v * 1000.0);
-//                out.append(String.format("%02d\t%s\t%d\t%.3f V\n", i+1, Integer.toHexString(mv), mv, v));
-//            }
-//            log.info("""
-//                {}
-//                """, out.toString().trim());
+                                errorInfoData, majorVersion, minorVersion, timestamp, payloadBytes);
         } catch (Exception e) {
             log.error("CRITICAL ERROR C1", e);
         }

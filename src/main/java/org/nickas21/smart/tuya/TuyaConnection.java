@@ -1,7 +1,6 @@
 package org.nickas21.smart.tuya;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.service.TelegramService;
 import org.nickas21.smart.tuya.mq.MessageVO;
@@ -9,13 +8,13 @@ import org.nickas21.smart.tuya.mq.MqPulsarConsumer;
 import org.nickas21.smart.tuya.mq.TuyaConnectionMsg;
 import org.nickas21.smart.tuya.mq.TuyaMessageUtil;
 import org.nickas21.smart.util.JacksonUtil;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class TuyaConnection implements TuyaConnectionIn {
     private final TaskExecutor executor;
     private MqPulsarConsumer mqPulsarConsumer;
@@ -25,6 +24,14 @@ public class TuyaConnection implements TuyaConnectionIn {
     private final TuyaDeviceService tuyaDeviceService;
 
     private final TelegramService telegramService;
+
+    public TuyaConnection(@Qualifier("applicationTaskExecutor")TaskExecutor executor, TuyaConnectionProperties tuyaConnectionConfiguration,
+                          TuyaDeviceService tuyaDeviceService, TelegramService telegramService) {
+        this.executor = executor;
+        this.tuyaConnectionConfiguration = tuyaConnectionConfiguration;
+        this.tuyaDeviceService = tuyaDeviceService;
+        this.telegramService = telegramService;
+    }
 
     public void init() {
         mqPulsarConsumer = createMqConsumer(this.tuyaConnectionConfiguration.getAk(), this.tuyaConnectionConfiguration.getSk());

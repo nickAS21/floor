@@ -16,6 +16,7 @@ import org.nickas21.smart.tuya.tuyaEntity.Device;
 import org.nickas21.smart.tuya.tuyaEntity.DeviceStatus;
 import org.nickas21.smart.tuya.tuyaEntity.DeviceUpdate;
 import org.nickas21.smart.tuya.tuyaEntity.Devices;
+import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.JacksonUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -117,7 +118,8 @@ public class TuyaDeviceService {
 
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoDacha;
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoHome;
-    private Entry<Long, Double> lastUpdateTimeAlarmTempInfoHome;
+    private Entry<Long, Double> lastUpdateTimeAlarmSocDacha;
+    private Entry<Long, Double> lastUpdateTimeAlarmSocGolego;
 
     private final Lock queueLock = new ReentrantLock();
 
@@ -860,47 +862,89 @@ public class TuyaDeviceService {
         }
     }
 
-    public void sendDachaBatteryChargeRemaining(double batVolNew, double batCurNew, double bmsVolNew, double bmsCurNew, double bmsTempNew, double batterySocNew,
-                                                double  batteryPowerNew, String batteryStatusNew, String usrBmsSummary) {
-        // if battery == USER
-//        double batteryChargeRemaining = SolarmanSocPercentage.fromPercentage(batVolNew).getPercentage();
-        double batteryChargeRemaining = batterySocNew;
-        Entry<Long, Double> lastUpdateTimeAlarmTempInfo = new AbstractMap.SimpleEntry<>(Instant.now().toEpochMilli(), batteryChargeRemaining);
+    public void sendDachaGolegoBatteryChargeRemaining(double batVolNew, double batCurNew, double bmsVolNew, double bmsCurNew, double bmsTempNew, double batterySocNew,
+                                                      double  batteryPowerNew, String batteryStatusNew, UsrTcpWiFiBmsSummary usrBmsSummary) {
+        double batteryChargeRemainingDacha = batterySocNew;
+        double batteryChargeRemainingGolego = usrBmsSummary == null ? 0 : usrBmsSummary.socPercent();
+        Entry<Long, Double> lastUpdateTimeAlarmDacha = new AbstractMap.SimpleEntry<>(Instant.now().toEpochMilli(), batteryChargeRemainingDacha);
+        Entry<Long, Double> lastUpdateTimeAlarmGolego = usrBmsSummary == null ? null : new AbstractMap.SimpleEntry<>(usrBmsSummary.timestamp().toEpochMilli(), batteryChargeRemainingGolego);
 
         // If null - first
         // Not equals and (equals 100% or <= 90%)
-        if (this.lastUpdateTimeAlarmTempInfoHome == null ||
-                (!this.lastUpdateTimeAlarmTempInfoHome.getValue().equals(lastUpdateTimeAlarmTempInfo.getValue()) &&
-                        (batteryChargeRemaining == REST_FLOAT.getPercentage() ||
-                                batteryChargeRemaining <= PERCENTAGE_90.getPercentage()))
+        if (
+                shouldTriggerDachaSocAlarm(this.lastUpdateTimeAlarmSocDacha, batteryChargeRemainingDacha) ||
+                shouldTriggerGolegoSocAlarm(this.lastUpdateTimeAlarmSocGolego, batteryChargeRemainingGolego, usrBmsSummary)
         ) {
             String msg = "INFO, ";
-            if (batteryChargeRemaining <= ALARM.getSoc()) {
+            if (batteryChargeRemainingDacha <= ALARM.getSoc()) {
                 msg = "ERROR, ";
-            } else if (batteryChargeRemaining <= DISCHARGING.getSoc()) {
+            } else if (batteryChargeRemainingDacha <= DISCHARGING.getSoc()) {
                 msg = "WARNING, ";
             }
             // if battery == USER
 //            String msgSoc = msg + "Battery Remaining at the Country House: [" + batteryChargeRemaining + " %]/(on inverter [" + batterySocFromSolarman + " %]).";
             double bmsPower = Math.round((bmsVolNew * bmsCurNew) * 100.0) / 100.0;
             String  msgSoc = msg + "Battery Remaining at the Country House:\n" +
-                    "- SOC: [" + batteryChargeRemaining + " %];\n" +
+                    "- SOC: [" + batteryChargeRemainingDacha + " %];\n" +
                     "- BatteryStatus: [" + batteryStatusNew + "];\n" +
-                    "- BmsPower: [" + bmsPower + " W];\n" +
                     "- BmsVoltage: [" + bmsVolNew + " V];\n" +
-                    "- BmsTemperature: [" + bmsTempNew + "  ℃];\n" +
+                    "- BmsPower: [" + bmsPower + " W];\n" +
                     "- BmsCurrent: [" + bmsCurNew + " A];\n" +
+                    "- BmsTemperature: [" + bmsTempNew + "  ℃];\n" +
                     "- Powers: [" + batteryPowerNew + " W];\n";
             if (usrBmsSummary == null) {
                 msgSoc = msgSoc + "- Voltages: [" + batVolNew + " V];\n" +
                         "- Currents: [" + batCurNew + " A].";
             } else {
-                msgSoc = msgSoc + "Usr Battery Remaining at the Golego:\n" + usrBmsSummary;
+                msgSoc = msgSoc + "Usr Battery Remaining at the Golego:\n" +
+                        "- SOC: [" + usrBmsSummary.socPercent() + " %];\n"
+                        + usrBmsSummary.bmsSummary();
             }
             this.updateMessageAlarmToTelegram(msgSoc);
-            this.lastUpdateTimeAlarmTempInfoHome = lastUpdateTimeAlarmTempInfo;
+            this.lastUpdateTimeAlarmSocDacha = lastUpdateTimeAlarmDacha;
+            this.lastUpdateTimeAlarmSocGolego = lastUpdateTimeAlarmGolego;
         }
     }
+
+    private boolean shouldTriggerDachaSocAlarm(Entry<Long, Double> lastValue, double newSoc) {
+
+        // first update
+        if (lastValue == null) {
+            return true;
+        }
+
+        // SOC changed
+        boolean changed = !lastValue.getValue().equals(newSoc);
+
+        // SOC == 100% OR <= 90%
+        boolean inRange = (newSoc == REST_FLOAT.getPercentage() ||
+                newSoc <= PERCENTAGE_90.getPercentage());
+
+        return changed && inRange;
+    }
+
+    private boolean shouldTriggerGolegoSocAlarm(Entry<Long, Double> lastValue,
+                                                double newSoc,
+                                                UsrTcpWiFiBmsSummary usrBmsSummary) {
+
+        // no BMS summary → cannot check
+        if (usrBmsSummary == null) {
+            return false;
+        }
+        // first update
+        if (lastValue == null) {
+            return true;
+        }
+        // SOC changed
+        boolean changed = !lastValue.getValue().equals(newSoc);
+        // SOC == 100% OR <= 90%
+        boolean inRange = (newSoc == REST_FLOAT.getPercentage() ||
+                newSoc <= PERCENTAGE_90.getPercentage());
+
+        return changed && inRange;
+    }
+
+
 
     public String getGridRelayCodeIdDacha() {
         if (this.gridRelayCodeIdDacha == null) {

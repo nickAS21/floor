@@ -4,7 +4,7 @@ server:
 
 app:
   version: '@project.version@'
-  title: '@project.description@'
+  title: '@project.bmsSummary@'
   test_front: "${APP_TEST_FRONT:false}"
 
 springdoc:
@@ -88,12 +88,15 @@ usr:
     portStart: "${USR_CLIENT_PORT_START:8891}"
     batteriesCnt: "${USR_CLIENT_BATTERIES_CNT:8}"
     logs-dir: "${USR_TCP_LOGS_DIR:./logs/}"
-    file-error: "${USR_TCP_FILE_ERROR:usrTcpWiFiError.log}"
-    file-last: "${USR_TCP_FILE_LAST:usrTcpWiFiLast.log}"
-    file-cur: "${USR_TCP_FILE_CUR:usrTcpWiFiCur.log}"
+    logs-error-prefix: "${USR_TCP_FILE_ERROR_PREFIX:usrTcpWiFiError}"
+    logs-today-prefix: "${USR_TCP_LOGS_TODAY_PREFIX:usrTcpWiFiToday}"
+    logs-yesterday-prefix: "${USR_TCP_LOGS_YESTERDAY_PREFIX:usrTcpWiFiYesterday}"
+    logs-error-limit: "${USR_TCP_LOGS_ERROR_LIMIT:2000}"
     offline: "${USR_TCP_OFFLINE_SECONDS:120}"
     #  259200 - 3 days
     remove-All: "${USR_TCP_REMOVE_ALL_SECONDS:259200}"
+    logs:
+      rotation-cron: "0 0 1 * * *"
 
 ---
 spring:

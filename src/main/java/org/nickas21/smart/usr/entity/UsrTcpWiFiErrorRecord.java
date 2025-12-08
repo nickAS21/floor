@@ -14,7 +14,7 @@ public record UsrTcpWiFiErrorRecord(Instant timestamp, String code, String descr
     @JsonCreator
     public UsrTcpWiFiErrorRecord(@JsonProperty("timestamp") Instant timestamp,
                                  @JsonProperty("code") String code,
-                                 @JsonProperty("description") String description) {
+                                 @JsonProperty("bmsSummary") String description) {
         this.timestamp = timestamp;
         this.code = code;
         this.description = description;
