@@ -49,7 +49,6 @@ public class UsrTcpWiFiParseData {
     // --- Throttling for writing every 4 min ---
     private final List<UsrTcpWiFiPacketRecord> pendingErrorRecords = new ArrayList<>();
     private static final long WRITE_INTERVAL = 240_000; // 4 min
-    private long lastWriteTimeError = 0;
     private long lastWriteTimeLast = 0;
 
     public UsrTcpWiFiParseData(UsrTcpWiFiLogWriter logWriter, UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry) {
@@ -134,7 +133,9 @@ public class UsrTcpWiFiParseData {
                         // 764862063274;8897;C1;len;c1Data.balanceS
                         if (c1Data.getBalanceS() != null &&
                                 (c1Data.getBalanceS().equals(CRITICAL_LIMIT) || c1Data.getBalanceS().equals(EMERGENCY_MAX))) {
-                            pendingErrorRecords.add(c1Data.getErrorUnbalanceForRecords(port));
+                            if (testFront) {
+                                pendingErrorRecords.add(c1Data.getErrorUnbalanceForRecords(port));
+                            }
                         }
                         errorInfoData = c1Data.getErrorInfoData();
                         errorOutput = c1Data.getErrorOutput();
@@ -151,7 +152,9 @@ public class UsrTcpWiFiParseData {
                         // 1764862063274;8897;C1;len;2008
                         // 1764862063274;8897;C1;len;1007 => c1Data.errOutput
                         if (c1Data.getErrorInfoData() != null && c1Data.getErrorInfoData() > 0) {
-                            pendingErrorRecords.add(c1Data.getErrorOutputForRecords(port));
+                            if (testFront) {
+                                pendingErrorRecords.add(c1Data.getErrorOutputForRecords(port));
+                            }
                         }
                     }
 
@@ -166,12 +169,13 @@ public class UsrTcpWiFiParseData {
 
                     // --- Write ALL collected errors every 4 minutes ---
                     if (now - lastWriteTimeLast >= WRITE_INTERVAL) {
-                        if (!pendingErrorRecords.isEmpty()) {
+                        if (pendingErrorRecords != null && pendingErrorRecords.size() > 0) {
                             for (UsrTcpWiFiPacketRecord rec : pendingErrorRecords) {
-                                logWriter.writeError(port, rec);
+                                if (testFront) {
+                                    logWriter.writeError(port, rec);
+                                }
                             }
                             pendingErrorRecords.clear();
-                            lastWriteTimeError = now;
                         }
                         // --- Write ALL last info c0/c1 by prot every 4 minutes ---
                         for(Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getAll().entrySet()){
@@ -180,9 +184,10 @@ public class UsrTcpWiFiParseData {
 
                             UsrTcpWiFiPacketRecord lastLastRecordC0 = battery.getC0Data().getInfoForRecords(portWrite);
                             UsrTcpWiFiPacketRecord lastLastRecordC1 = battery.getC1Data().getInfoForRecords(portWrite);
-
-                            if(lastLastRecordC0 != null) logWriter.writeToday(portWrite, lastLastRecordC0);
-                            if(lastLastRecordC1 != null) logWriter.writeToday(portWrite, lastLastRecordC1);
+                            if (testFront) {
+                                if (lastLastRecordC0 != null) logWriter.writeToday(portWrite, lastLastRecordC0);
+                                if (lastLastRecordC1 != null) logWriter.writeToday(portWrite, lastLastRecordC1);
+                            }
                         }
                         lastWriteTimeLast = now;
                     }

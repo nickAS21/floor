@@ -4,10 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -15,10 +17,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Comparator;
 
 @Slf4j
 @Service
 public class UsrTcpWiFiService {
+
+    @Value("${app.test_front:false}")
+    boolean testFront;
+
     private final Integer[] ports;
     private String logsDir;
 
@@ -53,6 +60,21 @@ public class UsrTcpWiFiService {
         try {
             if (logsDir == null || logsDir.isBlank()) {
                 logsDir = "/tmp/usr-bms";   // fallback for Kubernetes
+            }
+            if (!testFront) {
+                Path dir = Paths.get(logsDir);
+
+                if (Files.exists(dir)) {
+                    Files.walk(dir)
+                            .sorted(Comparator.reverseOrder())
+                            .forEach(path -> {
+                                try {
+                                    Files.delete(path);
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            });
+                }
             }
             Files.createDirectories(Paths.get(logsDir));
             log.info("LogsDir: [{}], Starting USR TCP WiFi listeners...", logsDir);

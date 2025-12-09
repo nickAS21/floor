@@ -35,13 +35,8 @@ public class UsrTcpWiFiLogWriter implements Closeable {
             this.props = props;
 
             for (Integer port : ports) {
-                String portStr = String.format("%02d", port - props.getPortStart() + 1);
-
-                String todayFilename = props.getLogsTodayPrefix() + "_" + portStr + ".log";
-                String errorFilename = props.getLogsErrorPrefix() + "_" + portStr + ".log";
-
-                todayWriters.put(port, openWriter(todayFilename));
-                errorWriters.put(port, openWriter(errorFilename));
+                todayWriters.put(port, openWriter(todayFileName(port)));
+                errorWriters.put(port, openWriter(errorFileName(port)));
             }
 
         } catch (Exception e) {
