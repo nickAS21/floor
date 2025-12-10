@@ -1,6 +1,7 @@
 package org.nickas21.smart.usr.io;
 
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 @Slf4j
 @Component
@@ -26,13 +28,15 @@ public class UsrTcpWiFiLogWriter implements Closeable {
     private final Map<Integer, BufferedWriter> errorWriters = new HashMap<>();
 
     private String logDir;
-    private UsrTcpWiFiProperties props;
+    private UsrTcpWiFiProperties tcpProps;
+    private UsrTcpLogsWiFiProperties tcpLogsProps;
 
-    public void init(String logDir, UsrTcpWiFiProperties props, Integer[] ports) {
+    public void init(String logDir, UsrTcpWiFiProperties tcpProps, UsrTcpLogsWiFiProperties tcpLogsProps, Integer[] ports) {
         try {
             log.info("UsrTcpWiFiLogWriter init... logDir: {}", logDir);
             this.logDir = logDir;
-            this.props = props;
+            this.tcpProps = tcpProps;
+            this.tcpLogsProps = tcpLogsProps;
 
             for (Integer port : ports) {
                 todayWriters.put(port, openWriter(todayFileName(port)));
@@ -46,15 +50,15 @@ public class UsrTcpWiFiLogWriter implements Closeable {
     }
 
     private String todayFileName(int port) {
-        return props.getLogsTodayPrefix() + "_" + String.format("%02d", port) + ".log";
+        return tcpLogsProps.getTodayPrefix() + "_" + String.format("%02d", port) + ".log";
     }
 
     private String yesterdayFileName(int port) {
-        return props.getLogsYesterdayPrefix() + "_" + String.format("%02d", port) + ".log";
+        return tcpLogsProps.getYesterdayPrefix() + "_" + String.format("%02d", port) + ".log";
     }
 
     private String errorFileName(int port) {
-        return props.getLogsErrorPrefix() + "_" + String.format("%02d", port) + ".log";
+        return tcpLogsProps.getErrorPrefix() + "_" + String.format("%02d", port) + ".log";
     }
 
     private BufferedWriter openWriter(String filename) throws IOException {
@@ -79,16 +83,16 @@ public class UsrTcpWiFiLogWriter implements Closeable {
 
         enforceErrorLogLimit(file);
 
-        BufferedWriter w = errorWriters.get(port);
-        if (w != null) {
-            w.write(rec.toLine());
-            w.flush();
+        BufferedWriter writerError = errorWriters.get(port);
+        if (writerError != null) {
+            writerError.write(rec.toLine());
+            writerError.flush();
         }
     }
 
     private void enforceErrorLogLimit(File file) throws IOException {
         List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
-        if (lines.size() >= props.getLogsErrorLimit()) {
+        if (lines.size() >= tcpLogsProps.getErrorLimit()) {
             lines.remove(0); // remove oldest
             Files.write(file.toPath(), lines, StandardCharsets.UTF_8,
                     StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
@@ -118,8 +122,27 @@ public class UsrTcpWiFiLogWriter implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
-        for (BufferedWriter w : todayWriters.values()) w.close();
-        for (BufferedWriter w : errorWriters.values()) w.close();
+    public void close() {
+        log.info("Closing all log writers...");
+
+        // Функція для закриття колекції writer'ів та логування помилок
+        Consumer<Map<Integer, BufferedWriter>> closeWriters = map -> {
+            for (BufferedWriter writer : map.values()) {
+                if (writer != null) {
+                    try {
+                        writer.close();
+                    } catch (IOException e) {
+                        // Логуємо, але продовжуємо закривати інші writer'и
+                        log.error("Error closing log writer", e);
+                    }
+                }
+            }
+            map.clear(); // Очищаємо мапу після закриття
+        };
+
+        closeWriters.accept(todayWriters);
+        closeWriters.accept(errorWriters);
+
+        log.info("All log writers successfully closed.");
     }
 }

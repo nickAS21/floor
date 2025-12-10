@@ -1,11 +1,10 @@
 package org.nickas21.smart.usr.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -13,38 +12,43 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Slf4j
 @Service
 public class UsrTcpWiFiService {
 
-    @Value("${app.test_front:false}")
-    boolean testFront;
+//    @Value("${app.test_front:false}")
+//    boolean testFront;
 
+    private final List<ServerSocket> serverSockets = new CopyOnWriteArrayList<>();
     private final Integer[] ports;
     private String logsDir;
 
 
-    @Autowired
-    @Lazy
-    UsrTcpWiFiParseData usrTcpWiFiParseData;
-
+    private final UsrTcpWiFiParseData usrTcpWiFiParseData;
     private final UsrTcpWiFiProperties usrTcpWiFiProperties;
+    private final UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties;
     private final UsrTcpWiFiLogWriter usrTcpWiFiLogWriter;
 
-    public UsrTcpWiFiService(UsrTcpWiFiProperties usrTcpWiFiProperties,
-                             UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry,
-                             UsrTcpWiFiLogWriter usrTcpWiFiLogWriter) {
-        this.usrTcpWiFiProperties = usrTcpWiFiProperties;
-        this.usrTcpWiFiLogWriter = usrTcpWiFiLogWriter;
+    @Autowired
+    public UsrTcpWiFiService(
+            UsrTcpWiFiParseData usrTcpWiFiParseData,
+            UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry
+    ) {
+        this.usrTcpWiFiParseData = usrTcpWiFiParseData;
+        this.usrTcpWiFiProperties = usrTcpWiFiParseData.usrTcpWiFiProperties;
+        this.usrTcpLogsWiFiProperties = usrTcpWiFiParseData.usrTcpLogsWiFiProperties;
+        this.usrTcpWiFiLogWriter = usrTcpWiFiParseData.logWriter;
         int portStart = usrTcpWiFiProperties.getPortStart();
         int batteriesCnt = usrTcpWiFiProperties.getBatteriesCnt();
-        this.logsDir = usrTcpWiFiProperties.getLogsDir();
+        this.logsDir = usrTcpLogsWiFiProperties.getDir();
         this.ports = new Integer[batteriesCnt];
         for (int i = 0; i < batteriesCnt; i++) {
             this.ports[i] = portStart + i;
@@ -61,24 +65,24 @@ public class UsrTcpWiFiService {
             if (logsDir == null || logsDir.isBlank()) {
                 logsDir = "/tmp/usr-bms";   // fallback for Kubernetes
             }
-            if (!testFront) {
-                Path dir = Paths.get(logsDir);
-
-                if (Files.exists(dir)) {
-                    Files.walk(dir)
-                            .sorted(Comparator.reverseOrder())
-                            .forEach(path -> {
-                                try {
-                                    Files.delete(path);
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            });
-                }
-            }
+//            if (!testFront) {
+//                Path dir = Paths.get(logsDir);
+//
+//                if (Files.exists(dir)) {
+//                    Files.walk(dir)
+//                            .sorted(Comparator.reverseOrder())
+//                            .forEach(path -> {
+//                                try {
+//                                    Files.delete(path);
+//                                } catch (IOException e) {
+//                                    throw new RuntimeException(e);
+//                                }
+//                            });
+//                }
+//            }
             Files.createDirectories(Paths.get(logsDir));
             log.info("LogsDir: [{}], Starting USR TCP WiFi listeners...", logsDir);
-            usrTcpWiFiLogWriter.init(this.logsDir, this.usrTcpWiFiProperties, ports);
+            usrTcpWiFiLogWriter.init(this.logsDir, this.usrTcpWiFiProperties, this.usrTcpLogsWiFiProperties, ports);
             for (int port : ports) {
                 Thread t = new Thread(() -> listenOnPort(port), "usr-tcp-listener-" + port);
                 t.setDaemon(true);
@@ -99,14 +103,23 @@ public class UsrTcpWiFiService {
             String listenOnPortMessages = dirMsg + waitMsg + "\n";
             log.info(listenOnPortMessages);
         }
-        try (ServerSocket server = new ServerSocket(port)) {
+        ServerSocket server = null;
+        try {
+            server = new ServerSocket(port);
+            serverSockets.add(server);
             while (true) {
                 try (Socket conn = server.accept()) {
                     handleConnection(conn, port);
+                } catch (SocketException se) {
+                    // For close socket with cleanup()
+                    if (server.isClosed()) {
+                        log.info("ServerSocket on port {} closed externally.", port);
+                        break;
+                    }
+                    log.error("Connection error on port {}", port, se);
                 } catch (Exception e) {
                     log.error("Connection error on port {}", port, e);
-                }
-            }
+                }            }
         } catch (Exception e) {
             log.error("ServerSocket error on port {}", port, e);
         }
@@ -132,5 +145,26 @@ public class UsrTcpWiFiService {
         } catch (Exception e) {
             log.error("Error while processing connection on port {}", port, e);
         }
+    }
+
+    // --------------------------
+    // CLEANUP / SHUTDOWN
+    // --------------------------
+    public void cleanup() {
+        log.info("Start destroy UsrTcpWiFiService: closing server sockets...");
+
+        // 1. ЗУПИНКА TCP СЛУХАЧІВ
+        for (ServerSocket server : serverSockets) {
+            if (server != null && !server.isClosed()) {
+                try {
+                    // Закриття сокета примусить server.accept() видати SocketException і зупинити потік.
+                    server.close();
+                    log.info("Closed ServerSocket on port {}", server.getLocalPort());
+                } catch (IOException e) {
+                    log.error("Error closing ServerSocket on port {}", server.getLocalPort(), e);
+                }
+            }
+        }
+        log.info("UsrTcpWiFiService cleanup completed.");
     }
 }

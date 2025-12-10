@@ -54,6 +54,9 @@ public class SmartSolarmanTuyaServiceInstall {
         if (this.tuyaConnection != null) {
             this.tuyaConnection.cleanup();
         }
+        if (this. usrTcpWiFiService != null) {
+            this. usrTcpWiFiService.cleanup();
+        }
         log.info("Stopped executor service, list of returned runnables");
     }
 }

@@ -1,12 +1,13 @@
 package org.nickas21.smart.usr.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
+import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.data.UsrTcpWiFiDecoders;
 import org.nickas21.smart.usr.data.UsrTcpWiFiMessageType;
 import org.nickas21.smart.usr.data.UsrTcpWifiCrcUtilities;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
-import org.nickas21.smart.usr.entity.UsrTcpWiFiErrorRecord;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
@@ -19,7 +20,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import static org.nickas21.smart.usr.data.ErrorLogType.B1;
+import static org.nickas21.smart.usr.data.ErrorLogType.E1;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_END;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_START;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.MIN_PACKET_LENGTH;
@@ -41,18 +45,22 @@ public class UsrTcpWiFiParseData {
     @Value("${app.test_front:false}")
     boolean testFront;
 
-
-    private final UsrTcpWiFiLogWriter logWriter;
+    public final UsrTcpWiFiLogWriter logWriter;
+    public final UsrTcpWiFiProperties usrTcpWiFiProperties;
+    public final UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties;
     private final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
 
 
     // --- Throttling for writing every 4 min ---
-    private final List<UsrTcpWiFiPacketRecord> pendingErrorRecords = new ArrayList<>();
-    private static final long WRITE_INTERVAL = 240_000; // 4 min
-    private long lastWriteTimeLast = 0;
+    private final Map<List<String>, String> lastErrorRecords = new ConcurrentHashMap<>();
+    private long lastWriteTime = 0;
 
-    public UsrTcpWiFiParseData(UsrTcpWiFiLogWriter logWriter, UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry) {
+    public UsrTcpWiFiParseData(UsrTcpWiFiLogWriter logWriter, UsrTcpWiFiProperties usrTcpWiFiProperties,
+                               UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties,
+                               UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry) {
         this.logWriter = logWriter;
+        this.usrTcpWiFiProperties = usrTcpWiFiProperties;
+        this.usrTcpLogsWiFiProperties = usrTcpLogsWiFiProperties;
         this.usrTcpWiFiBatteryRegistry = usrTcpWiFiBatteryRegistry;
     }
 
@@ -98,7 +106,6 @@ public class UsrTcpWiFiParseData {
                     String crcMessage = UsrTcpWifiCrcUtilities.checkPacketCrc(packet, typeFrameName);
 
                     Instant nowInstant = Instant.now();
-                    long timestamp = nowInstant.toEpochMilli();
                     String timestampStr = getCurrentTimeString(nowInstant);
                     String fullPacketHex = bytesToHex(packet);
                     String output = String.format(
@@ -108,15 +115,11 @@ public class UsrTcpWiFiParseData {
                     );
 
                     // Extra BMS info for C0 and update C0/C1
-                    Integer errorInfoData;
-                    String errorOutput;
-                    if (C0.equals(msgType)) {
+                     if (C0.equals(msgType)) {
                         UsrTcpWifiC0Data c0Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC0Data();
                         UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, nowInstant);
 
                         this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c0Data.getTimestamp());
-                        errorInfoData = c0Data.getErrorInfoData();
-                        errorOutput = c0Data.getErrorOutput();
                         if (testFront) {
                             String infoC0BmsMsg = c0Data.decodeC0BmsInfoPayload(output);
                             if (!infoC0BmsMsg.isBlank()) {
@@ -131,14 +134,22 @@ public class UsrTcpWiFiParseData {
                         this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c1Data.getTimestamp());
                         // write to file error history C1 - unBalance = delta + min/max + level_code
                         // 764862063274;8897;C1;len;c1Data.balanceS
+                        List<String> key = List.of(String.valueOf(port), B1.name());
                         if (c1Data.getBalanceS() != null &&
                                 (c1Data.getBalanceS().equals(CRITICAL_LIMIT) || c1Data.getBalanceS().equals(EMERGENCY_MAX))) {
-                            if (testFront) {
-                                pendingErrorRecords.add(c1Data.getErrorUnbalanceForRecords(port));
+                            String newValue =  c1Data.getBalanceS().name();
+                            String oldValue =  lastErrorRecords.get(key);
+                            if (!newValue.equals(oldValue)) {
+                                this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(c1Data.getErrorUnbalanceForRecords(port));
+                                lastErrorRecords.compute(key, (k, v) -> newValue);
+                                if (testFront) {
+                                    logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
+                                }
                             }
+                        } else {
+                            this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(null);
+                            lastErrorRecords.compute(key, (k, v) -> null);
                         }
-                        errorInfoData = c1Data.getErrorInfoData();
-                        errorOutput = c1Data.getErrorOutput();
                         if (testFront) {
                             String infoC1BmsMsg = c1Data.decodeC1BmsInfoPayload(output);
                             if (!infoC1BmsMsg.isBlank()) {
@@ -151,45 +162,45 @@ public class UsrTcpWiFiParseData {
                         // write to file error history C1 - errors
                         // 1764862063274;8897;C1;len;2008
                         // 1764862063274;8897;C1;len;1007 => c1Data.errOutput
-                        if (c1Data.getErrorInfoData() != null && c1Data.getErrorInfoData() > 0) {
-                            if (testFront) {
-                                pendingErrorRecords.add(c1Data.getErrorOutputForRecords(port));
-                            }
-                        }
-                    }
-
-                    if (errorInfoData != null && errorInfoData > 0) {
-                        this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecord(new UsrTcpWiFiErrorRecord
-                                (nowInstant, intToHex(errorInfoData), errorOutput));
-                    }
-                    // write to file today
-                    // 1764862062785;8895;C0;21;140014AAFFF75A00040000000A0000000500000000
-                    // 1764862063274;8897;C1;43;28100CDF0CD50CDF0CDB0CEA0CDB0CE80CEB0CF00CE20CE70CEB0CEA0CF50CF90CFC03F25F000000000C10
-                    long now = System.currentTimeMillis();
-
-                    // --- Write ALL collected errors every 4 minutes ---
-                    if (now - lastWriteTimeLast >= WRITE_INTERVAL) {
-                        if (pendingErrorRecords != null && pendingErrorRecords.size() > 0) {
-                            for (UsrTcpWiFiPacketRecord rec : pendingErrorRecords) {
+                        key = List.of(String.valueOf(port), E1.name());
+                        Integer errorInfoData = c1Data.getErrorInfoData();
+                        if (errorInfoData != null && errorInfoData > 0) {
+                            String newValue =  intToHex(errorInfoData);
+                            String oldValue =  lastErrorRecords.get(key);
+                            if (!newValue.equals(oldValue)) {
+                                this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(c1Data.getErrorOutputForRecords(port));
+                                lastErrorRecords.put(key, newValue);
                                 if (testFront) {
-                                    logWriter.writeError(port, rec);
+                                    logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
                                 }
                             }
-                            pendingErrorRecords.clear();
+                        } else {
+                            this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(null);
+                            lastErrorRecords.compute(key, (k, v) -> null);
                         }
-                        // --- Write ALL last info c0/c1 by prot every 4 minutes ---
-                        for(Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getAll().entrySet()){
-                            int portWrite = entry.getKey();
-                            UsrTcpWiFiBattery battery = entry.getValue();
+                    }
 
-                            UsrTcpWiFiPacketRecord lastLastRecordC0 = battery.getC0Data().getInfoForRecords(portWrite);
-                            UsrTcpWiFiPacketRecord lastLastRecordC1 = battery.getC1Data().getInfoForRecords(portWrite);
+                    synchronized (this) {
+                        // --- Write ALL last info c0/c1 by port every 30 minutes ---
+                        // write to file today
+                        // 1764862062785;8895;C0;21;140014AAFFF75A00040000000A0000000500000000
+                        // 1764862063274;8897;C1;43;28100CDF0CD50CDF0CDB0CEA0CDB0CE80CEB0CF00CE20CE70CEB0CEA0CF50CF90CFC03F25F000000000C10
+                        long now = System.currentTimeMillis();
+                        if (now - lastWriteTime >= this.usrTcpLogsWiFiProperties.getWriteInterval()) {
                             if (testFront) {
-                                if (lastLastRecordC0 != null) logWriter.writeToday(portWrite, lastLastRecordC0);
-                                if (lastLastRecordC1 != null) logWriter.writeToday(portWrite, lastLastRecordC1);
+                                for (Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getAll().entrySet()) {
+                                    int portWrite = entry.getKey();
+                                    UsrTcpWiFiBattery battery = entry.getValue();
+
+                                    UsrTcpWiFiPacketRecord lastRecordC0 = battery.getC0Data().getInfoForRecords(portWrite);
+                                    UsrTcpWiFiPacketRecord lastRecordC1 = battery.getC1Data().getInfoForRecords(portWrite);
+
+                                    if (lastRecordC0 != null) logWriter.writeToday(portWrite, lastRecordC0);
+                                    if (lastRecordC1 != null) logWriter.writeToday(portWrite, lastRecordC1);
+                                }
                             }
+                            lastWriteTime = now;
                         }
-                        lastWriteTimeLast = now;
                     }
                 } else if (!A2.equals(msgType) && !D0.equals(msgType)) {
                     log.error("UNKNOWN message type: 0x{}", String.format("%02X", packet[2]));
@@ -244,8 +255,20 @@ public class UsrTcpWiFiParseData {
             out.append(String.format("- Voltage: %.2f V\n", c0Data.getVoltageCurV()));
             out.append(String.format("- Current: %.2f A\n", c0Data.getCurrentCurA() * 8));
             out.append(String.format("- Cells delta: %.3f V\n", c1Data.getDeltaMv() / 1000.0));
-            if (c0Data.getErrorInfoData() > 0) {
-                out.append(String.format("- Error info Data:  | 0x%s\n", Integer.toHexString(c0Data.getErrorInfoData()).toUpperCase()));
+            StringBuilder errorBuilder = new StringBuilder();
+            for (Map.Entry<Integer, UsrTcpWiFiBattery> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getAll().entrySet()) {
+
+                if (batteryEntry.getValue().getErrRecordE1() != null){
+                    errorBuilder.append(batteryEntry.getValue().getErrRecordE1().toLine());
+                }
+                if (batteryEntry.getValue().getErrRecordB1() != null){
+                    errorBuilder.append(batteryEntry.getValue().getErrRecordB1().toLine());
+                }
+            }
+            if (!errorBuilder.toString().isEmpty()) {
+                out.append(String.format("- Error info Data: %s\n", errorBuilder));
+            } else {
+                out.append("- Error info Data: No errors\n");
             }
             String BmsSummary = out.toString();
             return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), c0Data.getSocPercent(), BmsSummary);
