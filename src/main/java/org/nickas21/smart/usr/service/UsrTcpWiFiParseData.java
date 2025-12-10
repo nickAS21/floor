@@ -142,9 +142,7 @@ public class UsrTcpWiFiParseData {
                             if (!newValue.equals(oldValue)) {
                                 this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(c1Data.getErrorUnbalanceForRecords(port));
                                 lastErrorRecords.compute(key, (k, v) -> newValue);
-//                                if (testFront) {
-                                    logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
-//                                }
+                                logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
                             }
                         } else {
                             this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(null);
@@ -170,9 +168,7 @@ public class UsrTcpWiFiParseData {
                             if (!newValue.equals(oldValue)) {
                                 this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(c1Data.getErrorOutputForRecords(port));
                                 lastErrorRecords.put(key, newValue);
-//                                if (testFront) {
-                                    logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
-//                                }
+                                logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
                             }
                         } else {
                             this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(null);
@@ -187,20 +183,18 @@ public class UsrTcpWiFiParseData {
                         // 1764862063274;8897;C1;43;28100CDF0CD50CDF0CDB0CEA0CDB0CE80CEB0CF00CE20CE70CEB0CEA0CF50CF90CFC03F25F000000000C10
                         long now = System.currentTimeMillis();
                         if (now - lastWriteTime >= this.usrTcpLogsWiFiProperties.getWriteInterval()) {
-//                            if (testFront) {
-                                for (Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getAll().entrySet()) {
-                                    int portWrite = entry.getKey();
-                                    UsrTcpWiFiBattery battery = entry.getValue();
+                            for (Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getAll().entrySet()) {
+                                int portWrite = entry.getKey();
+                                UsrTcpWiFiBattery battery = entry.getValue();
 
-                                    UsrTcpWiFiPacketRecord lastRecordC0 = battery.getC0Data().getInfoForRecords(portWrite);
-                                    UsrTcpWiFiPacketRecord lastRecordC1 = battery.getC1Data().getInfoForRecords(portWrite);
+                                UsrTcpWiFiPacketRecord lastRecordC0 = battery.getC0Data().getInfoForRecords(portWrite);
+                                UsrTcpWiFiPacketRecord lastRecordC1 = battery.getC1Data().getInfoForRecords(portWrite);
 
-                                    if (lastRecordC0 != null) logWriter.writeToday(portWrite, lastRecordC0);
-                                    if (lastRecordC1 != null) logWriter.writeToday(portWrite, lastRecordC1);
-                                }
+                                if (lastRecordC0 != null) logWriter.writeToday(portWrite, lastRecordC0);
+                                if (lastRecordC1 != null) logWriter.writeToday(portWrite, lastRecordC1);
                             }
                             lastWriteTime = now;
-//                        }
+                        }
                     }
                 } else if (!A2.equals(msgType) && !D0.equals(msgType)) {
                     log.error("UNKNOWN message type: 0x{}", String.format("%02X", packet[2]));
