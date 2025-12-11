@@ -170,7 +170,7 @@ public class UsrTcpWifiC1Data {
                 String.format("Error:  %s\n", this.getBalanceS().getDescription()) +
                 String.format("Cell%02d_MIN:  %.3f V\n", this.minCellV.get(keyIdx).asInt(), this.getMinCellV().get(keyVoltage).floatValue()) +
                 String.format("Cell%02d_MAX:  %.3f V\n", this.maxCellV.get(keyIdx).asInt(), this.getMaxCellV().get(keyVoltage).floatValue()) +
-                String.format("DELTA:         %.3f V\n", this.deltaMv / 1000.0);
+                String.format("DELTA:       %.3f V\n", this.deltaMv / 1000.0);
         return getErrorForRecords(port, ErrorLogType.B1.name() + ":" + this.balanceS.name(), errorMsgUnBalanceStr.getBytes(StandardCharsets.UTF_8));
     }
 

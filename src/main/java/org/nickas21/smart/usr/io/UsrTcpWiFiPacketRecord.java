@@ -1,6 +1,9 @@
 package org.nickas21.smart.usr.io;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.nickas21.smart.util.StringUtils.bytesToHex;
+import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 import static org.nickas21.smart.util.StringUtils.hexToBytes;
 
 public record UsrTcpWiFiPacketRecord(
@@ -38,7 +41,10 @@ public record UsrTcpWiFiPacketRecord(
         return new UsrTcpWiFiPacketRecord(ts, port, type, len, data);
     }
 
-    /* ---------- HEX UTILS ---------- */
-
-
+    public String toMsgForBot() {
+        return "--" + formatTimestamp(timestamp) + ";" +
+                port + ";" +
+                type + ";" + "\n" +
+                new String(payload, StandardCharsets.UTF_8) + "\n";
+    }
 }

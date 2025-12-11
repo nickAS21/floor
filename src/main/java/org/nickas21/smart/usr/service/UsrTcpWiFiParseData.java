@@ -1,6 +1,7 @@
 package org.nickas21.smart.usr.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.data.UsrTcpWiFiDecoders;
@@ -249,26 +250,30 @@ public class UsrTcpWiFiParseData {
             out.append(String.format("- Voltage: %.2f V\n", c0Data.getVoltageCurV()));
             out.append(String.format("- Current: %.2f A\n", c0Data.getCurrentCurA() * 8));
             out.append(String.format("- Cells delta: %.3f V\n", c1Data.getDeltaMv() / 1000.0));
-            StringBuilder errorBuilder = new StringBuilder();
-            for (Map.Entry<Integer, UsrTcpWiFiBattery> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getAll().entrySet()) {
-
-                if (batteryEntry.getValue().getErrRecordE1() != null){
-                    errorBuilder.append(batteryEntry.getValue().getErrRecordE1().toLine());
-                }
-                if (batteryEntry.getValue().getErrRecordB1() != null){
-                    errorBuilder.append(batteryEntry.getValue().getErrRecordB1().toLine());
-                }
-            }
+            StringBuilder errorBuilder = getStringBuilder();
             if (!errorBuilder.toString().isEmpty()) {
-                out.append(String.format("- Error info Data: %s\n", errorBuilder));
+                out.append(String.format("- Error info Data:\n%s\n", errorBuilder));
             } else {
                 out.append("- Error info Data: No errors\n");
             }
-            String BmsSummary = out.toString();
-            return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), c0Data.getSocPercent(), BmsSummary);
+            return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), c0Data.getSocPercent(), out.toString());
         } catch (Exception e) {
             log.error("CRITICAL DECODE ERROR C0", e);
             return null;
         }
+    }
+
+    @NotNull
+    private StringBuilder getStringBuilder() {
+        StringBuilder errorBuilder = new StringBuilder();
+        for (Map.Entry<Integer, UsrTcpWiFiBattery> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getAll().entrySet()) {
+            if (batteryEntry.getValue().getErrRecordE1() != null){
+                errorBuilder.append(batteryEntry.getValue().getErrRecordE1().toMsgForBot());
+            }
+            if (batteryEntry.getValue().getErrRecordB1() != null){
+                errorBuilder.append(batteryEntry.getValue().getErrRecordB1().toMsgForBot());
+            }
+        }
+        return errorBuilder;
     }
 }
