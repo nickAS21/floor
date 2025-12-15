@@ -243,6 +243,7 @@ public class UsrTcpWiFiParseData {
     public UsrTcpWiFiBmsSummary getBmsSummary(int port){
         UsrTcpWifiC0Data c0Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC0Data();
         UsrTcpWifiC1Data c1Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC1Data();
+        String bmsErrors = null;
         if (c0Data.getTimestamp() == null || c1Data.getTimestamp() == null) return null;
         try {
             StringBuilder out = new StringBuilder();
@@ -252,11 +253,10 @@ public class UsrTcpWiFiParseData {
             out.append(String.format("- Cells delta: %.3f V\n", c1Data.getDeltaMv() / 1000.0));
             StringBuilder errorBuilder = getStringBuilder();
             if (!errorBuilder.toString().isEmpty()) {
-                out.append(String.format("- Error info Data:\n%s\n", errorBuilder));
+                bmsErrors = (String.format("Error info Data:\n%s", errorBuilder));
             } else {
-                out.append("- Error info Data: No errors\n");
             }
-            return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), c0Data.getSocPercent(), out.toString());
+            return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), c0Data.getSocPercent(), bmsErrors, out.toString());
         } catch (Exception e) {
             log.error("CRITICAL DECODE ERROR C0", e);
             return null;

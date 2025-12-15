@@ -8,7 +8,7 @@ public enum UsrTcpWifiBalanceThresholds {
     EXCELLENT_MAX(10, "Excellent", "BALANCE CELLS is very good"),
     GOOD_MAX(20, "Good", "BALANCE CELLS is good"),
     WARN_MAX(50, "Warning", "WARNING: BALANCE CELLS is not good"),
-    CRITICAL_LIMIT(80, "Critical","CRITICAL_LIMIT: <= 80 mV, monitor for damaged cells"),
+    CRITICAL_LIMIT(90, "Critical","CRITICAL_LIMIT: <= 90 mV, monitor for damaged cells"),
     EMERGENCY_MAX(Integer.MAX_VALUE, "Emergency", "DANGEROUS: Emergency Shutdown Recommended");
 
 

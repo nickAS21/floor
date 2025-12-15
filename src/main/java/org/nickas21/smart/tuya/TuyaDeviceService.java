@@ -884,7 +884,8 @@ public class TuyaDeviceService {
             // if battery == USER
 //            String msgSoc = msg + "Battery Remaining at the Country House: [" + batteryChargeRemaining + " %]/(on inverter [" + batterySocFromSolarman + " %]).";
             double bmsPower = Math.round((bmsVolNew * bmsCurNew) * 100.0) / 100.0;
-            String  msgSoc = msg + "Battery Remaining at the Country House:\n" +
+
+            String  msgSoc = msg + "Info: Battery on the Country House:\n" +
                     "- SOC: [" + batteryChargeRemainingDacha + " %];\n" +
                     "- BatteryStatus: [" + batteryStatusNew + "];\n" +
                     "- BmsVoltage: [" + bmsVolNew + " V];\n" +
@@ -896,13 +897,17 @@ public class TuyaDeviceService {
                 msgSoc = msgSoc + "- Voltages: [" + batVolNew + " V];\n" +
                         "- Currents: [" + batCurNew + " A].";
             } else {
-                msgSoc = msgSoc + "Usr Battery Remaining at the Golego:\n" +
+                msgSoc = msgSoc + "Info: Usr Battery on Golego:\n" +
                         "- SOC: [" + usrBmsSummary.socPercent() + " %];\n"
                         + usrBmsSummary.bmsSummary();
             }
             this.updateMessageAlarmToTelegram(msgSoc);
             this.lastUpdateTimeAlarmSocDacha = lastUpdateTimeAlarmDacha;
             this.lastUpdateTimeAlarmSocGolego = lastUpdateTimeAlarmGolego;
+        }
+        if (usrBmsSummary != null && usrBmsSummary.bmsErrors() != null) {
+            String  msgError = "Errors: Usr Battery on the Golego:\n" + usrBmsSummary.bmsErrors();
+            this.updateMessageAlarmToTelegram(msgError);
         }
     }
 
