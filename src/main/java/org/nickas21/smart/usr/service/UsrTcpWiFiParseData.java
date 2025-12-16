@@ -241,24 +241,30 @@ public class UsrTcpWiFiParseData {
     }
 
     public UsrTcpWiFiBmsSummary getBmsSummary(int port){
-        UsrTcpWifiC0Data c0Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC0Data();
-        UsrTcpWifiC1Data c1Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC1Data();
-        String bmsErrors = null;
-        if (c0Data.getTimestamp() == null || c1Data.getTimestamp() == null) return null;
-        try {
-            StringBuilder out = new StringBuilder();
-            out.append(String.format("- BMS status %s\n", c0Data.getBmsStatusStr()));
-            out.append(String.format("- Voltage: %.2f V\n", c0Data.getVoltageCurV()));
-            out.append(String.format("- Current: %.2f A\n", c0Data.getCurrentCurA() * 8));
-            out.append(String.format("- Cells delta: %.3f V\n", c1Data.getDeltaMv() / 1000.0));
-            StringBuilder errorBuilder = getStringBuilderError();
-            if (!errorBuilder.toString().isEmpty()) {
-                bmsErrors = (String.format("Error info Data:\n%s", errorBuilder));
-            } else {
+        UsrTcpWiFiBattery usrTcpWiFiBattery = this.usrTcpWiFiBatteryRegistry.getBattery(port);
+        if (usrTcpWiFiBattery != null) {
+            UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
+            UsrTcpWifiC1Data c1Data = usrTcpWiFiBattery.getC1Data();
+            String bmsErrors = null;
+            if (c0Data.getTimestamp() == null || c1Data.getTimestamp() == null) return null;
+            try {
+                StringBuilder out = new StringBuilder();
+                out.append(String.format("- BMS status %s\n", c0Data.getBmsStatusStr()));
+                out.append(String.format("- Voltage: %.2f V\n", c0Data.getVoltageCurV()));
+                out.append(String.format("- Current: %.2f A\n", c0Data.getCurrentCurA() * 8));
+                out.append(String.format("- Cells delta: %.3f V\n", c1Data.getDeltaMv() / 1000.0));
+                StringBuilder errorBuilder = getStringBuilderError();
+                if (!errorBuilder.toString().isEmpty()) {
+                    bmsErrors = (String.format("Error info Data:\n%s", errorBuilder));
+                } else {
+                }
+                return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), c0Data.getSocPercent(), bmsErrors, out.toString());
+            } catch (Exception e) {
+                log.error("CRITICAL DECODE ERROR C0", e);
+                return null;
             }
-            return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), c0Data.getSocPercent(), bmsErrors, out.toString());
-        } catch (Exception e) {
-            log.error("CRITICAL DECODE ERROR C0", e);
+        } else {
+            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", port, this.usrTcpWiFiBatteryRegistry.getAll().size());
             return null;
         }
     }

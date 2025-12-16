@@ -65,21 +65,6 @@ public class UsrTcpWiFiService {
             if (logsDir == null || logsDir.isBlank()) {
                 logsDir = "/tmp/usr-bms";   // fallback for Kubernetes
             }
-//            if (!testFront) {
-//                Path dir = Paths.get(logsDir);
-//
-//                if (Files.exists(dir)) {
-//                    Files.walk(dir)
-//                            .sorted(Comparator.reverseOrder())
-//                            .forEach(path -> {
-//                                try {
-//                                    Files.delete(path);
-//                                } catch (IOException e) {
-//                                    throw new RuntimeException(e);
-//                                }
-//                            });
-//                }
-//            }
             Files.createDirectories(Paths.get(logsDir));
             log.info("LogsDir: [{}], Starting USR TCP WiFi listeners...", logsDir);
             usrTcpWiFiLogWriter.init(this.logsDir, this.usrTcpWiFiProperties, this.usrTcpLogsWiFiProperties, ports);
