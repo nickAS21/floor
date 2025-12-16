@@ -681,11 +681,11 @@ public class TuyaDeviceService {
                         String nameParam = commands.get(0).get("code").asText();
                         Object valueInDeviceCur = device.getStatus() != null && nameParam != null && device.getStatus().get(nameParam) != null ?
                                 device.getStatus().get(nameParam).getValue() : null;
-                        Object val = commands.get(0).get("value").getNodeType().name().equals("NUMBER") ? commands.get(0).get("value").asInt() :
+                        Object valNumber = commands.get(0).get("value").getNodeType().name().equals("NUMBER") ? commands.get(0).get("value").asInt() :
                                 commands.get(0).get("value").getNodeType().name().equals("BOOLEAN") ? commands.get(0).get("value").asBoolean() : commands.get(0).get("value");
-                        if (val != null && !val.equals(valueInDeviceCur)) {
+                        if (valNumber != null && !valNumber.equals(valueInDeviceCur)) {
                             DeviceStatus statusNew = new DeviceStatus();
-                            statusNew.setValue(val);
+                            statusNew.setValue(valNumber);
                             device.setStatus(commands.get(0).get("code").asText(), statusNew);
                         }
                         DeviceStatus statusCur = device.getStatus().get(nameParam);
@@ -975,6 +975,16 @@ public class TuyaDeviceService {
     public Boolean getGridRelayCodeDachaStateOnLine() {
         if (this.getGridRelayCodeIdDacha() != null) {
             Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
+            if (gridDevice != null) {
+                return gridDevice.getCurrentStateOnLineValue();
+            }
+        }
+        return null;
+    }
+
+    public Boolean getGridRelayCodeHomeGolegoStateOnLine() {
+        if (this.getGridRelayCodeIdHome() != null) {
+            Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdHome());
             if (gridDevice != null) {
                 return gridDevice.getCurrentStateOnLineValue();
             }

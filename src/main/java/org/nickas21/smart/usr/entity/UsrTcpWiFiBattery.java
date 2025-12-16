@@ -2,7 +2,7 @@ package org.nickas21.smart.usr.entity;
 
 import lombok.Data;
 import org.nickas21.smart.usr.data.UsrTcpWiFiMessageType;
-import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecord;
+import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecordError;
 
 import java.time.Instant;
 import java.util.Map;
@@ -22,8 +22,8 @@ public class UsrTcpWiFiBattery {
     // --- Отримані дані ---
     private UsrTcpWifiC0Data c0Data;         // Поточний пакет C0 (Загальний стан)
     private UsrTcpWifiC1Data c1Data;         // Поточний отриманий пакет C1 (Стан комірок)
-    private UsrTcpWiFiPacketRecord errRecordE1;
-    private UsrTcpWiFiPacketRecord errRecordB1;
+    private UsrTcpWiFiPacketRecordError errRecordE1;
+    private UsrTcpWiFiPacketRecordError errRecordB1;
 
     public UsrTcpWiFiBattery(int port) {
         this.port = port;

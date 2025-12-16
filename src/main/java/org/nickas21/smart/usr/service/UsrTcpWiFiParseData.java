@@ -138,7 +138,7 @@ public class UsrTcpWiFiParseData {
                         List<String> key = List.of(String.valueOf(port), B1.name());
                         if (c1Data.getBalanceS() != null &&
                                 (c1Data.getBalanceS().equals(CRITICAL_LIMIT) || c1Data.getBalanceS().equals(EMERGENCY_MAX))) {
-                            String newValue =  c1Data.getBalanceS().name();
+                            String newValue =  c1Data.getBalanceS().name() + ": " + intToHex(c1Data.getErrorInfoData());
                             String oldValue =  lastErrorRecords.get(key);
                             if (!newValue.equals(oldValue)) {
                                 this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(c1Data.getErrorUnbalanceForRecords(port));
@@ -251,7 +251,7 @@ public class UsrTcpWiFiParseData {
             out.append(String.format("- Voltage: %.2f V\n", c0Data.getVoltageCurV()));
             out.append(String.format("- Current: %.2f A\n", c0Data.getCurrentCurA() * 8));
             out.append(String.format("- Cells delta: %.3f V\n", c1Data.getDeltaMv() / 1000.0));
-            StringBuilder errorBuilder = getStringBuilder();
+            StringBuilder errorBuilder = getStringBuilderError();
             if (!errorBuilder.toString().isEmpty()) {
                 bmsErrors = (String.format("Error info Data:\n%s", errorBuilder));
             } else {
@@ -264,7 +264,7 @@ public class UsrTcpWiFiParseData {
     }
 
     @NotNull
-    private StringBuilder getStringBuilder() {
+    private StringBuilder getStringBuilderError() {
         StringBuilder errorBuilder = new StringBuilder();
         for (Map.Entry<Integer, UsrTcpWiFiBattery> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getAll().entrySet()) {
             if (batteryEntry.getValue().getErrRecordE1() != null){

@@ -14,12 +14,12 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
+import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
 import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
-import org.springframework.security.web.server.savedrequest.NoOpServerRequestCache;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
-import reactor.core.publisher.Mono;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import reactor.core.publisher.Mono;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -59,24 +59,42 @@ public class SecurityConfig {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
+//    @Bean
+//    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http,
+//                                                         WebSessionServerSecurityContextRepository securityContextRepository,
+//                                                         CorsConfigurationSource corsConfigurationSource) {
+//        return http
+//                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+//                .logout(ServerHttpSecurity.LogoutSpec::disable)
+//                .securityContextRepository(securityContextRepository)
+//                .requestCache(requestCacheSpec -> requestCacheSpec.requestCache(NoOpServerRequestCache.getInstance()))
+//                .authorizeExchange(authorizeExchangeSpec -> authorizeExchangeSpec
+//                        .pathMatchers("/api/auth/login", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll()
+//                        .anyExchange().authenticated()
+//                )
+//                .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource))
+//                .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
+//                        .authenticationEntryPoint((exchange, exception) -> Mono.error(exception))
+//                        .accessDeniedHandler((exchange, exception) -> Mono.error(exception))
+//                )
+//                .build();
+//    }
+
     @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http,
-                                                         WebSessionServerSecurityContextRepository securityContextRepository,
-                                                         CorsConfigurationSource corsConfigurationSource) {
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .logout(ServerHttpSecurity.LogoutSpec::disable)
-                .securityContextRepository(securityContextRepository)
-                .requestCache(requestCacheSpec -> requestCacheSpec.requestCache(NoOpServerRequestCache.getInstance()))
-                .authorizeExchange(authorizeExchangeSpec -> authorizeExchangeSpec
-                        .pathMatchers("/api/auth/login", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll()
-                        .anyExchange().authenticated()
+                // Access without authorization
+                .authorizeExchange(exchange -> exchange
+                        .pathMatchers("/api/auth/login").permitAll()
+                        .pathMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .anyExchange().permitAll()      // <<< Main
                 )
-                .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource))
-                .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
-                        .authenticationEntryPoint((exchange, exception) -> Mono.error(exception))
-                        .accessDeniedHandler((exchange, exception) -> Mono.error(exception))
-                )
+                // Completely disable Spring Security authentication
+                .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
                 .build();
     }
 

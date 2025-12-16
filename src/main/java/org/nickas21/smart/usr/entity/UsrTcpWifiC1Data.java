@@ -6,6 +6,7 @@ import lombok.Data;
 import org.nickas21.smart.usr.data.ErrorLogType;
 import org.nickas21.smart.usr.data.UsrTcpWifiBalanceThresholds;
 import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecord;
+import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecordError;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -165,26 +166,27 @@ public class UsrTcpWifiC1Data {
         return out.toString();
     }
 
-    public UsrTcpWiFiPacketRecord getErrorUnbalanceForRecords(int port){
+    public UsrTcpWiFiPacketRecordError getErrorUnbalanceForRecords(int port){
         String errorMsgUnBalanceStr = String.format("Code:   %s\n", intToHex(this.errorInfoData)) +
                 String.format("Error:  %s\n", this.getBalanceS().getDescription()) +
                 String.format("Cell%02d_MIN:  %.3f V\n", this.minCellV.get(keyIdx).asInt(), this.getMinCellV().get(keyVoltage).floatValue()) +
                 String.format("Cell%02d_MAX:  %.3f V\n", this.maxCellV.get(keyIdx).asInt(), this.getMaxCellV().get(keyVoltage).floatValue()) +
                 String.format("DELTA:       %.3f V\n", this.deltaMv / 1000.0);
-        return getErrorForRecords(port, ErrorLogType.B1.name() + ":" + this.balanceS.name(), errorMsgUnBalanceStr.getBytes(StandardCharsets.UTF_8));
+        return getErrorForRecords(port, ErrorLogType.B1.name() + ":" + this.balanceS.name(), intToHex(this.errorInfoData), errorMsgUnBalanceStr.getBytes(StandardCharsets.UTF_8));
     }
 
-    public UsrTcpWiFiPacketRecord getErrorOutputForRecords(int port){
+    public UsrTcpWiFiPacketRecordError getErrorOutputForRecords(int port){
         String errorMsgErrorOutputStr = String.format("Code:   %s\n", intToHex(this.errorInfoData)) +
                                         String.format("Error:  %s\n", this.getErrorOutput());
-        return getErrorForRecords(port, ErrorLogType.E1.name() + ":" + intToHex(this.errorInfoData), errorMsgErrorOutputStr.getBytes(StandardCharsets.UTF_8));
+        return getErrorForRecords(port, ErrorLogType.E1.name(), intToHex(this.errorInfoData), errorMsgErrorOutputStr.getBytes(StandardCharsets.UTF_8));
     }
 
-    private UsrTcpWiFiPacketRecord getErrorForRecords(int port, String typeError, byte[] errorMsg){
-        return new UsrTcpWiFiPacketRecord(
+    private UsrTcpWiFiPacketRecordError getErrorForRecords(int port, String typeError, String codeError, byte[] errorMsg){
+        return new UsrTcpWiFiPacketRecordError(
                 this.timestamp.toEpochMilli(),
                 port,
                 typeError,
+                codeError,
                 errorMsg.length,
                 errorMsg
         );

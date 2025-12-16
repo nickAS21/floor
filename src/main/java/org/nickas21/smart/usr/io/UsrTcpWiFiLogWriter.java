@@ -78,7 +78,7 @@ public class UsrTcpWiFiLogWriter implements Closeable {
     }
 
     // ---- WRITE ERROR ----
-    public synchronized void writeError(Integer port, UsrTcpWiFiPacketRecord rec) throws IOException {
+    public synchronized void writeError(Integer port, UsrTcpWiFiPacketRecordError rec) throws IOException {
         File file = Paths.get(logDir, errorFileName(port)).toFile();
 
         enforceErrorLogLimit(file);

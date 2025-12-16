@@ -142,9 +142,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             -batteryStatus: [{}], -batteryPower: [{} W], -batVolNew: [{} V], -batCurrentNew: [{} A],  -bmsVolNew: [{} V], -bmsCurrentNew: [{} A], -BMS Temperature: [{}  grad C]\s
                             -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],\s
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
-                            -relayStatus: [{}], -gridStatusSolarman: [{}], -gridStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh],
+                            -relayStatus: [{}], -gridStatusSolarman: [{}], -gridDachaStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh],
                             -AC (inverter) Temperature:  [{} grad C].
-                            - usrBmsSummary: batSocLast: [{} %] \s
+                            - usrBmsSummary: -batSocLast: [{} %], -gridGolegoStatusRealTime: [{}], \s
                              {}
                        """,
                     curInstStr,
@@ -173,6 +173,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     powerValueRealTimeData.getDailyEnergySell(),
                     powerValueRealTimeData.getInverterTempValue(),
                     usrBmsSummary == null ? 0 : usrBmsSummary.socPercent(),
+                    tuyaDeviceService.getGridRelayCodeHomeGolegoStateOnLine(),
                     usrBmsSummary == null ? "null" : usrBmsSummary.bmsSummary());
             tuyaDeviceService.sendDachaGolegoBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, bmsTempNew,
                     batterySocNew, batteryPowerNew, batteryStatusNew, usrBmsSummary);
