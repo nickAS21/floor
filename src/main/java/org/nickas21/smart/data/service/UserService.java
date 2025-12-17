@@ -2,9 +2,9 @@ package org.nickas21.smart.data.service;
 
 import org.nickas21.smart.security.controller.JwtToken;
 import org.nickas21.smart.security.controller.JwtUtil;
-import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,45 +13,58 @@ import java.util.concurrent.ConcurrentHashMap;
 public class UserService {
 
     private final JwtUtil jwtUtil;
-    private final ReactiveUserDetailsService userDetailsService;
+    private final UserDetailsService userDetailsService;
 
     private final Map<String, JwtToken> tokenUsers;
 
-    public UserService(JwtUtil jwtUtil, ReactiveUserDetailsService userDetailsService) {
+    public UserService(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
         this.tokenUsers = new ConcurrentHashMap<>();
     }
 
-    public Mono<Boolean> validateToken(String token) {
-        try {
-            String[] userNames =  getUserNameFromToken(token);
-            String username = userNames[0];
-            String jwtToken = userNames[1];
-            if (this.tokenUsers.containsKey(username) && this.tokenUsers.get(username).getAccessToken().equals(jwtToken)) {
-                return userDetailsService.findByUsername(username)
-                        .map(userDetails -> jwtUtil.validateToken(jwtToken, userDetails));
-            } else {
-                return Mono.just(false);
-            }
-        } catch (Exception e) {
-            return Mono.just(false);
-        }
+    public boolean validateToken(String token){
+        return validateToken(token, false);
     }
 
-    public Mono<Boolean> validateRefreshToken(String token) {
+    public boolean validateRefreshToken(String token) {
+        return validateToken(token, true);
+    }
+
+    public boolean validateToken(String token, boolean isRefresh) {
+        if (token == null || token.isBlank()) return false;
+
         try {
-            String[] userNames =  getUserNameFromToken(token);
-            String username = userNames[0];
-            String jwtToken = userNames[1];
-            if (this.tokenUsers.containsKey(username) && this.tokenUsers.get(username).getRefreshToken().equals(jwtToken)) {
-                return userDetailsService.findByUsername(username)
-                        .map(userDetails -> jwtUtil.validateToken(jwtToken, userDetails));
+            String[] parts = getUserNameFromToken(token);
+            if (parts.length != 2) return false;
+            String username = parts[0];
+            String jwtToken = parts[1];
+
+            var session = tokenUsers.get(username);
+            if (session == null) return false;
+
+            if (isRefresh) {
+                if (!jwtToken.equals(session.getRefreshToken())) return false;
             } else {
-                return Mono.just(false);
+                if (!jwtToken.equals(session.getAccessToken())) return false;
             }
+
+            String expectedToken = isRefresh ? session.getRefreshToken() : session.getAccessToken();
+            if (jwtToken.startsWith("Bearer ")) {
+                jwtToken = jwtToken.substring(7);
+            }
+            jwtToken = jwtToken.trim();
+            expectedToken = expectedToken.trim();
+
+            if (!jwtToken.equals(expectedToken)) return false;
+
+            UserDetails user = userDetailsService.loadUserByUsername(username); // синхронно
+
+            return jwtUtil.validateToken(jwtToken, user);
+
+
         } catch (Exception e) {
-            return Mono.just(false);
+            return false;
         }
     }
 

@@ -256,7 +256,6 @@ public class UsrTcpWiFiParseData {
                 StringBuilder errorBuilder = getStringBuilderError();
                 if (!errorBuilder.toString().isEmpty()) {
                     bmsErrors = (String.format("Error info Data:\n%s", errorBuilder));
-                } else {
                 }
                 return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), c0Data.getSocPercent(), bmsErrors, out.toString());
             } catch (Exception e) {

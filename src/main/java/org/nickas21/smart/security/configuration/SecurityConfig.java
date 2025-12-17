@@ -1,127 +1,72 @@
 package org.nickas21.smart.security.configuration;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.ReactiveAuthenticationManager;
-import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
-import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
-import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
-import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
-import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsConfigurationSource;
-import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import reactor.core.publisher.Mono;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@EnableWebFluxSecurity
+@EnableWebSecurity
 public class SecurityConfig {
 
-    @Autowired
-    SmartConnectionService smartConnectionService;
+    private final SmartConnectionService smartConnectionService;
+
+    public SecurityConfig(SmartConnectionService smartConnectionService) {
+        this.smartConnectionService = smartConnectionService;
+    }
 
     @Bean
-    public MapReactiveUserDetailsService userDetailsService() {
-
-        UserDetails user = User
-                .withUsername(smartConnectionService.getUserLogin())
+    public UserDetailsService userDetailsService() {
+        UserDetails user = User.builder()
+                .username(smartConnectionService.getUserLogin())
                 .password(passwordEncoder().encode(smartConnectionService.getUserPassword()))
                 .roles("USER")
                 .build();
 
-        UserDetails admin = User
-                .withUsername(smartConnectionService.getAdminLogin())
+        UserDetails admin = User.builder()
+                .username(smartConnectionService.getAdminLogin())
                 .password(passwordEncoder().encode(smartConnectionService.getAdminPassword()))
                 .roles("ADMIN")
                 .build();
 
-        return new MapReactiveUserDetailsService(user, admin);
-    }
-
-    @Bean
-    public ReactiveAuthenticationManager authenticationManager(MapReactiveUserDetailsService userDetailsService) {
-        UserDetailsRepositoryReactiveAuthenticationManager authenticationManager =
-                new UserDetailsRepositoryReactiveAuthenticationManager(userDetailsService);
-        authenticationManager.setPasswordEncoder(passwordEncoder());
-        return authenticationManager;
+        return new InMemoryUserDetailsManager(user, admin);
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-    }
-
-//    @Bean
-//    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http,
-//                                                         WebSessionServerSecurityContextRepository securityContextRepository,
-//                                                         CorsConfigurationSource corsConfigurationSource) {
-//        return http
-//                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-//                .logout(ServerHttpSecurity.LogoutSpec::disable)
-//                .securityContextRepository(securityContextRepository)
-//                .requestCache(requestCacheSpec -> requestCacheSpec.requestCache(NoOpServerRequestCache.getInstance()))
-//                .authorizeExchange(authorizeExchangeSpec -> authorizeExchangeSpec
-//                        .pathMatchers("/api/auth/login", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll()
-//                        .anyExchange().authenticated()
-//                )
-//                .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource))
-//                .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
-//                        .authenticationEntryPoint((exchange, exception) -> Mono.error(exception))
-//                        .accessDeniedHandler((exchange, exception) -> Mono.error(exception))
-//                )
-//                .build();
-//    }
-
-    @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-        return http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
-                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
-                .logout(ServerHttpSecurity.LogoutSpec::disable)
-                // Access without authorization
-                .authorizeExchange(exchange -> exchange
-                        .pathMatchers("/api/auth/login").permitAll()
-                        .pathMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .anyExchange().permitAll()      // <<< Main
-                )
-                // Completely disable Spring Security authentication
-                .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
-                .build();
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration corsConfiguration = new CorsConfiguration();
-//        corsConfiguration.addAllowedOrigin("http://localhost:3000");
-        corsConfiguration.addAllowedOriginPattern("*");
-        corsConfiguration.addAllowedMethod("*");
-        corsConfiguration.addAllowedHeader("*");
-        corsConfiguration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", corsConfiguration);
-
-        return source;
-    }
-    @Bean
-    public ServerAuthenticationEntryPoint authenticationEntryPoint() {
-        return (exchange, ex) -> {
-            exchange.getResponse().setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
-            return Mono.empty();
-        };
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
-    public WebSessionServerSecurityContextRepository securityContextRepository() {
-        return new WebSessionServerSecurityContextRepository();
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtRequestFilter jwtRequestFilter) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/login", "/error").permitAll() // Відкрито для всіх
+                        .requestMatchers("/api/**").authenticated()      // ВСІ ендпоінти, що починаються з /api/, потребують токена
+                        .anyRequest().denyAll()                          // Все інше закриваємо наглухо
+                );
+
+        // ВАЖЛИВО: Додаємо ваш JWT фільтр ПЕРЕД стандартним фільтром аутентифікації
+        http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
 }

@@ -1,7 +1,25 @@
 package org.nickas21.smart.data.dataEntity;
 
-public class dataHome {
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class DataHome {
+
+    // Dacha -Update real time data: powerValueRealTimeData.getCollectionTime() * 1000
+    // Golego
+    long timestamp;
+    // batSocNew - dacha
+    double batterySoc;
+    String batteryStatus;
+    double batteryVol;
+    double batteryCurrent;
+    boolean gridStatusRealTime;
+    double solarPower;
+}
     /**
      * time: -> -Update real time data: [1:46:42 PM],
      * - yyyy-mm-dd-hh:mm:sec
@@ -35,5 +53,3 @@ public class dataHome {
      * - Cells delta: 0.003 V
      */
 
-
-}

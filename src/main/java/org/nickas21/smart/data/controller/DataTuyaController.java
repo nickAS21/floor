@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping(value = "/api/tuya")
@@ -24,23 +23,19 @@ public class DataTuyaController {
     }
 
 
-    @GetMapping("/dev")
-    public Mono<ResponseEntity<Devices>> getConfig(@RequestHeader(required = false, value = "Authorization") String token) {
-        return userService.validateToken(token)
-                .flatMap(isValid -> {
-                    if (!isValid) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                .body(new Devices("Invalid token")));
-                    }
-                    if (tuyaDeviceService.devices != null) {
-                        return Mono.just(ResponseEntity.ok(this.tuyaDeviceService.devices));
-                    } else {
-                        return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                                .body(new Devices("Devices not found")));
-                    }
-                })
-                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(new Devices("An error occurred: " + e.getMessage()))));
-    }
+    @GetMapping("/device")
+    public ResponseEntity<Devices> getConfig(
+            @RequestHeader(required = false, value = "Authorization") String token) {
+
+        if (!userService.validateToken(token)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (tuyaDeviceService.devices != null) {
+            return ResponseEntity.ok(this.tuyaDeviceService.devices);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new Devices("Devices not found"));
+        }
+      }
 
 }

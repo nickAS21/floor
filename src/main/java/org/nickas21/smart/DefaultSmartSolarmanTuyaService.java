@@ -137,14 +137,14 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
             log.info("""
                             Current data:\s
-                            Current real time data: [{}], -Update real time data: [{}],\s
+                            Current Dacha real time data: [{}], -Update Dacha real time data: [{}],\s
                             -batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], -batterySocMin: [{} %],\s
                             -batteryStatus: [{}], -batteryPower: [{} W], -batVolNew: [{} V], -batCurrentNew: [{} A],  -bmsVolNew: [{} V], -bmsCurrentNew: [{} A], -BMS Temperature: [{}  grad C]\s
                             -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],\s
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
                             -relayStatus: [{}], -gridStatusSolarman: [{}], -gridDachaStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh],
                             -AC (inverter) Temperature:  [{} grad C].
-                            - usrBmsSummary: -batSocLast: [{} %], -gridGolegoStatusRealTime: [{}], \s
+                            - usrBmsSummary:\s -Update Golego real time data: [{}], -batSocLast: [{} %], -gridGolegoStatusRealTime: [{}], \s
                              {}
                        """,
                     curInstStr,
@@ -172,6 +172,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell(),
                     powerValueRealTimeData.getInverterTempValue(),
+                    usrBmsSummary == null ? "null" : toLocaleTimeString(usrBmsSummary.timestamp().toEpochMilli()),
                     usrBmsSummary == null ? 0 : usrBmsSummary.socPercent(),
                     tuyaDeviceService.getGridRelayCodeHomeGolegoStateOnLine(),
                     usrBmsSummary == null ? "null" : usrBmsSummary.bmsSummary());

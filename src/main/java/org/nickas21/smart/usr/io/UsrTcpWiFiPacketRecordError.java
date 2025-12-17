@@ -46,8 +46,8 @@ public record UsrTcpWiFiPacketRecordError(
 
     public String toMsgForBot() {
         return "--" + formatTimestamp(timestamp) + ";" +
-                port + ";" +
-                type + ";" +
+                port + "; " +
+                type + "; " +
                 codeError + ";" + "\n" +
                 new String(payload, StandardCharsets.UTF_8) + "\n";
     }
