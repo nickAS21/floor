@@ -33,7 +33,10 @@ public class DataHome {
             this.batterySoc = powerValueRealTimeData.getBatterySocValue();
             this.batteryStatus = powerValueRealTimeData.getBatteryStatusValue();
             this.batteryVol = powerValueRealTimeData.getBatteryVoltageValue();
-            this.batteryCurrent = powerValueRealTimeData.getBatteryCurrentValue();
+            this.batteryCurrent = Math.copySign(
+                    Math.abs(powerValueRealTimeData.getBatteryCurrentValue()), // Only value
+                    powerValueRealTimeData.getBmsCurrentValue()                // Only range
+            );
             this.solarPower = powerValueRealTimeData.getProductionTotalSolarPowerValue();
         }
         this.gridStatusRealTime = deviceService.getGridRelayCodeDachaStateOnLine() != null && deviceService.getGridRelayCodeDachaStateOnLine();
