@@ -49,7 +49,7 @@ public class UsrTcpWiFiParseData {
     public final UsrTcpWiFiLogWriter logWriter;
     public final UsrTcpWiFiProperties usrTcpWiFiProperties;
     public final UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties;
-    private final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
+    public final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
 
 
     // --- Throttling for writing every 4 min ---
@@ -241,7 +241,7 @@ public class UsrTcpWiFiParseData {
     }
 
     public UsrTcpWiFiBmsSummary getBmsSummary(int port){
-        UsrTcpWiFiBattery usrTcpWiFiBattery = this.usrTcpWiFiBatteryRegistry.getBattery(port);
+        UsrTcpWiFiBattery usrTcpWiFiBattery = this.getBattery(port);
         if (usrTcpWiFiBattery != null) {
             UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
             UsrTcpWifiC1Data c1Data = usrTcpWiFiBattery.getC1Data();
@@ -267,6 +267,11 @@ public class UsrTcpWiFiParseData {
             return null;
         }
     }
+
+    public UsrTcpWiFiBattery getBattery(int port){
+        return this.usrTcpWiFiBatteryRegistry.getBattery(port);
+    }
+
 
     @NotNull
     private StringBuilder getStringBuilderError() {

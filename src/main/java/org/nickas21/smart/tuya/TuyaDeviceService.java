@@ -3,6 +3,7 @@ package org.nickas21.smart.tuya;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.service.TelegramService;
@@ -110,7 +111,8 @@ public class TuyaDeviceService {
     public final String deviceIdBoylerWiFi = "bfa0c1041fa8ad83e1oeik";
 
     private TuyaToken accessTuyaToken;
-    public Devices devices;
+    @Getter
+    private Devices devices;
 
     private String gridRelayCodeIdDacha;
     private String gridRelayCodeIdHome;
@@ -208,7 +210,7 @@ public class TuyaDeviceService {
             if (device.setBizCode((ObjectNode) msg.getJson())) {
                 if (device.getId().equals(this.getGridRelayCodeIdDacha())) {
                     this.updateGridStateOnLineToTelegram(device.getId());
-                } else if (device.getId().equals(this.getGridRelayCodeIdHome())) {
+                } else if (device.getId().equals(this.getGridRelayCodeIdGolego())) {
                     this.updateGridStateOnLineToTelegram(device.getId());
                 }
             }
@@ -806,7 +808,7 @@ public class TuyaDeviceService {
 
     public void updateGridStateOnLineToTelegram() {
         this.updateGridStateOnLineToTelegram(this.getGridRelayCodeIdDacha());
-        this.updateGridStateOnLineToTelegram(this.getGridRelayCodeIdHome());
+        this.updateGridStateOnLineToTelegram(this.getGridRelayCodeIdGolego());
     }
 
     public void updateGridStateOnLineToTelegram(String gridRelayCodeId) {
@@ -958,7 +960,7 @@ public class TuyaDeviceService {
         return this.gridRelayCodeIdDacha;
     }
 
-    public String getGridRelayCodeIdHome() {
+    public String getGridRelayCodeIdGolego() {
         if (this.gridRelayCodeIdHome == null) {
             this.gridRelayCodeIdHome = this.getGridRelayCode(this.gridRelayDopPrefixHome);
         }
@@ -982,9 +984,9 @@ public class TuyaDeviceService {
         return null;
     }
 
-    public Boolean getGridRelayCodeHomeGolegoStateOnLine() {
-        if (this.getGridRelayCodeIdHome() != null) {
-            Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdHome());
+    public Boolean getGridRelayCodeGolegoStateOnLine() {
+        if (this.getGridRelayCodeIdGolego() != null) {
+            Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdGolego());
             if (gridDevice != null) {
                 return gridDevice.getCurrentStateOnLineValue();
             }
@@ -998,7 +1000,7 @@ public class TuyaDeviceService {
 
     public void updateOnOfSwitchRelay(double batterySocFromSolarman, boolean batterySocCriticalNightCharging60) {
         this.updateOnOfSwitchRelayDacha(batterySocFromSolarman, batterySocCriticalNightCharging60);
-        this.updateOnOfSwitchRelayHome(this.getGridRelayCodeIdHome());
+        this.updateOnOfSwitchRelayHome(this.getGridRelayCodeIdGolego());
         this.updateOnOfSwitchRelayHome(this.getBoilerRelayCodeIdHome());
     }
 

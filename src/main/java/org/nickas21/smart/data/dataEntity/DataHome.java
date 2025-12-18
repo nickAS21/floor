@@ -3,6 +3,12 @@ package org.nickas21.smart.data.dataEntity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
+import org.nickas21.smart.PowerValueRealTimeData;
+import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
+import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
+import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 
 @Slf4j
 @Data
@@ -19,6 +25,41 @@ public class DataHome {
     double batteryCurrent;
     boolean gridStatusRealTime;
     double solarPower;
+
+    public DataHome(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService) {
+        PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
+        if (powerValueRealTimeData != null) {
+            this.timestamp = powerValueRealTimeData.getCollectionTime() * 1000;
+            this.batterySoc = powerValueRealTimeData.getBatterySocValue();
+            this.batteryStatus = powerValueRealTimeData.getBatteryStatusValue();
+            this.batteryVol = powerValueRealTimeData.getBatteryVoltageValue();
+            this.batteryCurrent = powerValueRealTimeData.getBatteryCurrentValue();
+            this.solarPower = powerValueRealTimeData.getProductionTotalSolarPowerValue();
+        }
+        this.gridStatusRealTime = deviceService.getGridRelayCodeDachaStateOnLine() != null && deviceService.getGridRelayCodeDachaStateOnLine();
+        log.warn("DataHomeDacha [{}]", this);
+    }
+
+    public DataHome(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, int port) {
+        UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(port);
+        log.info("usrTcpWiFiBattery");
+        if ( usrTcpWiFiBattery != null) {
+            log.warn("usrTcpWiFiBatteryRegistry is [not null]");
+            log.warn("usrTcpWiFiBattery [{}]", usrTcpWiFiBattery);
+            UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
+            this.timestamp = c0Data.getTimestamp().toEpochMilli();
+            this.batterySoc = c0Data.getSocPercent();
+            this.batteryStatus = c0Data.getBmsStatusStr();
+            this.batteryVol = c0Data.getVoltageCurV();
+            this.batteryCurrent = c0Data.getCurrentCurA() * 8;
+            this.solarPower = 0;
+        } else {
+            log.warn("usrTcpWiFiBatteryRegistry is [null]");
+        }
+        log.warn("TuyaDeviceService [{}]", deviceService);
+        this.gridStatusRealTime = deviceService.getGridRelayCodeGolegoStateOnLine() != null && deviceService.getGridRelayCodeGolegoStateOnLine();
+        log.warn("DataHomeGolego [{}]", this);
+    }
 }
     /**
      * time: -> -Update real time data: [1:46:42 PM],

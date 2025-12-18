@@ -1,5 +1,6 @@
 package org.nickas21.smart;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.BatteryStatus;
 import org.nickas21.smart.solarman.SolarmanStationsService;
@@ -61,6 +62,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private double batterySocCur;
     private boolean batterySocCriticalNightCharging60 = false; // false == 50; true == 60
     private double stationConsumptionPower;
+    @Getter
     private PowerValueRealTimeData powerValueRealTimeData;
     private boolean isDay;
     private boolean isDayPrevious;
@@ -174,7 +176,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     powerValueRealTimeData.getInverterTempValue(),
                     usrBmsSummary == null ? "null" : toLocaleTimeString(usrBmsSummary.timestamp().toEpochMilli()),
                     usrBmsSummary == null ? 0 : usrBmsSummary.socPercent(),
-                    tuyaDeviceService.getGridRelayCodeHomeGolegoStateOnLine(),
+                    tuyaDeviceService.getGridRelayCodeGolegoStateOnLine(),
                     usrBmsSummary == null ? "null" : usrBmsSummary.bmsSummary());
             tuyaDeviceService.sendDachaGolegoBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, bmsTempNew,
                     batterySocNew, batteryPowerNew, batteryStatusNew, usrBmsSummary);
@@ -182,7 +184,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 isUpdateToMinAfterIsDayFalse = false;
                 if (this.batterySocCur > 0) {
                     try {
-                        if (tuyaDeviceService.devices != null && tuyaDeviceService.devices.getDevIds() != null) {
+                        if (tuyaDeviceService.getDevices() != null && tuyaDeviceService.getDevices().getDevIds() != null) {
                             boolean isCharge = getIsCharge(batterySocNew);
                             int freePowerCorrect = getFreePowerCorrect(batterySocNew, isCharge);
                             String infoActionDop;

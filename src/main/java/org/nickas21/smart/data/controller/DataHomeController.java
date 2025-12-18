@@ -1,6 +1,7 @@
 package org.nickas21.smart.data.controller;
 
 import org.nickas21.smart.data.dataEntity.DataHome;
+import org.nickas21.smart.data.service.DataHomeService;
 import org.nickas21.smart.data.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,14 +15,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class DataHomeController {
 
     private final UserService userService;
+    private final DataHomeService dataHomeService;
+
 //    private final TuyaDeviceService tuyaDeviceService;
 //    private final TuyaConnectionProperties tuyaConnectionProperties;
 
 //    public DataHomeController(UserService userService, TuyaDeviceService tuyaDeviceService, TuyaConnectionProperties tuyaConnectionProperties) {
-    public DataHomeController(UserService userService) {
+    public DataHomeController(UserService userService, DataHomeService dataHomeService) {
         this.userService = userService;
-//        this.tuyaDeviceService = tuyaDeviceService;
-//        this.tuyaConnectionProperties = tuyaConnectionProperties;
+        this.dataHomeService = dataHomeService;
     }
 
 
@@ -32,16 +34,7 @@ public class DataHomeController {
         if (!userService.validateToken(token)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        DataHome data = new DataHome();
-        data.setTimestamp(System.currentTimeMillis());
-        data.setBatterySoc(85.5);
-        data.setBatteryStatus("CHARGING");
-        data.setBatteryVol(52.3);
-        data.setBatteryCurrent(10.2);
-        data.setGridStatusRealTime(true);
-        data.setSolarPower(3200.0);
-
-        return ResponseEntity.ok(data);
+        return ResponseEntity.ok(this.dataHomeService.getDataGolego());
     }
 
     @GetMapping("/dacha")
@@ -51,16 +44,7 @@ public class DataHomeController {
         if (!userService.validateToken(token)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        DataHome data = new DataHome();
-        data.setTimestamp(System.currentTimeMillis());
-        data.setBatterySoc(85.5);
-        data.setBatteryStatus("CHARGING");
-        data.setBatteryVol(52.3);
-        data.setBatteryCurrent(10.2);
-        data.setGridStatusRealTime(true);
-        data.setSolarPower(3200.0);
-
-        return ResponseEntity.ok(data);
+        return ResponseEntity.ok(this.dataHomeService.getDataDacha());
     }
 
 

@@ -30,8 +30,8 @@ public class DataTuyaController {
         if (!userService.validateToken(token)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        if (tuyaDeviceService.devices != null) {
-            return ResponseEntity.ok(this.tuyaDeviceService.devices);
+        if (tuyaDeviceService.getDevices() != null) {
+            return ResponseEntity.ok(this.tuyaDeviceService.getDevices());
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new Devices("Devices not found"));
