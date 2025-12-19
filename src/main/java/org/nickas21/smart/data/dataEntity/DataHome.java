@@ -48,7 +48,7 @@ public class DataHome {
             );
             this.solarPower = powerValueRealTimeData.getTotalProductionSolarPower();
             this.homePower = powerValueRealTimeData.getTotalHomePower();
-            this.gridPower = powerValueRealTimeData.getTotalEnergyBuy();
+            this.gridPower = powerValueRealTimeData.getTotalGridPower();
 
             this.dailyConsumptionPower = powerValueRealTimeData.getDailyHomeConsumptionPower();
             this.dailyGridPower = powerValueRealTimeData.getTotalGridPower();
