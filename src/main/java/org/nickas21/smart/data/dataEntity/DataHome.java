@@ -51,7 +51,7 @@ public class DataHome {
             this.gridPower = powerValueRealTimeData.getTotalGridPower();
 
             this.dailyConsumptionPower = powerValueRealTimeData.getDailyHomeConsumptionPower();
-            this.dailyGridPower = powerValueRealTimeData.getTotalGridPower();
+            this.dailyGridPower = powerValueRealTimeData.getDailyEnergyBuy();
             this.dailyBatteryCharge = powerValueRealTimeData.getDailyBatteryCharge();
             this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
@@ -62,6 +62,7 @@ public class DataHome {
 
     public DataHome(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, int port) {
         UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(port);
+        this.gridStatusRealTime = deviceService.getGridRelayCodeGolegoStateOnLine() != null && deviceService.getGridRelayCodeGolegoStateOnLine();
         if ( usrTcpWiFiBattery != null) {
             UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
             this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
@@ -71,7 +72,11 @@ public class DataHome {
             this.batteryCurrent = c0Data.getCurrentCurA() * 8;
             this.solarPower = 0;
             this.homePower = 0;
-            this.gridPower = 0;
+            if (this.gridStatusRealTime && this.batteryCurrent > 0) {
+                this.gridPower = this.batteryVol * Math.abs(this.batteryCurrent);
+            } else {
+                this.gridPower = 0;
+            }
 
             this.dailyConsumptionPower = 0;
             this.dailyGridPower = 0;
@@ -79,7 +84,6 @@ public class DataHome {
             this.dailyBatteryDischarge = 0;
             this.dailyProductionSolarPower = 0;
         }
-        this.gridStatusRealTime = deviceService.getGridRelayCodeGolegoStateOnLine() != null && deviceService.getGridRelayCodeGolegoStateOnLine();
         log.warn("DataHomeGolego [{}]", this);
     }
 }
