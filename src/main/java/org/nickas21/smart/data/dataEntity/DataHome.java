@@ -77,7 +77,6 @@ public class DataHome {
             } else {
                 this.gridPower = 0;
             }
-
             this.dailyConsumptionPower = 0;
             this.dailyGridPower = 0;
             this.dailyBatteryCharge = 0;
