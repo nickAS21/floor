@@ -17,10 +17,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.PORT_MASTER;
 import static org.nickas21.smart.util.HttpUtil.batteryCurrentKey;
-import static org.nickas21.smart.util.HttpUtil.batteryDailyChargeKey;
-import static org.nickas21.smart.util.HttpUtil.batteryDailyDischargeKey;
+import static org.nickas21.smart.util.HttpUtil.dailyBatteryChargeKey;
+import static org.nickas21.smart.util.HttpUtil.dailyBatteryDischargeKey;
 import static org.nickas21.smart.util.HttpUtil.batteryPowerKey;
 import static org.nickas21.smart.util.HttpUtil.batterySocKey;
 import static org.nickas21.smart.util.HttpUtil.batteryStatusKey;
@@ -29,7 +28,7 @@ import static org.nickas21.smart.util.HttpUtil.bmsCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.bmsSocKey;
 import static org.nickas21.smart.util.HttpUtil.bmsTempKey;
 import static org.nickas21.smart.util.HttpUtil.bmsVoltageKey;
-import static org.nickas21.smart.util.HttpUtil.consumptionTotalPowerKey;
+import static org.nickas21.smart.util.HttpUtil.homeDailyConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.getSunRiseSunset;
@@ -39,7 +38,8 @@ import static org.nickas21.smart.util.HttpUtil.invHMIKey;
 import static org.nickas21.smart.util.HttpUtil.invMAINKey;
 import static org.nickas21.smart.util.HttpUtil.invProtocolVerKey;
 import static org.nickas21.smart.util.HttpUtil.invTempKey;
-import static org.nickas21.smart.util.HttpUtil.productionTotalSolarPowerKey;
+import static org.nickas21.smart.util.HttpUtil.productionDailySolarPowerKey;
+import static org.nickas21.smart.util.HttpUtil.totalProductionSolarPowerKey;
 import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart_1;
 import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart_2;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
@@ -47,7 +47,7 @@ import static org.nickas21.smart.util.HttpUtil.toLocaleDateString;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeMinutes;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
-import static org.nickas21.smart.util.HttpUtil.totalConsumptionPowerKey;
+import static org.nickas21.smart.util.HttpUtil.totalHomeConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.totalGridPowerKey;
@@ -83,7 +83,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private final boolean debugging = false;
 
     @Value("${app.version:unknown}")
-    String version;
+    private String version;
+
+    @Value("${usr.tcp.portMaster:8898}")
+    private int portMaster;
+
     @Autowired
     SolarmanStationsService solarmanStationsService;
 
@@ -106,7 +110,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     public void setBmsSocCur() {
         try {
             updatePowerValue();
-            UsrTcpWiFiBmsSummary usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(PORT_MASTER);
+            UsrTcpWiFiBmsSummary usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(portMaster);
             double batCurNew = powerValueRealTimeData.getBatteryCurrentValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
             double bmsVolNew = powerValueRealTimeData.getBmsVoltageValue();
@@ -161,12 +165,12 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     bmsVolNew, bmsCurNew,
                     bmsTempNew,
 
-                    powerValueRealTimeData.getProductionTotalSolarPowerValue(),
-                    powerValueRealTimeData.getConsumptionTotalPowerValue(),
+                    powerValueRealTimeData.getTotalProductionSolarPower(),
+                    powerValueRealTimeData.getDailyHomeConsumptionPower(),
                     stationConsumptionPower,
 
-                    powerValueRealTimeData.getBatteryDailyCharge(),
-                    powerValueRealTimeData.getBatteryDailyDischarge(),
+                    powerValueRealTimeData.getDailyBatteryCharge(),
+                    powerValueRealTimeData.getDailyBatteryDischarge(),
 
                     powerValueRealTimeData.getGridStatusRelay(),
                     powerValueRealTimeData.getGridStatusSolarman(),
@@ -307,20 +311,22 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         double batteryCurrentValueFact = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryCurrentKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
         double batteryCurrentValue =  batteryCurrentValueFact == 0 && batteryVoltageValue != 0 ? Math.round((batteryPowerValue/batteryVoltageValue) * 1000.0) / 1000.0 : batteryCurrentValueFact;
-        double batteryDailyChargeValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryDailyChargeKey)).findFirst()
+        double dailyBatteryChargeValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyBatteryChargeKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double batteryDailyDischargeValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryDailyDischargeKey)).findFirst()
+        double dailyBatteryDischargeValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyBatteryDischargeKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double productionTotalSolarPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(productionTotalSolarPowerKey)).findFirst()
+        double totalProductionSolarPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalProductionSolarPowerKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double consumptionTotalPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(consumptionTotalPowerKey)).findFirst()
+        double homeDailyConsumptionPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(homeDailyConsumptionPowerKey)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+        double productionDailySolarPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(productionDailySolarPowerKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
 
 
         double totalSolarPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalSolarPowerKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
 
-        double totalConsumptionPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalConsumptionPowerKey)).findFirst()
+        double totalConsumptionPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalHomeConsumptionPowerKey)).findFirst()
                 .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
 
         double totalEnergySell = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalEnergySellKey)).findFirst()
@@ -359,13 +365,14 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         powerValueRealTimeData.setBatteryVoltageValue(batteryVoltageValue);
         powerValueRealTimeData.setBmsVoltageValue(bmsVoltageValue);
         powerValueRealTimeData.setBmsCurrentValue(bmsCurrentValue);
-        powerValueRealTimeData.setBatteryDailyCharge(batteryDailyChargeValue);
-        powerValueRealTimeData.setBatteryDailyDischarge(batteryDailyDischargeValue);
-        powerValueRealTimeData.setProductionTotalSolarPowerValue(productionTotalSolarPowerValue);
-        powerValueRealTimeData.setConsumptionTotalPowerValue(consumptionTotalPowerValue);
+        powerValueRealTimeData.setDailyBatteryCharge(dailyBatteryChargeValue);
+        powerValueRealTimeData.setDailyBatteryDischarge(dailyBatteryDischargeValue);
+        powerValueRealTimeData.setTotalProductionSolarPower(totalProductionSolarPowerValue);
+        powerValueRealTimeData.setDailyHomeConsumptionPower(homeDailyConsumptionPower);
+        powerValueRealTimeData.setDailyProductionSolarPower(productionDailySolarPower);
 
         powerValueRealTimeData.setTotalSolarPower(totalSolarPower);
-        powerValueRealTimeData.setTotalConsumptionPower(totalConsumptionPower);
+        powerValueRealTimeData.setTotalHomePower(totalConsumptionPower);
         powerValueRealTimeData.setTotalEnergySell(totalEnergySell);
         powerValueRealTimeData.setTotalEnergyBuy(totalEnergyBuy);
         powerValueRealTimeData.setDailyEnergySell(dailyEnergySell);
@@ -447,8 +454,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     }
 
     private int getFreePowerCorrect(double batterySocNew, boolean isCharge) {
-        int freePowerCorrect = (int) (powerValueRealTimeData.getProductionTotalSolarPowerValue() -
-                powerValueRealTimeData.getConsumptionTotalPowerValue() - stationConsumptionPower);
+        int freePowerCorrect = (int) (powerValueRealTimeData.getTotalProductionSolarPower() -
+                powerValueRealTimeData.getDailyHomeConsumptionPower() - stationConsumptionPower);
         if (this.debugging) {
             this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMax() * 2;
             freePowerCorrect = Math.max(freePowerCorrect, this.freePowerCorrectMinMax);

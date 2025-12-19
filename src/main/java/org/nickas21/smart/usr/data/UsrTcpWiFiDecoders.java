@@ -25,7 +25,6 @@ public class UsrTcpWiFiDecoders {
     public static final int ID_END = ID_START + ID_LEN;
     private static final int CRC_LEN = 2;
     public static final int MIN_PACKET_LENGTH = ID_END + CRC_LEN;
-    public static final int PORT_MASTER = 8898;
 
     // C0
     private static final int lenVoltageMinV = 2;

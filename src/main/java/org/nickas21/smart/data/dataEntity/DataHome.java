@@ -23,8 +23,17 @@ public class DataHome {
     String batteryStatus;
     double batteryVol;
     double batteryCurrent;
-    boolean gridStatusRealTime;
+
     double solarPower;
+    double homePower;
+    double gridPower;
+    boolean gridStatusRealTime;
+
+    double dailyConsumptionPower;
+    double dailyGridPower;
+    double dailyBatteryCharge;
+    double dailyBatteryDischarge;
+    double dailyProductionSolarPower;
 
     public DataHome(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService) {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
@@ -37,7 +46,15 @@ public class DataHome {
                     Math.abs(powerValueRealTimeData.getBatteryCurrentValue()), // Only value
                     powerValueRealTimeData.getBmsCurrentValue()                // Only range
             );
-            this.solarPower = powerValueRealTimeData.getProductionTotalSolarPowerValue();
+            this.solarPower = powerValueRealTimeData.getTotalProductionSolarPower();
+            this.homePower = powerValueRealTimeData.getTotalHomePower();
+            this.gridPower = powerValueRealTimeData.getTotalEnergyBuy();
+
+            this.dailyConsumptionPower = powerValueRealTimeData.getDailyHomeConsumptionPower();
+            this.dailyGridPower = powerValueRealTimeData.getTotalGridPower();
+            this.dailyBatteryCharge = powerValueRealTimeData.getDailyBatteryCharge();
+            this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
+            this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
         }
         this.gridStatusRealTime = deviceService.getGridRelayCodeDachaStateOnLine() != null && deviceService.getGridRelayCodeDachaStateOnLine();
         log.warn("DataHomeDacha [{}]", this);
@@ -45,21 +62,23 @@ public class DataHome {
 
     public DataHome(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, int port) {
         UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(port);
-        log.info("usrTcpWiFiBattery");
         if ( usrTcpWiFiBattery != null) {
-            log.warn("usrTcpWiFiBatteryRegistry is [not null]");
-            log.warn("usrTcpWiFiBattery [{}]", usrTcpWiFiBattery);
             UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
-            this.timestamp = c0Data.getTimestamp().toEpochMilli();
+            this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
             this.batterySoc = c0Data.getSocPercent();
             this.batteryStatus = c0Data.getBmsStatusStr();
             this.batteryVol = c0Data.getVoltageCurV();
             this.batteryCurrent = c0Data.getCurrentCurA() * 8;
             this.solarPower = 0;
-        } else {
-            log.warn("usrTcpWiFiBatteryRegistry is [null]");
+            this.homePower = 0;
+            this.gridPower = 0;
+
+            this.dailyConsumptionPower = 0;
+            this.dailyGridPower = 0;
+            this.dailyBatteryCharge = 0;
+            this.dailyBatteryDischarge = 0;
+            this.dailyProductionSolarPower = 0;
         }
-        log.warn("TuyaDeviceService [{}]", deviceService);
         this.gridStatusRealTime = deviceService.getGridRelayCodeGolegoStateOnLine() != null && deviceService.getGridRelayCodeGolegoStateOnLine();
         log.warn("DataHomeGolego [{}]", this);
     }
@@ -87,7 +106,7 @@ public class DataHome {
      *      -batSocLast: [71.0 %], -batSocNew: [71.0 %], -deltaBmsSoc: [0.00 %], -batterySocMin: [58.01 %],
      *      -batteryStatus: [Charging], -batteryPower: [-181.0 W], -batVolNew: [53.87 V], -batCurrentNew: [-3.36 A],  -bmsVolNew: [53.69 V], -bmsCurrentNew: [3.0 A], -BMS Temperature: [12.1  grad C]
      *      -solarPower: [399.0 W], consumptionPower: [121.0 W], stationPower: [50.0 W],
-     *      -batteryDailyCharge: [1.1 kWh], -batteryDailyDischarge: [1.9 kWh],
+     *      -dailyBatteryCharge: [1.1 kWh], -dailyBatteryDischarge: [1.9 kWh],
      *      -relayStatus: [Break], -gridStatusSolarman: [Static], -gridStatusRealTime: [true], -dailyBuy:[0.0 kWh], -dailySell: [0.0 kWh],
      *      -AC (inverter) Temperature:  [38.5 grad C].
      *      - usrBmsSummary: batSocLast: [96 %]

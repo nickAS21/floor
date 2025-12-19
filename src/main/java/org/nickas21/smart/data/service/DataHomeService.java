@@ -5,13 +5,16 @@ import org.nickas21.smart.data.dataEntity.DataHome;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
-import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.PORT_MASTER;
-
 @Service
 public class DataHomeService {
+
+
+    @Value("${usr.tcp.portMaster:8898}")
+    private int portMaster;
 
     @Autowired
     @Lazy
@@ -30,7 +33,7 @@ public class DataHomeService {
     }
 
     public DataHome getDataGolego() {
-        return new DataHome(this.deviceService, this.usrTcpWiFiParseData, PORT_MASTER);
+        return new DataHome(this.deviceService, this.usrTcpWiFiParseData,  portMaster);
     }
 
 }

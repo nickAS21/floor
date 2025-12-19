@@ -114,21 +114,37 @@ public class UsrTcpWiFiService {
     // HANDLE ONE CONNECTION
     // --------------------------
     private void handleConnection(Socket conn, int port) {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
         try (InputStream in = conn.getInputStream()) {
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             byte[] readBuf = new byte[4096];
             int read;
 
             while ((read = in.read(readBuf)) != -1) {
-                if (read == 0) continue;
-                buffer.write(readBuf, 0, read);
+                if (read > 0) {
+                    buffer.write(readBuf, 0, read);
 
-                byte[] after = usrTcpWiFiParseData.parseAndProcessData(buffer.toByteArray(), port);
-                buffer.reset();
-                buffer.write(after);
+                    byte[] remaining =
+                            usrTcpWiFiParseData.parseAndProcessData(buffer.toByteArray(), port);
+
+                    buffer.reset();
+                    if (remaining != null && remaining.length > 0) {
+                        buffer.write(remaining);
+                    }
+                }
             }
-        } catch (Exception e) {
-            log.error("Error while processing connection on port {}", port, e);
+
+            // нормальне закриття з'єднання
+            flushRemaining(buffer, port);
+
+        } catch (SocketException e) {
+            // connection reset — НОРМА
+            flushRemaining(buffer, port);
+            log.debug("Client disconnected (reset) on port {}", port);
+
+        } catch (IOException e) {
+            flushRemaining(buffer, port);
+            log.warn("I/O error on port {}", port, e);
         }
     }
 
@@ -151,5 +167,16 @@ public class UsrTcpWiFiService {
             }
         }
         log.info("UsrTcpWiFiService cleanup completed.");
+    }
+
+    private void flushRemaining(ByteArrayOutputStream buffer, int port) {
+        if (buffer.size() > 0) {
+            try {
+                usrTcpWiFiParseData.parseAndProcessData(buffer.toByteArray(), port);
+            } catch (Exception e) {
+                log.debug("Failed to process remaining buffer on port {}", port);
+            }
+            buffer.reset();
+        }
     }
 }

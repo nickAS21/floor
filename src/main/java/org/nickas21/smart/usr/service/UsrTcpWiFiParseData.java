@@ -13,7 +13,6 @@ import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
 import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecord;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -42,9 +41,6 @@ import static org.nickas21.smart.util.StringUtils.intToHex;
 @Slf4j
 @Service
 public class UsrTcpWiFiParseData {
-
-    @Value("${app.test_front:false}")
-    boolean testFront;
 
     public final UsrTcpWiFiLogWriter logWriter;
     public final UsrTcpWiFiProperties usrTcpWiFiProperties;
@@ -121,14 +117,14 @@ public class UsrTcpWiFiParseData {
                         UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, nowInstant);
 
                         this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c0Data.getTimestamp());
-                        if (testFront) {
-                            String infoC0BmsMsg = c0Data.decodeC0BmsInfoPayload(output);
-                            if (!infoC0BmsMsg.isBlank()) {
-                                log.info("""
-                                        {}
-                                        """, infoC0BmsMsg.trim());
-                            }
-                        }
+//                        if (testFront) {
+//                            String infoC0BmsMsg = c0Data.decodeC0BmsInfoPayload(output);
+//                            if (!infoC0BmsMsg.isBlank()) {
+//                                log.info("""
+//                                        {}
+//                                        """, infoC0BmsMsg.trim());
+//                            }
+//                        }
                     } else {
                         UsrTcpWifiC1Data c1Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC1Data();
                         UsrTcpWiFiDecoders.decodeC1Payload(payloadBytes, c1Data, nowInstant);
@@ -149,14 +145,14 @@ public class UsrTcpWiFiParseData {
                             this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(null);
                             lastErrorRecords.compute(key, (k, v) -> null);
                         }
-                        if (testFront) {
-                            String infoC1BmsMsg = c1Data.decodeC1BmsInfoPayload(output);
-                            if (!infoC1BmsMsg.isBlank()) {
-                                log.info("""
-                                        {}
-                                        """, infoC1BmsMsg.trim());
-                            }
-                        }
+//                        if (testFront) {
+//                            String infoC1BmsMsg = c1Data.decodeC1BmsInfoPayload(output);
+//                            if (!infoC1BmsMsg.isBlank()) {
+//                                log.info("""
+//                                        {}
+//                                        """, infoC1BmsMsg.trim());
+//                            }
+//                        }
 
                         // write to file error history C1 - errors
                         // 1764862063274;8897;C1;len;2008

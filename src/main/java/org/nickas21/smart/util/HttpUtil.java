@@ -48,7 +48,7 @@ public class HttpUtil {
     public static final String dailyEnergySellKey = "E_S_D";
     public static final String totalEnergyBuyKey = "E_B_TO";
     public static final String dailyEnergyBuyKey = "E_B_D";
-    public static final String totalConsumptionPowerKey = "E_Puse_t1";
+    public static final String totalHomeConsumptionPowerKey = "E_Puse_t1";
     public static final String totalGridPowerKey = "PG_Pt1";
     public static final String gridRelayStatusKey = "GRID_RELAY_ST1";
     public static final String gridStatusKey = "ST_PG1";
@@ -60,10 +60,11 @@ public class HttpUtil {
     public static final String bmsVoltageKey = "BMS_B_V1";         // V
     public static final String bmsCurrentKey = "BMS_B_C1";         // V
     public static final String batterySocKey = "B_left_cap1";            // %
-    public static final String batteryDailyChargeKey = "Etdy_cg1";       // kWh
-    public static final String batteryDailyDischargeKey = "Etdy_dcg1";   // kWh
-    public static final String productionTotalSolarPowerKey = "S_P_T";   // kWh
-    public static final String consumptionTotalPowerKey = "E_Puse_t1";   // kWh
+    public static final String dailyBatteryChargeKey = "Etdy_cg1";       // kWh
+    public static final String dailyBatteryDischargeKey = "Etdy_dcg1";   // kWh
+    public static final String totalProductionSolarPowerKey = "S_P_T";   // W
+    public static final String homeDailyConsumptionPowerKey = "Etdy_use1";   // kWh
+    public static final String productionDailySolarPowerKey = "Etdy_ge1";   // kWh
 
     public static final Locale locale = Locale.forLanguageTag("en-US");
     public static final TimeZone timeZone = TimeZone.getTimeZone("Europe/Kyiv");
