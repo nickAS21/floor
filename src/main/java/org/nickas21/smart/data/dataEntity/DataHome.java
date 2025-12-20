@@ -15,6 +15,9 @@ import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DataHome {
 
+    private final double homePowerDefault = 42.0;
+    private final double inveterGolegoPowerDefault = 10.0;
+
     // Dacha -Update real time data: powerValueRealTimeData.getCollectionTime() * 1000
     // Golego
     long timestamp;
@@ -71,7 +74,9 @@ public class DataHome {
             this.batteryVol = c0Data.getVoltageCurV();
             this.batteryCurrent = c0Data.getCurrentCurA() * 8;
             this.solarPower = 0;
-            this.homePower = 0;
+            this.homePower = this.batteryCurrent < 0 ?
+                    (this.batteryVol * Math.abs(this.batteryCurrent)) - this.inveterGolegoPowerDefault :
+                    this.homePowerDefault;
             if (this.gridStatusRealTime && this.batteryCurrent > 0) {
                 this.gridPower = this.batteryVol * Math.abs(this.batteryCurrent);
             } else {
