@@ -15,8 +15,8 @@ import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DataHome {
 
-    private final double homePowerDefault = 42.0;
-    private final double inveterGolegoPowerDefault = 10.0;
+    private final double golegoPowerDefault = 42.0; // only  2 - WiFi routers
+    private final double golegoInverterPowerDefault = 10.0;
 
     // Dacha -Update real time data: powerValueRealTimeData.getCollectionTime() * 1000
     // Golego
@@ -73,14 +73,18 @@ public class DataHome {
             this.batteryStatus = c0Data.getBmsStatusStr();
             this.batteryVol = c0Data.getVoltageCurV();
             this.batteryCurrent = c0Data.getCurrentCurA() * 8;
-            this.solarPower = 0;
-            this.homePower = this.batteryCurrent < 0 ?
-                    (this.batteryVol * Math.abs(this.batteryCurrent)) - this.inveterGolegoPowerDefault :
-                    this.homePowerDefault;
             if (this.gridStatusRealTime && this.batteryCurrent > 0) {
-                this.gridPower = this.batteryVol * Math.abs(this.batteryCurrent);
+                this.gridPower = this.batteryVol * Math.abs(this.batteryCurrent) + golegoPowerDefault + golegoInverterPowerDefault;
             } else {
                 this.gridPower = 0;
+            }
+            this.solarPower = 0;
+            if (this.batteryCurrent == 0 && this.gridPower == 0) {
+                this.homePower = 0;
+            } else if (this.batteryCurrent < 0 ) {
+                this.homePower = (this.batteryVol * Math.abs(this.batteryCurrent)) - this.golegoInverterPowerDefault;
+            } else {
+                this.homePower = this.golegoPowerDefault;
             }
             this.dailyConsumptionPower = 0;
             this.dailyGridPower = 0;
