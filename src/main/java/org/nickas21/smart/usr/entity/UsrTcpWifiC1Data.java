@@ -69,8 +69,7 @@ public class UsrTcpWifiC1Data {
 
         this.lifeCyclesCount = lifeCyclesCount;
         this.socPercent = socPercent;
-//        this.errorInfoData = errorInfoData; // 0x1007 (hex) = 4103 (dec)  0x1008 (hex) = 4104 (dec) 0x2007 (hex) = 8199(dec) 0x2008 (hex) = 8200(dec)
-        this.errorInfoData = 4104; // 0x1007 (hex) = 4103 (dec)  0x1008 (hex) = 4104 (dec) 0x2007 (hex) = 8199(dec) 0x2008 (hex) = 8200(dec)
+        this.errorInfoData = errorInfoData; // 0x1007 (hex) = 4103 (dec)  0x1008 (hex) = 4104 (dec) 0x2007 (hex) = 8199(dec) 0x2008 (hex) = 8200(dec)
 
         this.majorVersion = majorVersion;
         this.minorVersion = minorVersion;

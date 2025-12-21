@@ -46,8 +46,7 @@ public class UsrTcpWifiC0Data {
         this.bmsStatusStr = fromCode(bmsStatus).getStatus();
         this.bmsStatus1 = bmsStatus1;
         this.bmsStatus2 = bmsStatus2;
-//        this.errorInfoData = errorInfoData; // 0x1007 (hex) = 4103 (dec)  0x1008 (hex) = 4104 (dec) 0x2007 (hex) = 8199(dec) 0x2008 (hex) = 8200(dec)
-        this.errorInfoData = 4103;
+        this.errorInfoData = errorInfoData; // 0x1007 (hex) = 4103 (dec)  0x1008 (hex) = 4104 (dec) 0x2007 (hex) = 8199(dec) 0x2008 (hex) = 8200(dec)
         this.errorOutput = computeErrOutput();
         this.timestamp = timestamp;
         this.payloadBytesCur = payloadBytes;

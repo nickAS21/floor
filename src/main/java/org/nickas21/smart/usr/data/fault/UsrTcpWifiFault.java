@@ -1,5 +1,7 @@
 package org.nickas21.smart.usr.data.fault;
 
+import lombok.Getter;
+
 import java.util.Arrays;
 
 /**
@@ -43,6 +45,7 @@ import java.util.Arrays;
  * 0x3000Communication broken between master and slave Battery
  * 0x3001Address select fault
  */
+@Getter
 public enum UsrTcpWifiFault {
 
     // -------- WARNINGS (0x1xxx) --------
@@ -85,18 +88,6 @@ public enum UsrTcpWifiFault {
         this.code = code;
         this.category = category;
         this.description = description;
-    }
-
-    public int getCode() {
-        return code;
-    }
-
-    public UsrTcpWifiFaultCategory getCategory() {
-        return category;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     public static UsrTcpWifiFault fromCode(int code) {
