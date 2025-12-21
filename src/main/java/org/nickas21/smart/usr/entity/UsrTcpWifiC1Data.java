@@ -3,8 +3,8 @@ package org.nickas21.smart.usr.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Data;
-import org.nickas21.smart.usr.data.ErrorLogType;
-import org.nickas21.smart.usr.data.UsrTcpWifiBalanceThresholds;
+import org.nickas21.smart.usr.data.fault.UsrTcpWifiFaultLogType;
+import org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds;
 import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecord;
 import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecordError;
 
@@ -17,8 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyIdx;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyVoltage;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C1;
-import static org.nickas21.smart.usr.data.UsrTcpWifiBalanceThresholds.getBalanceStatus;
-import static org.nickas21.smart.usr.data.UsrTcpWifiError.formatErrorCodeOutput;
+import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.getBalanceStatus;
+import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFault.formatErrorCodeOutput;
 import static org.nickas21.smart.util.JacksonUtil.newObjectNode;
 import static org.nickas21.smart.util.StringUtils.intToHex;
 
@@ -69,7 +69,8 @@ public class UsrTcpWifiC1Data {
 
         this.lifeCyclesCount = lifeCyclesCount;
         this.socPercent = socPercent;
-        this.errorInfoData = errorInfoData;
+//        this.errorInfoData = errorInfoData; // 0x1007 (hex) = 4103 (dec)  0x1008 (hex) = 4104 (dec) 0x2007 (hex) = 8199(dec) 0x2008 (hex) = 8200(dec)
+        this.errorInfoData = 4104; // 0x1007 (hex) = 4103 (dec)  0x1008 (hex) = 4104 (dec) 0x2007 (hex) = 8199(dec) 0x2008 (hex) = 8200(dec)
 
         this.majorVersion = majorVersion;
         this.minorVersion = minorVersion;
@@ -167,18 +168,16 @@ public class UsrTcpWifiC1Data {
     }
 
     public UsrTcpWiFiPacketRecordError getErrorUnbalanceForRecords(int port){
-        String errorMsgUnBalanceStr = String.format("Code:   %s\n", intToHex(this.errorInfoData)) +
-                String.format("Error:  %s\n", this.getBalanceS().getDescription()) +
+        String errorMsgUnBalanceStr = String.format("Error:  %s\n", this.getBalanceS().getDescription()) +
                 String.format("Cell%02d_MIN:  %.3f V\n", this.minCellV.get(keyIdx).asInt(), this.getMinCellV().get(keyVoltage).floatValue()) +
                 String.format("Cell%02d_MAX:  %.3f V\n", this.maxCellV.get(keyIdx).asInt(), this.getMaxCellV().get(keyVoltage).floatValue()) +
                 String.format("DELTA:       %.3f V\n", this.deltaMv / 1000.0);
-        return getErrorForRecords(port, ErrorLogType.B1.name() + ":" + this.balanceS.name(), intToHex(this.errorInfoData), errorMsgUnBalanceStr.getBytes(StandardCharsets.UTF_8));
+        return getErrorForRecords(port, UsrTcpWifiFaultLogType.B1.name() + ":" + this.balanceS.name(), intToHex(this.errorInfoData), errorMsgUnBalanceStr.getBytes(StandardCharsets.UTF_8));
     }
 
     public UsrTcpWiFiPacketRecordError getErrorOutputForRecords(int port){
-        String errorMsgErrorOutputStr = String.format("Code:   %s\n", intToHex(this.errorInfoData)) +
-                                        String.format("Error:  %s\n", this.getErrorOutput());
-        return getErrorForRecords(port, ErrorLogType.E1.name(), intToHex(this.errorInfoData), errorMsgErrorOutputStr.getBytes(StandardCharsets.UTF_8));
+        String errorMsgErrorOutputStr = String.format("Error:  %s\n", this.getErrorOutput());
+        return getErrorForRecords(port, UsrTcpWifiFaultLogType.E1.name(), intToHex(this.errorInfoData), errorMsgErrorOutputStr.getBytes(StandardCharsets.UTF_8));
     }
 
     private UsrTcpWiFiPacketRecordError getErrorForRecords(int port, String typeError, String codeError, byte[] errorMsg){

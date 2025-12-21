@@ -81,7 +81,6 @@ public class DataHome {
             } else {
                 this.gridPower = 0;
             }
-            this.solarPower = 0;
             if (this.batteryCurrent == 0 && this.gridPower == 0) {
                 this.homePower = 0;
             } else if (this.batteryCurrent < 0 ) {
@@ -89,6 +88,7 @@ public class DataHome {
             } else {
                 this.homePower = this.golegoPowerDefault;
             }
+            this.solarPower = 0;
             this.dailyConsumptionPower = 0;
             this.dailyGridPower = 0;
             this.dailyBatteryCharge = 0;

@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.nickas21.smart.usr.data.ErrorLogType.B1;
-import static org.nickas21.smart.usr.data.ErrorLogType.E1;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_END;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_START;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.MIN_PACKET_LENGTH;
@@ -33,8 +31,10 @@ import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.A2;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C0;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C1;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.D0;
-import static org.nickas21.smart.usr.data.UsrTcpWifiBalanceThresholds.CRITICAL_LIMIT;
-import static org.nickas21.smart.usr.data.UsrTcpWifiBalanceThresholds.EMERGENCY_MAX;
+import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.AUTO_RECOVERABLE_MAX;
+import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.SERVICE_REQUIRED_MAX;
+import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFaultLogType.B1;
+import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFaultLogType.E1;
 import static org.nickas21.smart.util.StringUtils.bytesToHex;
 import static org.nickas21.smart.util.StringUtils.getCurrentTimeString;
 import static org.nickas21.smart.util.StringUtils.intToHex;
@@ -137,7 +137,7 @@ public class UsrTcpWiFiParseData {
                         // 764862063274;8897;C1;len;c1Data.balanceS
                         List<String> key = List.of(String.valueOf(port), B1.name());
                         if (c1Data.getBalanceS() != null &&
-                                (c1Data.getBalanceS().equals(CRITICAL_LIMIT) || c1Data.getBalanceS().equals(EMERGENCY_MAX))) {
+                                (c1Data.getBalanceS().equals(AUTO_RECOVERABLE_MAX) || c1Data.getBalanceS().equals(SERVICE_REQUIRED_MAX))) {
                             String newValue =  c1Data.getBalanceS().name() + ": " + intToHex(c1Data.getErrorInfoData());
                             String oldValue =  lastErrorRecords.get(key);
                             if (!newValue.equals(oldValue)) {
