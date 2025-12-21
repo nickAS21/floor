@@ -1,5 +1,6 @@
 package org.nickas21.smart.usr.service;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
@@ -42,8 +43,11 @@ import static org.nickas21.smart.util.StringUtils.intToHex;
 @Service
 public class UsrTcpWiFiParseData {
 
+    @Getter
     public final UsrTcpWiFiLogWriter logWriter;
+    @Getter
     public final UsrTcpWiFiProperties usrTcpWiFiProperties;
+    @Getter
     public final UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties;
     public final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
 

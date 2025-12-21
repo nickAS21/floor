@@ -21,6 +21,7 @@ import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.JacksonUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -132,7 +133,10 @@ public class TuyaDeviceService {
     private final WebClient webClient;
     private Long timeoutSecUpdateMillis;
     private boolean isUpdateHourChargeBatt;
-    private boolean debugging;
+
+    @Getter
+    @Value("${app.test_bot_debugging:false}")
+    private boolean testBotDebugging;
 
     @Autowired
     SolarmanStationsService solarmanStationsService;
@@ -812,7 +816,7 @@ public class TuyaDeviceService {
     }
 
     public void updateGridStateOnLineToTelegram(String gridRelayCodeId) {
-        if (!this.debugging) {
+        if (!this.testBotDebugging) {
             if (this.getGridRelayCodeIdDacha() != null) {
                 Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(gridRelayCodeId).currentStateOnLine();
                 if (gridStateOnLine != null) {
@@ -851,7 +855,7 @@ public class TuyaDeviceService {
     }
 
     public void updateMessageAlarmToTelegram(String msg) {
-        if (!this.debugging) {
+        if (!this.testBotDebugging) {
             String message = msg == null ? "Перезавантаження програми. Початок відстеження Alarm message." : msg;  // first
             TelegramBot bot = telegramService.getTelegramBotAlarm();
             if  (bot != null) {
@@ -1102,10 +1106,6 @@ public class TuyaDeviceService {
         } else {
             log.warn("Device Relay Dacha switch [{}] cannot be updated, is offline...", device.getName());
         }
-    }
-
-    public void setDebugging(boolean debugging) {
-        this.debugging = debugging;
     }
 
     private String getGridRelayCode(String gridRelayDopPrefix) {

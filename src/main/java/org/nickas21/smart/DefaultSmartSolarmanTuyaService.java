@@ -1,5 +1,6 @@
 package org.nickas21.smart;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.BatteryStatus;
@@ -7,6 +8,7 @@ import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.util.DynamicScheduler;
@@ -18,8 +20,6 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 
 import static org.nickas21.smart.util.HttpUtil.batteryCurrentKey;
-import static org.nickas21.smart.util.HttpUtil.dailyBatteryChargeKey;
-import static org.nickas21.smart.util.HttpUtil.dailyBatteryDischargeKey;
 import static org.nickas21.smart.util.HttpUtil.batteryPowerKey;
 import static org.nickas21.smart.util.HttpUtil.batterySocKey;
 import static org.nickas21.smart.util.HttpUtil.batteryStatusKey;
@@ -28,18 +28,19 @@ import static org.nickas21.smart.util.HttpUtil.bmsCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.bmsSocKey;
 import static org.nickas21.smart.util.HttpUtil.bmsTempKey;
 import static org.nickas21.smart.util.HttpUtil.bmsVoltageKey;
-import static org.nickas21.smart.util.HttpUtil.homeDailyConsumptionPowerKey;
+import static org.nickas21.smart.util.HttpUtil.dailyBatteryChargeKey;
+import static org.nickas21.smart.util.HttpUtil.dailyBatteryDischargeKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.dailyEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.getSunRiseSunset;
 import static org.nickas21.smart.util.HttpUtil.gridRelayStatusKey;
 import static org.nickas21.smart.util.HttpUtil.gridStatusKey;
+import static org.nickas21.smart.util.HttpUtil.homeDailyConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.invHMIKey;
 import static org.nickas21.smart.util.HttpUtil.invMAINKey;
 import static org.nickas21.smart.util.HttpUtil.invProtocolVerKey;
 import static org.nickas21.smart.util.HttpUtil.invTempKey;
 import static org.nickas21.smart.util.HttpUtil.productionDailySolarPowerKey;
-import static org.nickas21.smart.util.HttpUtil.totalProductionSolarPowerKey;
 import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart_1;
 import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart_2;
 import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
@@ -47,10 +48,11 @@ import static org.nickas21.smart.util.HttpUtil.toLocaleDateString;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeMinutes;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
-import static org.nickas21.smart.util.HttpUtil.totalHomeConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.totalGridPowerKey;
+import static org.nickas21.smart.util.HttpUtil.totalHomeConsumptionPowerKey;
+import static org.nickas21.smart.util.HttpUtil.totalProductionSolarPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
 import static org.nickas21.smart.util.StringUtils.printMsgProgressBar;
 import static org.nickas21.smart.util.StringUtils.stopProgressBar;
@@ -80,23 +82,27 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private Thread progressBarThread;
 
     private DynamicScheduler scheduler;
-    private final boolean debugging = false;
 
     @Value("${app.version:unknown}")
     private String version;
 
-    @Value("${usr.tcp.portMaster:8898}")
-    private int portMaster;
-
-    @Autowired
-    SolarmanStationsService solarmanStationsService;
-
-    @Autowired
-    TuyaDeviceService tuyaDeviceService;
+    private UsrTcpWiFiProperties tcpProps;
+    private final SolarmanStationsService solarmanStationsService;
+    private final TuyaDeviceService tuyaDeviceService;
 
     @Autowired
     @Lazy
     UsrTcpWiFiParseData usrTcpWiFiParseData;
+
+    public DefaultSmartSolarmanTuyaService(SolarmanStationsService solarmanStationsService, TuyaDeviceService tuyaDeviceService) {
+        this.solarmanStationsService = solarmanStationsService;
+        this.tuyaDeviceService = tuyaDeviceService;
+    }
+
+    @PostConstruct
+    public void init() {
+        this.tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
+    }
 
     @Override
     public void solarmanRealTimeDataStart() {
@@ -104,13 +110,12 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         this.stationConsumptionPower = solarmanStationsService.getSolarmanStation().getStationConsumptionPower();
         this.powerValueRealTimeData = PowerValueRealTimeData.builder().build();
         initUpdateTimeoutSheduler();
-        tuyaDeviceService.setDebugging(this.debugging);
     }
 
     public void setBmsSocCur() {
         try {
             updatePowerValue();
-            UsrTcpWiFiBmsSummary usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(portMaster);
+            UsrTcpWiFiBmsSummary usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(tcpProps.getPortMaster());
             double batCurNew = powerValueRealTimeData.getBatteryCurrentValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
             double bmsVolNew = powerValueRealTimeData.getBmsVoltageValue();
@@ -456,7 +461,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private int getFreePowerCorrect(double batterySocNew, boolean isCharge) {
         int freePowerCorrect = (int) (powerValueRealTimeData.getTotalProductionSolarPower() -
                 powerValueRealTimeData.getDailyHomeConsumptionPower() - stationConsumptionPower);
-        if (this.debugging) {
+        if (tuyaDeviceService.isTestBotDebugging()) {
             this.freePowerCorrectMinMax = solarmanStationsService.getSolarmanStation().getDopPowerToMax() * 2;
             freePowerCorrect = Math.max(freePowerCorrect, this.freePowerCorrectMinMax);
         } else {

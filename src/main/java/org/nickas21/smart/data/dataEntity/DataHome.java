@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.PowerValueRealTimeData;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
@@ -63,8 +64,8 @@ public class DataHome {
         log.warn("DataHomeDacha [{}]", this);
     }
 
-    public DataHome(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, int port) {
-        UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(port);
+    public DataHome(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, UsrTcpWiFiProperties tcpProps) {
+        UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
         this.gridStatusRealTime = deviceService.getGridRelayCodeGolegoStateOnLine() != null && deviceService.getGridRelayCodeGolegoStateOnLine();
         if ( usrTcpWiFiBattery != null) {
             UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
@@ -72,8 +73,10 @@ public class DataHome {
             this.batterySoc = c0Data.getSocPercent();
             this.batteryStatus = c0Data.getBmsStatusStr();
             this.batteryVol = c0Data.getVoltageCurV();
-            this.batteryCurrent = c0Data.getCurrentCurA() * 8;
-            if (this.gridStatusRealTime && this.batteryCurrent > 0) {
+            this.batteryCurrent = c0Data.getCurrentCurA();
+            log.warn("batterySoc [{}] batteryVol [{}] batteryCurrent [{}] BatteriesCnt [{}]",this.batterySoc, this.batteryVol, this.batteryCurrent, tcpProps.getBatteriesCnt());
+            this.batteryCurrent *= tcpProps.getBatteriesCnt();
+            if (this.gridStatusRealTime && this.batteryCurrent >= 0) {
                 this.gridPower = this.batteryVol * Math.abs(this.batteryCurrent) + golegoPowerDefault + golegoInverterPowerDefault;
             } else {
                 this.gridPower = 0;

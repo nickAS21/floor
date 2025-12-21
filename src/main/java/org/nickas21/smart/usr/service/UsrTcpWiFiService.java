@@ -28,46 +28,44 @@ public class UsrTcpWiFiService {
 //    boolean testFront;
 
     private final List<ServerSocket> serverSockets = new CopyOnWriteArrayList<>();
-    private final Integer[] ports;
+    private Integer[] ports;
     private String logsDir;
 
 
     private final UsrTcpWiFiParseData usrTcpWiFiParseData;
-    private final UsrTcpWiFiProperties usrTcpWiFiProperties;
-    private final UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties;
-    private final UsrTcpWiFiLogWriter usrTcpWiFiLogWriter;
+
+    private final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
 
     @Autowired
-    public UsrTcpWiFiService(
-            UsrTcpWiFiParseData usrTcpWiFiParseData,
-            UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry
+    public UsrTcpWiFiService(UsrTcpWiFiParseData usrTcpWiFiParseData, UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry
     ) {
         this.usrTcpWiFiParseData = usrTcpWiFiParseData;
-        this.usrTcpWiFiProperties = usrTcpWiFiParseData.usrTcpWiFiProperties;
-        this.usrTcpLogsWiFiProperties = usrTcpWiFiParseData.usrTcpLogsWiFiProperties;
-        this.usrTcpWiFiLogWriter = usrTcpWiFiParseData.logWriter;
-        int portStart = usrTcpWiFiProperties.getPortStart();
-        int batteriesCnt = usrTcpWiFiProperties.getBatteriesCnt();
-        this.logsDir = usrTcpLogsWiFiProperties.getDir();
-        this.ports = new Integer[batteriesCnt];
-        for (int i = 0; i < batteriesCnt; i++) {
-            this.ports[i] = portStart + i;
-            usrTcpWiFiBatteryRegistry.initBattery(this.ports[i]);
-        }
-        log.info("USR TCP WiFi ports initialized: start={}, ports={}", portStart, Arrays.toString(ports));
+        this.usrTcpWiFiBatteryRegistry = usrTcpWiFiBatteryRegistry;
     }
 
     // --------------------------
     // INIT CONFIG
     // --------------------------
     public void init() {
+        UsrTcpWiFiLogWriter usrTcpWiFiLogWriter = usrTcpWiFiParseData.getLogWriter();
+        UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties = usrTcpWiFiParseData.getUsrTcpLogsWiFiProperties();
+        this.logsDir = usrTcpLogsWiFiProperties.getDir();
+        UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
+        int portStart = tcpProps.getPortStart();
+        int batteriesCnt = tcpProps.getBatteriesCnt();
+        this.ports = new Integer[batteriesCnt];
+        for (int i = 0; i < batteriesCnt; i++) {
+            this.ports[i] = portStart + i;
+            usrTcpWiFiBatteryRegistry.initBattery(this.ports[i]);
+        }
+        log.info("USR TCP WiFi ports initialized: start={}, ports={}", portStart, Arrays.toString(ports));
         try {
             if (logsDir == null || logsDir.isBlank()) {
                 logsDir = "/tmp/usr-bms";   // fallback for Kubernetes
             }
             Files.createDirectories(Paths.get(logsDir));
             log.info("LogsDir: [{}], Starting USR TCP WiFi listeners...", logsDir);
-            usrTcpWiFiLogWriter.init(this.logsDir, this.usrTcpWiFiProperties, this.usrTcpLogsWiFiProperties, ports);
+            usrTcpWiFiLogWriter.init(this.logsDir, tcpProps, usrTcpLogsWiFiProperties, ports);
             for (int port : ports) {
                 Thread t = new Thread(() -> listenOnPort(port), "usr-tcp-listener-" + port);
                 t.setDaemon(true);

@@ -6,6 +6,7 @@ app:
   version: '@project.version@'
   title: '@project.bmsSummary@'
   test_front: "${APP_TEST_FRONT:false}"
+  test_bot_debugging: "${APP_TEST_BOT_DEBUGING:false}"
 
 springdoc:
   api-docs:

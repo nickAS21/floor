@@ -1,31 +1,30 @@
 package org.nickas21.smart.data.service;
 
+import jakarta.annotation.PostConstruct;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.dataEntity.DataHome;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DataHomeService {
 
-
-    @Value("${usr.tcp.portMaster:8898}")
-    private int portMaster;
-
-    @Autowired
-    @Lazy
-    UsrTcpWiFiParseData usrTcpWiFiParseData;
-
+    private UsrTcpWiFiProperties tcpProps;
     private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
     private final TuyaDeviceService deviceService;
+    private final UsrTcpWiFiParseData usrTcpWiFiParseData;
 
-    public DataHomeService(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService) {
+    public DataHomeService(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData) {
         this.solarmanTuyaService = solarmanTuyaService;
         this.deviceService = deviceService;
+        this.usrTcpWiFiParseData = usrTcpWiFiParseData;
+    }
+
+    @PostConstruct
+    public void init() {
+        this.tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
     }
 
     public DataHome getDataDacha() {
@@ -33,7 +32,7 @@ public class DataHomeService {
     }
 
     public DataHome getDataGolego() {
-        return new DataHome(this.deviceService, this.usrTcpWiFiParseData,  portMaster);
+        return new DataHome(this.deviceService, this.usrTcpWiFiParseData,  tcpProps);
     }
 
 }
