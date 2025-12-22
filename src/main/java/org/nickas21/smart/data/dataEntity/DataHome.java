@@ -11,6 +11,10 @@ import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 
+import java.util.Map;
+
+import static org.nickas21.smart.util.StringUtils.formatTimestamp;
+
 @Slf4j
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -18,6 +22,7 @@ public class DataHome {
 
     private final double golegoPowerDefault = 42.0; // only  2 - WiFi routers
     private final double golegoInverterPowerDefault = 10.0;
+    public static final String datePatternGridStatus = "yyyy-MM-dd HH:mm";
 
     // Dacha -Update real time data: powerValueRealTimeData.getCollectionTime() * 1000
     // Golego
@@ -38,6 +43,8 @@ public class DataHome {
     double dailyBatteryCharge;
     double dailyBatteryDischarge;
     double dailyProductionSolarPower;
+
+    String timestampLastUpdateGridStatus;
 
     public DataHome(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService) {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
@@ -61,6 +68,8 @@ public class DataHome {
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
         }
         this.gridStatusRealTime = deviceService.getGridRelayCodeDachaStateOnLine() != null && deviceService.getGridRelayCodeDachaStateOnLine();
+        Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntry =  deviceService.getLastUpdateTimeGridStatusInfoDacha();
+        this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntry != null ? formatTimestamp(lastUpdateTimeGridStatusEntry.getKey(), datePatternGridStatus) : "null";
         log.warn("DataHomeDacha [{}]", this);
     }
 
@@ -94,6 +103,8 @@ public class DataHome {
             this.dailyBatteryCharge = 0;
             this.dailyBatteryDischarge = 0;
             this.dailyProductionSolarPower = 0;
+            Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntry =  deviceService.getLastUpdateTimeGridStatusInfoHome();
+            this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntry != null ? formatTimestamp(lastUpdateTimeGridStatusEntry.getKey(), datePatternGridStatus) : "null";
         }
         log.warn("DataHomeGolego [{}]", this);
     }
