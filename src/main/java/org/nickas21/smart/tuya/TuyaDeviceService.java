@@ -123,6 +123,7 @@ public class TuyaDeviceService {
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoDacha;
     @Getter
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoHome;
+
     private Entry<Long, Double> lastUpdateTimeAlarmSocDacha;
     private Entry<Long, Double> lastUpdateTimeAlarmSocGolego;
 

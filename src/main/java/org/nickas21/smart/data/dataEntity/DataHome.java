@@ -68,8 +68,8 @@ public class DataHome {
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
         }
         this.gridStatusRealTime = deviceService.getGridRelayCodeDachaStateOnLine() != null && deviceService.getGridRelayCodeDachaStateOnLine();
-        Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntry =  deviceService.getLastUpdateTimeGridStatusInfoDacha();
-        this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntry != null ? formatTimestamp(lastUpdateTimeGridStatusEntry.getKey(), datePatternGridStatus) : "null";
+        Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryDacha =  deviceService.getLastUpdateTimeGridStatusInfoDacha();
+        this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryDacha != null ? formatTimestamp(lastUpdateTimeGridStatusEntryDacha.getKey(), datePatternGridStatus) : "null";
         log.warn("DataHomeDacha [{}]", this);
     }
 
@@ -103,8 +103,8 @@ public class DataHome {
             this.dailyBatteryCharge = 0;
             this.dailyBatteryDischarge = 0;
             this.dailyProductionSolarPower = 0;
-            Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntry =  deviceService.getLastUpdateTimeGridStatusInfoHome();
-            this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntry != null ? formatTimestamp(lastUpdateTimeGridStatusEntry.getKey(), datePatternGridStatus) : "null";
+            Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryHome =  deviceService.getLastUpdateTimeGridStatusInfoHome();
+            this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryHome != null ? formatTimestamp(lastUpdateTimeGridStatusEntryHome.getKey(), datePatternGridStatus) : "null";
         }
         log.warn("DataHomeGolego [{}]", this);
     }
