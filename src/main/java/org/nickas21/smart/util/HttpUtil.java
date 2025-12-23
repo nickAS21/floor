@@ -71,10 +71,10 @@ public class HttpUtil {
     // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
     // Поправка                      00:13                     23:00
     public static final int timeLocalNightTariffStart = 23;
-    public static final int timeLocalMinutesNightTariffStart_1 = 20; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:20
-    public static final int timeLocalMinutesNightTariffStart_2 = 15;
+    public static final int timeLocalMinutesNightTariffStart_1 = 30; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
+    public static final int timeLocalMinutesNightTariffStart_2 = 15; //  друга черга опалення вночі через 15 хвилин
     public static final int timeLocalNightTariffFinish = 7;
-    public static final int timeLocalMinutesNightTariffFinish = 50;
+    public static final int timeLocalMinutesNightTariffFinish = 50;  // Golego finish on Grid 6:50
 
 
     public static String toLocaleTimeString(Long milliSec) {
