@@ -2,6 +2,7 @@ package org.nickas21.smart;
 
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.BatteryStatus;
 import org.nickas21.smart.solarman.SolarmanStationsService;
@@ -62,7 +63,6 @@ import static org.nickas21.smart.util.StringUtils.stopThread;
 @Service
 public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService {
     private double batterySocCur;
-    private boolean batterySocCriticalNightCharging60 = false; // false == 50; true == 60
     private double stationConsumptionPower;
     @Getter
     private PowerValueRealTimeData powerValueRealTimeData;
@@ -85,6 +85,11 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     @Value("${app.version:unknown}")
     private String version;
+
+    @Getter
+    @Setter
+    @Value("${dacha.settings.battery_soc_critical_night_charging60:true}")
+    private boolean batterySocCriticalNightCharging60; //true == 60  false == 50;
 
     private UsrTcpWiFiProperties tcpProps;
     private final SolarmanStationsService solarmanStationsService;

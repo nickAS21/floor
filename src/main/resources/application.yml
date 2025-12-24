@@ -8,6 +8,10 @@ app:
   test_front: "${APP_TEST_FRONT:false}"
   test_bot_debugging: "${APP_TEST_BOT_DEBUGING:false}"
 
+dacha:
+  settings:
+    battery_soc_critical_night_charging60: "${BATTERY_SOC_CRITICAL_NIGHT_CHARGING60:true}"
+
 springdoc:
   api-docs:
     path: /v3/api-docs
