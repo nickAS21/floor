@@ -9,8 +9,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.nickas21.smart.usr.data.UsrTcpWifiStatus.fromCode;
-
 @Slf4j
 public class UsrTcpWiFiDecoders {
 
@@ -57,7 +55,6 @@ public class UsrTcpWiFiDecoders {
             int socPercent = payloadBytes[i] & 0xFF;
             i += lenSocPercent;
             int bmsStatus = (bb.getShort(i) & 0xFFFF);
-            String bmsStatusStr = fromCode(bmsStatus).getStatus();
             i += lenBmsStatus;
             int bmsStatus1 = (bb.getInt(i));
             i += lenBmsStatus1_2;

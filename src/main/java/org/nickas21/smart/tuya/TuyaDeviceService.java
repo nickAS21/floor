@@ -130,6 +130,7 @@ public class TuyaDeviceService {
     private final Lock queueLock = new ReentrantLock();
 
     private final TuyaConnectionProperties connectionConfiguration;
+    @Getter
     private final TuyaDeviceProperties deviceProperties;
     private final RestTemplate httpClient = new RestTemplate();
     private final WebClient authClient = WebClient.builder().build();
@@ -166,10 +167,6 @@ public class TuyaDeviceService {
             log.error("Init tuya error. Tuya token required, not null.");
             throw new RuntimeException("Failed to get token for TUYA");
         }
-    }
-
-    public TuyaDeviceProperties getDeviceProperties() {
-        return deviceProperties;
     }
 
     public void devicesFromUpDateStatusValue(TuyaConnectionMsg msg) throws Exception {
@@ -215,9 +212,8 @@ public class TuyaDeviceService {
         }
         if (bizCode != null && device != null) {
             if (device.setBizCode((ObjectNode) msg.getJson())) {
-                if (device.getId().equals(this.getGridRelayCodeIdDacha())) {
-                    this.updateGridStateOnLineToTelegram(device.getId());
-                } else if (device.getId().equals(this.getGridRelayCodeIdGolego())) {
+                if (device.getId().equals(this.getGridRelayCodeIdDacha()) ||
+                        device.getId().equals(this.getGridRelayCodeIdGolego())) {
                     this.updateGridStateOnLineToTelegram(device.getId());
                 }
             }
@@ -1007,11 +1003,11 @@ public class TuyaDeviceService {
 
     public void updateOnOfSwitchRelay(double batterySocFromSolarman, boolean batterySocCriticalNightCharging60) {
         this.updateOnOfSwitchRelayDacha(batterySocFromSolarman, batterySocCriticalNightCharging60);
-        this.updateOnOfSwitchRelayHome(this.getGridRelayCodeIdGolego());
-        this.updateOnOfSwitchRelayHome(this.getBoilerRelayCodeIdHome());
+        this.updateOnOfSwitchRelayGolego(this.getGridRelayCodeIdGolego());
+        this.updateOnOfSwitchRelayGolego(this.getBoilerRelayCodeIdHome());
     }
 
-    public void updateOnOfSwitchRelayHome(String gridRelayCodeId) {
+    public void updateOnOfSwitchRelayGolego(String gridRelayCodeId) {
         if (gridRelayCodeId != null) {
             Device device = this.devices.getDevIds().get(gridRelayCodeId);
             if (device.currentStateOnLine().getValue()) {
