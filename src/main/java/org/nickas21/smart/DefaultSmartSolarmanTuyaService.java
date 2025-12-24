@@ -88,8 +88,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     @Getter
     @Setter
-    @Value("${dacha.settings.battery_soc_critical_night_charging60:true}")
-    private boolean batterySocCriticalNightCharging60; //true == 60  false == 50;
+    @Value("${dacha.settings.battery_soc_critical_night_charging:60}")
+    private int batterySocCriticalNightCharging; //60, 50, 40;
 
     private UsrTcpWiFiProperties tcpProps;
     private final SolarmanStationsService solarmanStationsService;
@@ -148,7 +148,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             } else {
                 initUpdateTimeoutSheduler();
                 tuyaDeviceService.updateGridStateOnLineToTelegram();
-                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, this.batterySocCriticalNightCharging60);
+                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, this.batterySocCriticalNightCharging);
             }
 
             log.info("""

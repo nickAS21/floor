@@ -10,7 +10,7 @@ app:
 
 dacha:
   settings:
-    battery_soc_critical_night_charging60: "${BATTERY_SOC_CRITICAL_NIGHT_CHARGING60:true}"
+    battery_soc_critical_night_charging: "${BATTERY_SOC_CRITICAL_NIGHT_CHARGING:60}"
 
 springdoc:
   api-docs:
