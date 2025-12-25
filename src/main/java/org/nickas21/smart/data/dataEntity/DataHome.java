@@ -32,6 +32,7 @@ public class DataHome {
     String batteryStatus;
     double batteryVol;
     double batteryCurrent;
+    String batteriesFault;
 
     double solarPower;
     double homePower;
@@ -45,6 +46,7 @@ public class DataHome {
     double dailyProductionSolarPower;
 
     String timestampLastUpdateGridStatus;
+
 
     public DataHome(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService) {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();

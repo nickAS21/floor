@@ -1000,13 +1000,13 @@ public class TuyaDeviceService {
         this.timeoutSecUpdateMillis = timeoutSecUpdate * 1000;
     }
 
-    public void updateOnOfSwitchRelay(double batterySocFromSolarman, int batterySocCriticalNightCharging) {
+    public void updateOnOfSwitchRelay(double batterySocFromSolarman, double batterySocCriticalNightCharging) {
         this.updateOnOfSwitchRelayDacha(batterySocFromSolarman, batterySocCriticalNightCharging);
-        this.updateOnOfSwitchRelayGolego(this.getGridRelayCodeIdGolego());
-        this.updateOnOfSwitchRelayGolego(this.getBoilerRelayCodeIdHome());
+        this.updateOnOffSwitchRelayGolego(this.getGridRelayCodeIdGolego());
+        this.updateOnOffSwitchRelayGolego(this.getBoilerRelayCodeIdHome());
     }
 
-    public void updateOnOfSwitchRelayGolego(String gridRelayCodeId) {
+    public void updateOnOffSwitchRelayGolego(String gridRelayCodeId) {
         if (gridRelayCodeId != null) {
             Device device = this.devices.getDevIds().get(gridRelayCodeId);
             if (device.currentStateOnLine().getValue()) {
@@ -1037,7 +1037,7 @@ public class TuyaDeviceService {
                     }
                     queueUpdate.put(device, deviceUpdate);
                 } else {
-                    log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                    log.info("Update On/Off Switch Relay Golego: Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
                             device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
                 }
                 queueLock.lock();
@@ -1052,7 +1052,7 @@ public class TuyaDeviceService {
         }
     }
 
-    public void updateOnOfSwitchRelayDacha(double batterySocFromSolarman, int batterySocCriticalNightCharging) {
+    public void updateOnOfSwitchRelayDacha(double batterySocFromSolarman, double batterySocCriticalNightCharging) {
         Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
         if (device == null) {
             log.error("Device Relay Dacha switch is null... , is offline... and is not update");
@@ -1181,7 +1181,7 @@ public class TuyaDeviceService {
                 if (deviceUpdate.isUpdate()) {
                     queueUpdate.put(device, deviceUpdate);
                 } else {
-                    log.info("Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                    log.info("UpdateCategory: Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
                             device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
                 }
             }
@@ -1195,7 +1195,7 @@ public class TuyaDeviceService {
      * -  HourChargeBattery < 7 ... =>  HourChargeBattery >= 1:30
      * -- batterySocFromSolarman batterySocCriticalNightCharging = true && > 60%/50%/40% - ok)
      */
-    public boolean isCriticalUpdateSwitchRelayDachaOnOffOnNight(double batterySocFromSolarman, int batterySocCriticalNightCharging) {
+    public boolean isCriticalUpdateSwitchRelayDachaOnOffOnNight(double batterySocFromSolarman, double batterySocCriticalNightCharging) {
         if (!this.isUpdateHourChargeBatt) {
             if (batterySocFromSolarman > batterySocCriticalNightCharging) {
                 return false;

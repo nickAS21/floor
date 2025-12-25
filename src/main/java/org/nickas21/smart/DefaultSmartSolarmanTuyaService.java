@@ -88,8 +88,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
     @Getter
     @Setter
-    @Value("${dacha.settings.battery_soc_critical_night_charging:60}")
-    private int batterySocCriticalNightCharging; //60, 50, 40;
+    @Value("${dacha.settings.battery_soc_critical_night_charging:95}")
+    private double batterySocCriticalNightCharging; //60, 50, 40;
 
     private UsrTcpWiFiProperties tcpProps;
     private final SolarmanStationsService solarmanStationsService;

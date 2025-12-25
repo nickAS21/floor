@@ -7,7 +7,7 @@ The system operates on the basis of the service protocols of the Tuya sensors an
 Integration testing of the code was done on the basis of the following equipment:
 
 - hybrid  solar station of the Deye model: SUN-12KSG04LP3-EU with solar panels
-- battery: GBL2.45K3(LFP) 4 pcs
+- battery: GBL2.45K3(LFP) 8 pcs
 - Tuya Smart Life WiFi Thermostat Electric Floor Temperature Controller 5 pcs
 - Tuya EU Smart Plug,16A WIFI Smart Socket 4 pcs
 - Tuya Wifi Temperature Humidity Sensor 2 pcs
