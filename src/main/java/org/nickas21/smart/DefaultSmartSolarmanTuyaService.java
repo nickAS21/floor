@@ -2,7 +2,6 @@ package org.nickas21.smart;
 
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.BatteryStatus;
 import org.nickas21.smart.solarman.SolarmanStationsService;
@@ -86,11 +85,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     @Value("${app.version:unknown}")
     private String version;
 
-    @Getter
-    @Setter
-    @Value("${dacha.settings.battery_soc_critical_night_charging:95}")
-    private double batterySocCriticalNightCharging; //60, 50, 40;
-
     private UsrTcpWiFiProperties tcpProps;
     private final SolarmanStationsService solarmanStationsService;
     private final TuyaDeviceService tuyaDeviceService;
@@ -148,7 +142,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             } else {
                 initUpdateTimeoutSheduler();
                 tuyaDeviceService.updateGridStateOnLineToTelegram();
-                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, this.batterySocCriticalNightCharging);
+                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew);
             }
 
             log.info("""
