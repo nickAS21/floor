@@ -240,30 +240,42 @@ public class UsrTcpWiFiParseData {
         return true;
     }
 
-    public UsrTcpWiFiBmsSummary getBmsSummary(int port){
-        UsrTcpWiFiBattery usrTcpWiFiBattery = this.getBattery(port);
+    public UsrTcpWiFiBmsSummary getBmsSummary(int portMaster){
+        UsrTcpWiFiBattery usrTcpWiFiBattery = this.getBattery(portMaster);
         if (usrTcpWiFiBattery != null) {
             UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
             UsrTcpWifiC1Data c1Data = usrTcpWiFiBattery.getC1Data();
             String bmsErrors = null;
             if (c0Data.getTimestamp() == null || c1Data.getTimestamp() == null) return null;
             try {
+                double batteryCurrentAll = 0;
+                double batterySocMin = c0Data.getSocPercent();
+                for (int i = 0; i < this.usrTcpWiFiProperties.getBatteriesCnt(); i++) {
+                    int portOut = this.usrTcpWiFiProperties.getPortStart() + i;
+                    UsrTcpWiFiBattery usrTcpWiFiBatteryA = this.getBattery(portOut);
+                    if (usrTcpWiFiBatteryA != null && usrTcpWiFiBatteryA.getC0Data() != null) {
+                        log.warn("port [{}] batteryCurrent [{}] soc [{}]", portOut, usrTcpWiFiBatteryA.getC0Data().getCurrentCurA(), usrTcpWiFiBatteryA.getC0Data().getSocPercent());
+                        batteryCurrentAll += usrTcpWiFiBatteryA.getC0Data().getCurrentCurA();
+                        batterySocMin = usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 ? Math.min(batterySocMin, usrTcpWiFiBatteryA.getC0Data().getSocPercent()) : batterySocMin;
+                    }
+                }
+
                 StringBuilder out = new StringBuilder();
                 out.append(String.format("- BMS status %s\n", c0Data.getBmsStatusStr()));
                 out.append(String.format("- Voltage: %.2f V\n", c0Data.getVoltageCurV()));
-                out.append(String.format("- Current: %.2f A\n", c0Data.getCurrentCurA() * 8));
+                out.append(String.format("- Current: %.2f A\n", batteryCurrentAll));
                 out.append(String.format("- Cells delta: %.3f V\n", c1Data.getDeltaMv() / 1000.0));
                 StringBuilder errorBuilder = getStringBuilderError();
                 if (!errorBuilder.toString().isEmpty()) {
                     bmsErrors = (String.format("Error info Data:\n%s", errorBuilder));
                 }
-                return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), c0Data.getSocPercent(), bmsErrors, out.toString());
+                return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), batterySocMin, bmsErrors, out.toString());
             } catch (Exception e) {
                 log.error("CRITICAL DECODE ERROR C0", e);
                 return null;
             }
         } else {
-            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", port, this.usrTcpWiFiBatteryRegistry.getAll().size());
+            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", portMaster, this.usrTcpWiFiBatteryRegistry.getAll().size());
             return null;
         }
     }

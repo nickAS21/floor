@@ -52,7 +52,7 @@ public class UsrTcpWiFiDecoders {
             i += lenVoltageCurV;
             double currentCurA = (bb.getShort(i)) / 10.0; // signed
             i += lenCurrentACur;
-            int socPercent = payloadBytes[i] & 0xFF;
+            double socPercent = payloadBytes[i] & 0xFF;
             i += lenSocPercent;
             int bmsStatus = (bb.getShort(i) & 0xFFFF);
             i += lenBmsStatus;
@@ -79,9 +79,14 @@ public class UsrTcpWiFiDecoders {
             byte[] cellsDataAll = new byte[cellsAllLen];
             System.arraycopy(payloadBytes, 0, cellsDataAll, 0, cellsAllLen);
             i += cellsAllLen;
-            int majorVersion = payloadBytes[i] & 0xFF;
-            i += lenVerM;
-            int minorVersion = payloadBytes[i] & 0xFF;
+            // Index 41 out of bounds for length 41
+            int majorVersion = 0;
+            int minorVersion = 0;
+            if (i <= payloadBytes.length) {
+                majorVersion = payloadBytes[i] & 0xFF;
+                i += lenVerM;
+                minorVersion = payloadBytes[i] & 0xFF;
+            }
 
             ByteBuffer bbCellsAll = ByteBuffer.wrap(cellsDataAll);
             i = 0;
@@ -94,7 +99,7 @@ public class UsrTcpWiFiDecoders {
             i += lenCells;
             int lifeCyclesCount = (bbCellsAll.getShort(i) & 0xFFFF);
             i += lenLifeCyclesCount;
-            int socPercent = cellsDataAll[i] & 0xFF;
+            double socPercent = cellsDataAll[i] & 0xFF;
             i += lenSocPercent;
             int errorInfoData = bb.getShort(i) & 0xFFFF;
             i += lenErrorInfoData;

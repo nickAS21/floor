@@ -31,7 +31,7 @@ public class UsrTcpWifiC1Data {
     private Map<Integer, Float> cellVoltagesV = new ConcurrentHashMap<>();
 
     private int lifeCyclesCount;
-    private int socPercent;
+    private double socPercent;
     private Integer errorInfoData;
 
     private int majorVersion;
@@ -56,7 +56,7 @@ public class UsrTcpWifiC1Data {
             int cellsCount,
             Map<Integer, Float> cellVoltagesV,
             int lifeCyclesCount,
-            int socPercent,
+            double socPercent,
             Integer errorInfoData,
             int majorVersion,
             int minorVersion,
@@ -146,7 +146,7 @@ public class UsrTcpWifiC1Data {
         out.append("1.1) Cells Info Table:\n");
         out.append("#  | Name             | Value\n");
         out.append("---|------------------|------------\n");
-        out.append(String.format("1  | SOC:             | %d %%\n", this.socPercent));
+        out.append(String.format("1  | SOC:             | %.2f %%\n", this.socPercent));
         out.append(String.format("2  | SUM_V:           | %.2f V\n", this.sumCellsV));
         out.append(String.format("3  | Ver:             | %s\n", this.version));
         out.append(String.format("4  | Life Cycles:     | %d\n", this.lifeCyclesCount));
@@ -199,8 +199,8 @@ public class UsrTcpWifiC1Data {
                     this.timestamp.toEpochMilli(),
                     port,
                     C1.name(),
-                    this.payloadBytesLastSaved.length,
-                    this.payloadBytesLastSaved);
+                    this.payloadBytesCur.length,
+                    this.payloadBytesCur);
         }
     }
 }

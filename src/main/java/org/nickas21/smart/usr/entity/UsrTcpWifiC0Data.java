@@ -21,7 +21,7 @@ public class UsrTcpWifiC0Data {
     private double voltageMinV;
     private double voltageCurV;
     private double currentCurA;
-    private int socPercent;
+    private double socPercent;
 
     private int bmsStatus;
     private String bmsStatusStr;
@@ -36,7 +36,7 @@ public class UsrTcpWifiC0Data {
     // -----------------------------
     //   MAIN UPDATE METHOD
     // -----------------------------
-    public void updateC0Data(double voltageMinV, double voltageCurV, double currentCurA, int socPercent, int bmsStatus,
+    public void updateC0Data(double voltageMinV, double voltageCurV, double currentCurA, double socPercent, int bmsStatus,
                              long bmsStatus1, long bmsStatus2, int errorInfoData, Instant timestamp, byte[] payloadBytes) {
         this.voltageMinV = voltageMinV;
         this.voltageCurV = voltageCurV;
@@ -62,7 +62,7 @@ public class UsrTcpWifiC0Data {
                     output + "\n" +
                     "#  | Name             | Value\n" +
                     "---|------------------|------------\n" +
-                    String.format("1  | SOC (%%)          | %d %%\n", this.getSocPercent()) +
+                    String.format("1  | SOC (%%)          | %.2f %%\n", this.getSocPercent()) +
                     String.format("2  | Voltage (V)      | %.2f V\n", this.getVoltageCurV()) +
                     String.format("3  | Current (A)      | %.2f A\n", this.getCurrentCurA()) +
                     String.format("4  | Voltage Min (V)  | %.2f V\n", this.getVoltageMinV()) +
@@ -87,8 +87,8 @@ public class UsrTcpWifiC0Data {
                     this.timestamp.toEpochMilli(),
                     port,
                     C0.name(),
-                    this.payloadBytesLastSaved.length,
-                    this.payloadBytesLastSaved);
+                    this.payloadBytesCur.length,
+                    this.payloadBytesCur);
         }
     }
 }

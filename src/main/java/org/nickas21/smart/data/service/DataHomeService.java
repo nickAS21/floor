@@ -1,17 +1,14 @@
 package org.nickas21.smart.data.service;
 
-import jakarta.annotation.PostConstruct;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.dataEntity.DataHome;
 import org.nickas21.smart.tuya.TuyaDeviceService;
-import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DataHomeService {
 
-    private UsrTcpWiFiProperties tcpProps;
     private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
     private final TuyaDeviceService deviceService;
     private final UsrTcpWiFiParseData usrTcpWiFiParseData;
@@ -22,17 +19,12 @@ public class DataHomeService {
         this.usrTcpWiFiParseData = usrTcpWiFiParseData;
     }
 
-    @PostConstruct
-    public void init() {
-        this.tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
-    }
-
     public DataHome getDataDacha() {
         return new DataHome(this.solarmanTuyaService, this.deviceService);
     }
 
     public DataHome getDataGolego() {
-        return new DataHome(this.deviceService, this.usrTcpWiFiParseData,  tcpProps);
+        return new DataHome(this.deviceService, this.usrTcpWiFiParseData);
     }
 
 }
