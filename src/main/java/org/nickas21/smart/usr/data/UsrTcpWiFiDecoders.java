@@ -41,72 +41,68 @@ public class UsrTcpWiFiDecoders {
     public static String keyIdx = "idx";
     public static String keyVoltage = "voltage";
 
+    public static void decodeC0Payload(byte[] payloadBytes, UsrTcpWifiC0Data c0Data, Instant timestamp, int port) {
+        double voltageMinV = 0, voltageCurV = 0, currentCurA = 0, socPercent = 0;
+        int bmsStatus = 0, bmsStatus1 = 0, bmsStatus2 = 0, errorInfoData = 0, reserveData = 0;
 
-    public static void decodeC0Payload(byte[] payloadBytes, UsrTcpWifiC0Data c0Data, Instant timestamp) {
         try {
-            int i = 0;
-            ByteBuffer bb = ByteBuffer.wrap(payloadBytes);
-            double voltageMinV = ((bb.getShort(i) & 0xFFFF)) / 100.0;
-            i += lenVoltageMinV;
-            double voltageCurV = ((bb.getShort(i) & 0xFFFF) ) / 100.0;
-            i += lenVoltageCurV;
-            double currentCurA = (bb.getShort(i)) / 10.0; // signed
-            i += lenCurrentACur;
-            double socPercent = payloadBytes[i] & 0xFF;
-            i += lenSocPercent;
-            int bmsStatus = (bb.getShort(i) & 0xFFFF);
-            i += lenBmsStatus;
-            int bmsStatus1 = (bb.getInt(i));
-            i += lenBmsStatus1_2;
-            int bmsStatus2 = (bb.getInt(i));
-            i += lenBmsStatus1_2;
-            int errorInfoData = bb.getShort(i) & 0xFFFF;
-            i += lenErrorInfoData;
-
-            c0Data.updateC0Data(voltageMinV, voltageCurV, currentCurA, socPercent, bmsStatus,
-                                bmsStatus1, bmsStatus2, errorInfoData, timestamp, payloadBytes);
+            if (payloadBytes != null && payloadBytes.length > 0) {
+//                // TODO for test
+//                String testHex =  "140015040001640004000000040000000020080000";
+//                byte[] testBB = hexToBytes(testHex);
+                // 1400 1504 0001 64 0004 00 000004 00000000 2008 0000
+//                ByteBuffer bb = ByteBuffer.wrap(testBB);
+                ByteBuffer bb = ByteBuffer.wrap(payloadBytes);
+                if (bb.remaining() >= lenVoltageMinV) voltageMinV = (bb.getShort() & 0xFFFF) / 100.0;
+                if (bb.remaining() >= lenVoltageCurV) voltageCurV = (bb.getShort() & 0xFFFF) / 100.0;
+                if (bb.remaining() >= lenCurrentACur) currentCurA = bb.getShort() / 10.0; // signed short
+                if (bb.remaining() >= lenSocPercent) socPercent = bb.get() & 0xFF;       // unsigned byte
+                if (bb.remaining() >= lenBmsStatus) bmsStatus = bb.getShort() & 0xFFFF;
+                if (bb.remaining() >= lenBmsStatus1_2) bmsStatus1 = bb.getInt();
+                if (bb.remaining() >= lenBmsStatus1_2) bmsStatus2 = bb.getInt();
+                if (bb.remaining() >= lenErrorInfoData) errorInfoData = bb.getShort() & 0xFFFF;
+                if (bb.remaining() >= lenReserve) reserveData = bb.getShort() & 0xFFFF;
+            } else {
+                log.warn("Port: [{}]. Payload is empty or null, updating with zeros", port);
+            }
         } catch (Exception e) {
-            log.error("CRITICAL DECODE ERROR C0", e);
+            log.error("Port: [{}]. Partial decode error for C0 payload", port, e);
+        } finally {
+            c0Data.updateC0Data(voltageMinV, voltageCurV, currentCurA, socPercent, bmsStatus,
+                    bmsStatus1, bmsStatus2, errorInfoData, timestamp, payloadBytes);
         }
     }
 
     public static void decodeC1Payload(byte[] payloadBytes, UsrTcpWifiC1Data c1Data, Instant timestamp) {
+        double socPercent = 0;
+        int cellsCount = 0,  lifeCyclesCount = 0, errorInfoData = 0, reserveData = 0, majorVersion = 0, minorVersion = 0, cellsAllLen = 0;
+
         try {
-            int i = 0;
+            // TODO for test
+//            String testHex =  "28100D100D140D120D140D110D140D130D120D140D140D130D130D130D150D9F0DA5040664200800000C10";
+//            byte[] testBB = hexToBytes(testHex);
+//            // 28   <10 <<0D10 0D14 0D12 0D14 0D11 0D14 0D13 0D12 0D14 0D14 0D13 0D13 0D13 0D15 0D9F 0DA5>> 0406 <<64>> <<2008>> 0000> 0C10
+//            ByteBuffer bb = ByteBuffer.wrap(testBB);
             ByteBuffer bb = ByteBuffer.wrap(payloadBytes);
-            int cellsAllLen = payloadBytes[i] & 0xFF;
-            i++;
+            if (bb.remaining() >= lenCellsAllLen) cellsAllLen = bb.get() & 0xFF;
             byte[] cellsDataAll = new byte[cellsAllLen];
-            System.arraycopy(payloadBytes, 0, cellsDataAll, 0, cellsAllLen);
-            i += cellsAllLen;
-            // Index 41 out of bounds for length 41
-            int majorVersion = 0;
-            int minorVersion = 0;
-            if (i <= payloadBytes.length) {
-                majorVersion = payloadBytes[i] & 0xFF;
-                i += lenVerM;
-                minorVersion = payloadBytes[i] & 0xFF;
-            }
+            if (bb.remaining() >= cellsAllLen) bb.get(cellsDataAll);
+            if (bb.remaining() >= lenVerM) majorVersion = bb.get() & 0xFF;
+            if (bb.remaining() >= lenVerM) minorVersion = bb.get() & 0xFF;
 
             ByteBuffer bbCellsAll = ByteBuffer.wrap(cellsDataAll);
-            i = 0;
-            i += lenCellsAllLen;
-            int cellsCount = cellsDataAll[i] & 0xFF;
-            i += lenCellsCnt;
+            if (bbCellsAll.remaining() >= lenCellsCnt) cellsCount = bbCellsAll.get() & 0xFF;
             int lenCells = cellsCount * 2;
             byte[] cellsData = new byte[lenCells];
-            System.arraycopy(cellsDataAll, i, cellsData, 0, lenCells);
-            i += lenCells;
-            int lifeCyclesCount = (bbCellsAll.getShort(i) & 0xFFFF);
-            i += lenLifeCyclesCount;
-            double socPercent = cellsDataAll[i] & 0xFF;
-            i += lenSocPercent;
-            int errorInfoData = bb.getShort(i) & 0xFFFF;
-            i += lenErrorInfoData;
+            if (bbCellsAll.remaining() >= lenCells) bbCellsAll.get(cellsData);
+            if (bbCellsAll.remaining() >= lenLifeCyclesCount) lifeCyclesCount = bbCellsAll.getShort() & 0xFFFF;
+            if (bbCellsAll.remaining() >= lenSocPercent) socPercent = bbCellsAll.get() & 0xFF;
+            if (bbCellsAll.remaining() >= lenErrorInfoData) errorInfoData = bbCellsAll.getShort() & 0xFFFF;
+            if (bbCellsAll.remaining() >= lenReserve) reserveData = bbCellsAll.getShort() & 0xFFFF;
 
-            // Voltages
+            // Voltages cells
             Map<Integer, Float> cellVoltagesV = new ConcurrentHashMap<>();
-            for (i = 0; i < cellsCount; i++) {
+            for (int i = 0; i < cellsCount; i++) {
                 int offset = i * 2;
                 int raw = ((cellsData[offset] & 0xFF) << 8) | (cellsData[offset + 1] & 0xFF);
                 float voltage = raw / 1000.0f;
@@ -118,5 +114,91 @@ public class UsrTcpWiFiDecoders {
             log.error("CRITICAL ERROR C1", e);
         }
     }
+
+//    public static void decodeC1Payload(byte[] payloadBytes, UsrTcpWifiC1Data c1Data, Instant timestamp) {
+//
+//        try {
+//
+//            int i = 0;
+//
+//            ByteBuffer bb = ByteBuffer.wrap(payloadBytes);
+//
+//            int cellsAllLen = payloadBytes[i] & 0xFF;
+//
+//            i++;
+//
+//            byte[] cellsDataAll = new byte[cellsAllLen];
+//
+//            System.arraycopy(payloadBytes, 0, cellsDataAll, 0, cellsAllLen);
+//
+//            i += cellsAllLen;
+//
+//            int majorVersion = payloadBytes[i] & 0xFF;
+//
+//            i += lenVerM;
+//
+//            int minorVersion = payloadBytes[i] & 0xFF;
+//
+//
+//
+//            ByteBuffer bbCellsAll = ByteBuffer.wrap(cellsDataAll);
+//
+//            i = 0;
+//
+//            i += lenCellsAllLen;
+//
+//            int cellsCount = cellsDataAll[i] & 0xFF;
+//
+//            i += lenCellsCnt;
+//
+//            int lenCells = cellsCount * 2;
+//
+//            byte[] cellsData = new byte[lenCells];
+//
+//            System.arraycopy(cellsDataAll, i, cellsData, 0, lenCells);
+//
+//            i += lenCells;
+//
+//            int lifeCyclesCount = (bbCellsAll.getShort(i) & 0xFFFF);
+//
+//            i += lenLifeCyclesCount;
+//
+//            double socPercent = cellsDataAll[i] & 0xFF;
+//
+//            i += lenSocPercent;
+//
+//            int errorInfoData = bb.getShort(i) & 0xFFFF;
+//
+//            i += lenErrorInfoData;
+//
+//
+//
+//// Voltages
+//
+//            Map<Integer, Float> cellVoltagesV = new ConcurrentHashMap<>();
+//
+//            for (i = 0; i < cellsCount; i++) {
+//
+//                int offset = i * 2;
+//
+//                int raw = ((cellsData[offset] & 0xFF) << 8) | (cellsData[offset + 1] & 0xFF);
+//
+//                float voltage = raw / 1000.0f;
+//
+//                cellVoltagesV.put(i, voltage);
+//
+//            }
+//
+//            c1Data.updateC1Data(cellsCount, cellVoltagesV, lifeCyclesCount, socPercent,
+//
+//                    errorInfoData, majorVersion, minorVersion, timestamp, payloadBytes);
+//
+//        } catch (Exception e) {
+//
+//            log.error("CRITICAL ERROR C1", e);
+//
+//        }
+//
+//    }
 }
 

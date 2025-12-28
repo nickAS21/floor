@@ -118,7 +118,7 @@ public class UsrTcpWiFiParseData {
                     // Extra BMS info for C0 and update C0/C1
                      if (C0.equals(msgType)) {
                         UsrTcpWifiC0Data c0Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC0Data();
-                        UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, nowInstant);
+                        UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, nowInstant, port);
 
                         this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c0Data.getTimestamp());
 //                        if (testFront) {
