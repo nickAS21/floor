@@ -30,6 +30,7 @@
  */
 package org.nickas21.smart.solarman.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
@@ -44,9 +45,21 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SolarmanToken implements Serializable {
+
     private String accessToken;
     private String refreshToken;
     private String uid;
+
     private Long expiresIn;
+
+    private String tokenType;
+    private Boolean success;
+    private String requestId;
+
+    // Додаткові поля, які можуть бути присутніми у JSON
+    private String scope;
+    private String code;
+    private String msg;
 }

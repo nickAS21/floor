@@ -30,7 +30,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
@@ -92,6 +91,7 @@ import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeMinutes;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
+import static org.nickas21.smart.util.JacksonUtil.toResponseEntityObjectNode;
 import static org.nickas21.smart.util.JacksonUtil.treeToValue;
 import static org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage.PERCENTAGE_90;
 import static org.nickas21.smart.util.SolarmanSocUtil.SolarmanSocPercentage.REST_FLOAT;
@@ -629,7 +629,7 @@ public class TuyaDeviceService {
     private RequestEntity<Object> createGetTuyaRequest(String path, boolean isGetToken) {
         HttpMethod httpMethod = HttpMethod.GET;
         String ts = String.valueOf(System.currentTimeMillis());
-        MultiValueMap<String, String> httpHeaders = createHeaders(ts);
+        HttpHeaders httpHeaders = createHeaders(ts);
         if (!isGetToken) httpHeaders.add("access_token", getTuyaToken().getAccessToken());
         String strToSign = isGetToken ? this.connectionConfiguration.getAk() + ts + stringToSign(path, getBodyHash(null), httpMethod) :
                 this.connectionConfiguration.getAk() + accessTuyaToken.getAccessToken() + ts + stringToSign(path, getBodyHash(null), httpMethod);
@@ -642,7 +642,7 @@ public class TuyaDeviceService {
     private RequestEntity<Object> createRequestWithBody(String path, ObjectNode body) {
         HttpMethod httpMethod = HttpMethod.POST;
         String ts = String.valueOf(System.currentTimeMillis());
-        MultiValueMap<String, String> httpHeaders = createHeaders(ts);
+        HttpHeaders httpHeaders = createHeaders(ts);
         httpHeaders.add("access_token", getTuyaToken().getAccessToken());
         String strToSign = this.connectionConfiguration.getAk() + getTuyaToken().getAccessToken() +
                 ts + stringToSign(path, getBodyHash(body.toString()), httpMethod);
@@ -796,13 +796,23 @@ public class TuyaDeviceService {
     //    https://openapi.tuyaeu.com/v1.0/iot-03/devices/bfa715581477683002qb4l/freeze-state
     private ResponseEntity<ObjectNode> sendRequest(RequestEntity<Object> requestEntity) throws Exception {
         try {
-            ResponseEntity<ObjectNode> responseEntity = httpClient.exchange(requestEntity.getUrl(), Objects.requireNonNull(requestEntity.getMethod()), requestEntity, ObjectNode.class);
+            ResponseEntity<String> responseEntityStr =
+                    httpClient.exchange(
+                            requestEntity.getUrl(),
+                            Objects.requireNonNull(requestEntity.getMethod()),
+                            requestEntity,
+                            String.class
+                    );
+
+            ResponseEntity<ObjectNode> responseEntity = toResponseEntityObjectNode(responseEntityStr);
             if (!HttpStatus.OK.equals(responseEntity.getStatusCode())) {
                 throw new RuntimeException(String.format("No response for device command request! Reason code from Tuya Cloud: %s", responseEntity.getStatusCode()));
             } else {
-                if (Objects.requireNonNull(responseEntity.getBody()).get("success").asBoolean()) {
+                JsonNode body = toJsonNode(responseEntityStr.getBody());
+                if (body != null && body.get("success").asBoolean()) {
                     return responseEntity;
                 } else {
+                    assert responseEntity.getBody() != null;
                     if (responseEntity.getBody().has("code") && responseEntity.getBody().has("msg")) {
                         log.error("code: [{}], msg: [{}]", responseEntity.getBody().get("code").asInt(), responseEntity.getBody().get("msg").asText());
                     }

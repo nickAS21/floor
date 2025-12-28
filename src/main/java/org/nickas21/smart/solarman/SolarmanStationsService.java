@@ -19,12 +19,14 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_COMMUNICATION;
 import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_CURRENT_DATA;
 import static org.nickas21.smart.solarman.api.ApiPath.STATION_LIST;
 import static org.nickas21.smart.solarman.api.ApiPath.TOKEN;
+import static org.nickas21.smart.util.JacksonUtil.fromString;
 
 @Slf4j
 @Service
@@ -102,7 +104,9 @@ public class SolarmanStationsService {
     private SolarmanToken createSolarmanToken() {
         var body = new SolarmanAuthRequest(solarmanConnectionProperties.getSecret(),
                 solarmanConnectionProperties.getUsername(),
-                solarmanConnectionProperties.getPasswordHash());
+                solarmanConnectionProperties.getPasswordHash()
+        );
+
         var token = authClient.post()
                 .uri(solarmanConnectionProperties.getRegion().getApiUrl(), uriBuilder -> uriBuilder
                         .path(TOKEN)
@@ -113,9 +117,18 @@ public class SolarmanStationsService {
                     httpHeaders.add("t", String.valueOf(System.currentTimeMillis()));
                     httpHeaders.setContentType(MediaType.APPLICATION_JSON);
                 })
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(SolarmanToken.class)
+                .bodyValue(body)  // <-- body тут використовується
+                .exchangeToMono(response ->
+                        response.bodyToMono(String.class) // читаємо raw JSON
+//                                .doOnNext(rawBody -> System.out.println("Solarman raw response: " + rawBody))
+                                .map(rawBody -> {
+                                    try {
+                                        return Objects.requireNonNull(fromString(rawBody, SolarmanToken.class));
+                                    } catch (Exception e) {
+                                        throw new RuntimeException("JSON parsing failed", e);
+                                    }
+                                })
+                )
                 .blockOptional();
 
         return token.map(t -> {

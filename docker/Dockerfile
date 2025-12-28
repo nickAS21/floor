@@ -1,5 +1,5 @@
 
-FROM thingsboard/openjdk17:bookworm-slim
+FROM eclipse-temurin:25-jdk-jammy
 
 COPY ./*SNAPSHOT.jar /app.jar
 

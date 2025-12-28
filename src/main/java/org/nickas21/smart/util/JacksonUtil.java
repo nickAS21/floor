@@ -50,6 +50,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.databind.type.CollectionType;
+import org.springframework.http.ResponseEntity;
 
 import java.io.File;
 import java.io.IOException;
@@ -177,6 +178,16 @@ public class JacksonUtil {
 
     public static JsonNode toJsonNode(String value) {
         return toJsonNode(value, OBJECT_MAPPER);
+    }
+    public static ResponseEntity<ObjectNode> toResponseEntityObjectNode(ResponseEntity<String> responseEntityStr) {
+        try {
+            ObjectNode objectNode = OBJECT_MAPPER.readValue(responseEntityStr.getBody(), ObjectNode.class);
+            return ResponseEntity.status(responseEntityStr.getStatusCode())
+                    .headers(responseEntityStr.getHeaders())
+                    .body(objectNode);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static JsonNode toJsonNode(String value, ObjectMapper mapper) {

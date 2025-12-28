@@ -2,8 +2,6 @@ package org.nickas21.smart.security.controller;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
 import org.nickas21.smart.security.configuration.JwtConnectionProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,7 +20,7 @@ import java.util.function.Function;
 @EnableConfigurationProperties({JwtConnectionProperties.class})
 public class JwtUtil {
 
-    private final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private static final SecretKey SECRET_KEY = Jwts.SIG.HS256.key().build();
 
     private final long EXPIRES_IN;
 
@@ -44,11 +42,11 @@ public class JwtUtil {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts
-                .parserBuilder()
-                .setSigningKey(SECRET_KEY)
-                .build().parseClaimsJws(token)
-                .getBody();
+        return Jwts.parser()
+                .verifyWith(SECRET_KEY)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     private Boolean isTokenExpired(String token) {
