@@ -205,7 +205,20 @@ public class SolarmanStationsService {
     }
 
     public RealTimeData getRealTimeData() {
-        var result = webClient.post().uri(uriBuilder -> uriBuilder
+        RealTimeData result = fetchRealTimeData();
+        if (result.getDataList() == null) {
+            result = fetchRealTimeData();
+            if (result.getDataList() == null) {
+                throw new IllegalStateException(
+                        "Solarman returned dataList is null after retrying the request"
+                );
+            }
+        }
+        return result;
+    }
+
+    public RealTimeData fetchRealTimeData() {
+        return webClient.post().uri(uriBuilder -> uriBuilder
                         .path(DEVICE_CURRENT_DATA)
                         .queryParam("language", "en")
                         .build())
@@ -216,9 +229,8 @@ public class SolarmanStationsService {
                 .bodyValue(new RealTimeDataRequest(solarmanStation.getInverterSn(), solarmanStation.getInverterId()))
                 .retrieve()
                 .bodyToMono(RealTimeData.class)
-                .blockOptional();
-
-        return result.orElseThrow();
+                .blockOptional()
+                .orElseThrow(() -> new IllegalStateException("Solarman returned null response"));
     }
 
     private boolean hasValidAccessToken() {
