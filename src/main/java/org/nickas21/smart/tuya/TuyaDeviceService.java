@@ -114,7 +114,7 @@ public class TuyaDeviceService {
     @Getter
     @Setter
     @Value("${dacha.settings.battery_soc_critical_night_charging:60}")
-    private double batteryCriticalNightSoc_Winter; //60, 50, 40;
+    private double batteryCriticalNightSocWinter; //60, 50, 40;
 
     @Getter
     @Setter
@@ -1215,7 +1215,7 @@ public class TuyaDeviceService {
      *
      * paramOnOff = true/false if: is NightTariff && this.getHourChargeBattery() in NightTariff && Winter
      * -- HourChargeBattery < 7 ... =>  HourChargeBattery >= 1:30
-     * --if batterySocFromSolarman <= batteryCriticalNightSoc_Winter → critical night mode ON = true => 60%/50%/40%
+     * --if batterySocFromSolarman <= batteryCriticalNightSocWinter → critical night mode ON = true => 60%/50%/40%
      */
     public boolean batteryCriticalNightSwitchRelayDachaOnOff_Winter(double batterySocFromSolarman) {
         boolean isWinter = solarmanStationsService.getSolarmanStation().getSeasonsId()
@@ -1230,7 +1230,7 @@ public class TuyaDeviceService {
             return true;
         }
 
-        if (batterySocFromSolarman <= batteryCriticalNightSoc_Winter) {
+        if (batterySocFromSolarman <= batteryCriticalNightSocWinter) {
             this.batteryCriticalNight_Winter = true;
             return true;
         }

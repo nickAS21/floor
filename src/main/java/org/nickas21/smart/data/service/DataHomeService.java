@@ -19,12 +19,11 @@ public class DataHomeService {
         this.usrTcpWiFiParseData = usrTcpWiFiParseData;
     }
 
-    public DataHome getDataDacha() {
-        return new DataHome(this.solarmanTuyaService, this.deviceService);
-    }
-
     public DataHome getDataGolego() {
         return new DataHome(this.deviceService, this.usrTcpWiFiParseData);
     }
 
+    public DataHome getDataDacha() {
+        return new DataHome(this.solarmanTuyaService, this.deviceService);
+    }
 }
