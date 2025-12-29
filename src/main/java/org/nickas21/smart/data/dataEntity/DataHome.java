@@ -1,6 +1,7 @@
 package org.nickas21.smart.data.dataEntity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
@@ -20,6 +21,7 @@ import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 @Slf4j
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class DataHome {
 
     private final double golegoPowerDefault = 42.0; // only  2 - WiFi routers

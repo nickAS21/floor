@@ -11,19 +11,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping(value = "/api/tuya")
-public class DataTuyaController {
+@RequestMapping(value = "/api/unit")
+public class DataUnitController {
 
     private final UserService userService;
     private final TuyaDeviceService tuyaDeviceService;
 
-    public DataTuyaController(UserService userService, TuyaDeviceService tuyaDeviceService) {
+    public DataUnitController(UserService userService, TuyaDeviceService tuyaDeviceService) {
         this.userService = userService;
         this.tuyaDeviceService = tuyaDeviceService;
     }
 
 
-    @GetMapping("/device")
+    @GetMapping("/dacha")
     public ResponseEntity<Devices> getConfig(
             @RequestHeader(required = false, value = "Authorization") String token) {
 

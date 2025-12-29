@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-// Ця анотація приховає null-поля в JSON, щоб не надсилати зайвого
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DataSettings {
 
@@ -17,5 +16,6 @@ public class DataSettings {
 
     // Специфічне поле (використовуємо Double замість double, щоб воно могло бути null)
     private Double batteryCriticalNightSocWinter;
+    private Integer logsDachaLimit;
 
 }

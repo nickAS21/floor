@@ -123,6 +123,11 @@ public class TuyaDeviceService {
 
     @Getter
     @Setter
+    @Value("${dacha.settings.logs_limit:100}")
+    private int logsDachaLimit;
+
+    @Getter
+    @Setter
     @Value("${golego.settings.devices_change_handle_control:false}")
     private boolean devicesChangeHandleControlGolego;
 

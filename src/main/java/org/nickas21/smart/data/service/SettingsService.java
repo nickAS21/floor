@@ -23,6 +23,7 @@ public class SettingsService {
         DataSettings dataSettings = new DataSettings();
         dataSettings.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlDacha());
         dataSettings.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());
+        dataSettings.setLogsDachaLimit(deviceService.getLogsDachaLimit());
         return dataSettings;
     }
 
@@ -39,6 +40,9 @@ public class SettingsService {
         }
         if (settingsDacha.getBatteryCriticalNightSocWinter() != null) {
             deviceService.setBatteryCriticalNightSocWinter(settingsDacha.getBatteryCriticalNightSocWinter());
+        }
+        if (settingsDacha.getBatteryCriticalNightSocWinter() != null) {
+            deviceService.setLogsDachaLimit(settingsDacha.getLogsDachaLimit());
         }
 
         return getSettingsDacha(); // Повертаємо оновлений стан
