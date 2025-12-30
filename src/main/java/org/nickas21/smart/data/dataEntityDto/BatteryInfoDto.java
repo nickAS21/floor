@@ -10,6 +10,7 @@ import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
 
 import java.util.Map;
 
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyIdx;
 import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 import static org.nickas21.smart.util.StringUtils.intToHex;
 import static org.nickas21.smart.util.StringUtils.isBlank;
@@ -21,7 +22,7 @@ import static org.nickas21.smart.util.StringUtils.isBlank;
 public class BatteryInfoDto {
 
     private final String datePattern = "yyyy-MM-dd HH:mm";
-    private final long marginMs = 60 * 1000L; // +1 minutes
+    private final long marginMs = 3660 * 1000L; // +1 hour
 
     String timestamp;
     int port;
@@ -38,12 +39,12 @@ public class BatteryInfoDto {
     Integer maxCellIdx;
     Map<Integer, Float> cellVoltagesV;
 
-    public BatteryInfoDto(Map.Entry<Integer, UsrTcpWiFiBattery> usrTcpWiFiBatteryEntry, long timeoutSecUpdate){
+    public BatteryInfoDto(Map.Entry<Integer, UsrTcpWiFiBattery> usrTcpWiFiBatteryEntry, Long timeoutSecUpdate){
         this.port = usrTcpWiFiBatteryEntry.getKey();
         UsrTcpWiFiBattery batteryData = usrTcpWiFiBatteryEntry.getValue();
 
         UsrTcpWifiC0Data c0Data = batteryData.getC0Data();
-        if (c0Data != null) {
+        if (c0Data != null && c0Data.getTimestamp() != null) {
             this.timestamp = formatTimestamp(c0Data.getTimestamp().toEpochMilli(), datePattern);
             this.currentCurA = c0Data.getCurrentCurA();
             this.socPercent = c0Data.getSocPercent();
@@ -54,7 +55,7 @@ public class BatteryInfoDto {
         }
 
         UsrTcpWifiC1Data c1Data = batteryData.getC1Data();
-        if (c1Data != null) {
+        if (c1Data != null && c1Data.getTimestamp() != null) {
             if (isBlank(this.timestamp)) {
                 this.timestamp = formatTimestamp(c1Data.getTimestamp().toEpochMilli(), datePattern);
             }
@@ -73,8 +74,8 @@ public class BatteryInfoDto {
                 this.errorOutput =  c1Data.getErrorOutput();
             }
             this.deltaMv = c1Data.getDeltaMv() / 1000.0;  // this.deltaMv in V Critical > 0.100 V
-            this.minCellIdx =  c1Data.getMinCellV().get("keyIdx").asInt();
-            this.maxCellIdx =  c1Data.getMaxCellV().get("keyIdx").asInt();
+            this.minCellIdx =  c1Data.getMinCellV().get(keyIdx).asInt();
+            this.maxCellIdx =  c1Data.getMaxCellV().get(keyIdx).asInt();
             if (!this.isActive) {
                 this.isActive = getIsActive(c1Data.getTimestamp().toEpochMilli(), timeoutSecUpdate);
             }
@@ -83,7 +84,7 @@ public class BatteryInfoDto {
         }
     }
 
-    private boolean getIsActive(long timestamp, long timeoutSecUpdate) {
+    private boolean getIsActive(long timestamp, Long timeoutSecUpdate) {
         long timeoutMs = timeoutSecUpdate * 1000L;
         long currentMillis = System.currentTimeMillis();
         return this.socPercent > 0 && (currentMillis - timestamp) < (timeoutMs + marginMs);
