@@ -1,6 +1,6 @@
 package org.nickas21.smart.data.controller;
 
-import org.nickas21.smart.data.dataEntity.DataSettings;
+import org.nickas21.smart.data.dataEntityDto.DataSettingsDto;
 import org.nickas21.smart.data.service.SettingsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,23 +20,23 @@ public class SettingsController {
     }
 
     @GetMapping("/golego")
-    public ResponseEntity<DataSettings> getSettingsGolego() {
+    public ResponseEntity<DataSettingsDto> getSettingsGolego() {
             return ResponseEntity.ok(this.settingsService.getSettingsGolego());
     }
 
     @GetMapping("/dacha")
-    public ResponseEntity<DataSettings> getSettingsDacha() {
+    public ResponseEntity<DataSettingsDto> getSettingsDacha() {
             return ResponseEntity.ok(this.settingsService.getSettingsDacha());
     }
 
     @PostMapping("/golego")
-    public ResponseEntity<DataSettings> postSettingsGolego(@RequestBody DataSettings settingsGolego) {
+    public ResponseEntity<DataSettingsDto> postSettingsGolego(@RequestBody DataSettingsDto settingsGolego) {
         // Передаємо отримані з фронтенду налаштування в сервіс
         return ResponseEntity.ok(this.settingsService.setSettingsGolego(settingsGolego));
     }
 
     @PostMapping("/dacha")
-    public ResponseEntity<DataSettings> postSettingsDacha(@RequestBody DataSettings settingsDacha) {
+    public ResponseEntity<DataSettingsDto> postSettingsDacha(@RequestBody DataSettingsDto settingsDacha) {
         // Передаємо отримані з фронтенду налаштування в сервіс
         return ResponseEntity.ok(this.settingsService.setSettingsDacha(settingsDacha));
     }

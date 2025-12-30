@@ -1,6 +1,6 @@
 package org.nickas21.smart.data.service;
 
-import org.nickas21.smart.data.dataEntity.DataSettings;
+import org.nickas21.smart.data.dataEntityDto.DataSettingsDto;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.springframework.stereotype.Service;
 
@@ -13,28 +13,28 @@ public class SettingsService {
         this.deviceService = deviceService;
     }
 
-    public DataSettings getSettingsGolego() {
-        DataSettings dataSettings = new DataSettings();
-        dataSettings.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlGolego());
-        return dataSettings;
+    public DataSettingsDto getSettingsGolego() {
+        DataSettingsDto dataSettingsDto = new DataSettingsDto();
+        dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlGolego());
+        return dataSettingsDto;
     }
 
-    public DataSettings getSettingsDacha() {
-        DataSettings dataSettings = new DataSettings();
-        dataSettings.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlDacha());
-        dataSettings.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());
-        dataSettings.setLogsDachaLimit(deviceService.getLogsDachaLimit());
-        return dataSettings;
+    public DataSettingsDto getSettingsDacha() {
+        DataSettingsDto dataSettingsDto = new DataSettingsDto();
+        dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlDacha());
+        dataSettingsDto.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());
+        dataSettingsDto.setLogsDachaLimit(deviceService.getLogsDachaLimit());
+        return dataSettingsDto;
     }
 
-    public DataSettings setSettingsGolego(DataSettings settingsGolego) {
+    public DataSettingsDto setSettingsGolego(DataSettingsDto settingsGolego) {
         if (settingsGolego.getDevicesChangeHandleControl() != null) {
             deviceService.setDevicesChangeHandleControlGolego(settingsGolego.getDevicesChangeHandleControl());
         }
         return getSettingsGolego();
     }
 
-    public DataSettings setSettingsDacha(DataSettings settingsDacha) {
+    public DataSettingsDto setSettingsDacha(DataSettingsDto settingsDacha) {
         if (settingsDacha.getDevicesChangeHandleControl() != null) {
             deviceService.setDevicesChangeHandleControlDacha(settingsDacha.getDevicesChangeHandleControl());
         }

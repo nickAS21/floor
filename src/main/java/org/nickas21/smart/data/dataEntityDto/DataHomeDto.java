@@ -1,4 +1,4 @@
-package org.nickas21.smart.data.dataEntity;
+package org.nickas21.smart.data.dataEntityDto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -22,7 +22,7 @@ import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class DataHome {
+public class DataHomeDto {
 
     private final double golegoPowerDefault = 42.0; // only  2 - WiFi routers
     private final double golegoInverterPowerDefault = 10.0;
@@ -52,7 +52,7 @@ public class DataHome {
     String timestampLastUpdateGridStatus;
 
 
-    public DataHome(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService) {
+    public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService) {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
         if (powerValueRealTimeData != null) {
             this.timestamp = powerValueRealTimeData.getCollectionTime() * 1000;
@@ -79,7 +79,7 @@ public class DataHome {
         log.warn("DataHomeDacha [{}]", this);
     }
 
-    public DataHome(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData) {
+    public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData) {
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
         this.gridStatusRealTime = deviceService.getGridRelayCodeGolegoStateOnLine() != null && deviceService.getGridRelayCodeGolegoStateOnLine();

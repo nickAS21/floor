@@ -60,9 +60,13 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/error").permitAll() // Відкрито для всіх
-                        .requestMatchers("/api/**").authenticated()      // ВСІ ендпоінти, що починаються з /api/, потребують токена
-                        .anyRequest().denyAll()                          // Все інше закриваємо наглухо
+                        .requestMatchers("/api/auth/login", "/error").permitAll()
+                        // Дозволяємо доступ до логів для авторизованих користувачів
+                        .requestMatchers("/actuator/logfile").authenticated()
+                        // Всі інші API потребують авторизації
+                        .requestMatchers("/api/**").authenticated()
+                        // Залишаємо решту закритою (або змініть на authenticated() для тестів)
+                        .anyRequest().denyAll()
                 );
 
         // ВАЖЛИВО: Додаємо ваш JWT фільтр ПЕРЕД стандартним фільтром аутентифікації

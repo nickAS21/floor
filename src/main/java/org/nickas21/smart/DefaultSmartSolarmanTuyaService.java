@@ -73,6 +73,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private Long sunSetDate;
     private Long sunRiseMax;
     private Long sunSetMin;
+    @Getter
     private Long timeoutSecUpdate;
     private double batSocMinInMilliSec; // %
     private int freePowerCorrectMinMax;
