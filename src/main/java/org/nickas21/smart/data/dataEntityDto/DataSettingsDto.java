@@ -13,9 +13,7 @@ public class DataSettingsDto {
 
     // Спільне поле
     private Boolean devicesChangeHandleControl;
-
+    private Integer logsAppLimit;
     // Специфічне поле (використовуємо Double замість double, щоб воно могло бути null)
     private Double batteryCriticalNightSocWinter;
-    private Integer logsDachaLimit;
-
 }

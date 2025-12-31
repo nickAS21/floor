@@ -22,8 +22,8 @@ public class DataUnitController {
         return ResponseEntity.ok(this.dataUnitService.getUnitGolego());
     }
 
-//    @GetMapping("/dacha")
-//    public ResponseEntity<DataHomeDto> getInfoHomeDacha() {
-//        return ResponseEntity.ok(this.dataUnitService.getUnitDacha());
-//    }
+    @GetMapping("/dacha")
+    public ResponseEntity<DataUnitDto> getInfoHomeDacha() {
+        return ResponseEntity.ok(this.dataUnitService.getUnitDacha());
+    }
 }

@@ -41,7 +41,8 @@ public class DataHomeDto {
     double solarPower;
     double homePower;
     double gridPower;
-    boolean gridStatusRealTime;
+    boolean gridStatusRealTimeOnLine;
+    boolean gridStatusRealTimeSwitch;
 
     double dailyConsumptionPower;
     double dailyGridPower;
@@ -73,7 +74,8 @@ public class DataHomeDto {
             this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
         }
-        this.gridStatusRealTime = deviceService.getGridRelayCodeDachaStateOnLine() != null && deviceService.getGridRelayCodeDachaStateOnLine();
+        this.gridStatusRealTimeOnLine = deviceService.getGridRelayCodeDachaStateOnLine() != null && deviceService.getGridRelayCodeDachaStateOnLine();
+        this.gridStatusRealTimeSwitch =  deviceService.getGridRelayCodeDachaStateSwitch() != null && deviceService.getGridRelayCodeDachaStateSwitch();
         Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryDacha =  deviceService.getLastUpdateTimeGridStatusInfoDacha();
         this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryDacha != null ? formatTimestamp(lastUpdateTimeGridStatusEntryDacha.getKey(), datePatternGridStatus) : "null";
         log.warn("DataHomeDacha [{}]", this);
@@ -82,7 +84,8 @@ public class DataHomeDto {
     public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData) {
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
-        this.gridStatusRealTime = deviceService.getGridRelayCodeGolegoStateOnLine() != null && deviceService.getGridRelayCodeGolegoStateOnLine();
+        this.gridStatusRealTimeOnLine = deviceService.getGridRelayCodeGolegoStateOnLine() != null && deviceService.getGridRelayCodeGolegoStateOnLine();
+        this.gridStatusRealTimeSwitch =  deviceService.getGridRelayCodeGolegoStateSwitch() != null && deviceService.getGridRelayCodeGolegoStateSwitch();
         if (usrTcpWiFiBattery != null) {
             UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
             int portStart = tcpProps.getPortStart();
@@ -113,8 +116,8 @@ public class DataHomeDto {
             this.batteryCurrent = batteryCurrentAll;
 //            log.warn("batterySoc [{}] batteryVol [{}] batteryCurrent [{}] BatteriesActiv [{}]",this.batterySoc, this.batteryVol, this.batteryCurrent, batteriesActiveCnt);
             log.warn("Golego: BatteriesActivCnt [{}] BatteriesNoActive {}",batteriesActiveCnt, batteriesNoActive.toString());
-            if (this.gridStatusRealTime && this.batteryCurrent >= 0) {
-                this.gridPower = this.batteryVol * Math.abs(this.batteryCurrent) + golegoPowerDefault + golegoInverterPowerDefault;
+            if (this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch) {
+                this.gridPower = this.batteryVol * this.batteryCurrent + golegoPowerDefault + golegoInverterPowerDefault;
             } else {
                 this.gridPower = 0;
             }
@@ -161,7 +164,7 @@ public class DataHomeDto {
      *      -batteryStatus: [Charging], -batteryPower: [-181.0 W], -batVolNew: [53.87 V], -batCurrentNew: [-3.36 A],  -bmsVolNew: [53.69 V], -bmsCurrentNew: [3.0 A], -BMS Temperature: [12.1  grad C]
      *      -solarPower: [399.0 W], consumptionPower: [121.0 W], stationPower: [50.0 W],
      *      -dailyBatteryCharge: [1.1 kWh], -dailyBatteryDischarge: [1.9 kWh],
-     *      -relayStatus: [Break], -gridStatusSolarman: [Static], -gridStatusRealTime: [true], -dailyBuy:[0.0 kWh], -dailySell: [0.0 kWh],
+     *      -relayStatus: [Break], -gridStatusSolarman: [Static], -gridStatusRealTimeOnLine: [true], -dailyBuy:[0.0 kWh], -dailySell: [0.0 kWh],
      *      -AC (inverter) Temperature:  [38.5 grad C].
      *      - usrBmsSummary: batSocLast: [96 %]
      *       - BMS status Static

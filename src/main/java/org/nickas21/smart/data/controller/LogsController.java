@@ -15,14 +15,8 @@ public class LogsController extends BaseController{
 
     private final LogsService logsService;
 
-
-//    @GetMapping("/golego")
-//    public ResponseEntity<BatteryCellInfo> getLogsHomeGolego() throws IOException {
-//        return ResponseEntity.ok(this.logsService.getLogsGolego());
-//    }
-
-    @GetMapping("/dacha")
-    public String getLogsHomeDacha() throws IOException {
-        return logsService.getLogsDacha();
+    @GetMapping("/app")
+    public String getLogsHomeGolego() throws IOException {
+        return logsService.getLogsApp();
     }
 }

@@ -19,6 +19,7 @@ public class DataUnitService {
     private final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
     private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
 
+
     public DataUnitService(UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry, DefaultSmartSolarmanTuyaService solarmanTuyaService) {
         this.usrTcpWiFiBatteryRegistry = usrTcpWiFiBatteryRegistry;
         this.solarmanTuyaService = solarmanTuyaService;
@@ -35,8 +36,12 @@ public class DataUnitService {
         return new DataUnitDto(batteries, devices);
     }
 
-//    public DataHomeDto getUnitDacha(devices) {
-//
-//    }
+    public DataUnitDto getUnitDacha() {
+        List<BatteryInfoDto> batteries = new ArrayList<>();
+        List<DeviceDto> devices = new ArrayList<>();
+        BatteryInfoDto batteryInfoDto = new BatteryInfoDto(this.solarmanTuyaService);
+        batteries.add(batteryInfoDto);
+        return new DataUnitDto(batteries, devices);
+    }
 }
 

@@ -7,13 +7,12 @@ app:
   title: '@project.bmsSummary@'
   test_front: "${APP_TEST_FRONT:false}"
   test_bot_debugging: "${APP_TEST_BOT_DEBUGING:false}"
-
+  logs_limit: "${LOGS_LIMIT:100}"
 
 dacha:
   settings:
     battery_soc_critical_night_charging: "${BATTERY_SOC_CRITICAL_NIGHT_CHARGING:60}"
     devices_change_handle_control: "${DEVICES_CHANGE_HANDLE_CONTROL_DACHA:false}"
-    logs_limit: "${LOGS_LIMIT:100}"
 
 golego:
   settings:

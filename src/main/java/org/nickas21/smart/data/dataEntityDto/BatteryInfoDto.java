@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
@@ -29,6 +30,7 @@ public class BatteryInfoDto {
     double voltageCurV;
     double currentCurA;
     double socPercent;
+    Double bmsTempValue;
     String bmsStatusStr;
     String errorInfoDataHex;
     String errorOutput;
@@ -38,6 +40,20 @@ public class BatteryInfoDto {
     Integer minCellIdx;
     Integer maxCellIdx;
     Map<Integer, Float> cellVoltagesV;
+
+    public BatteryInfoDto(DefaultSmartSolarmanTuyaService solarmanTuyaService){
+        if (solarmanTuyaService.getPowerValueRealTimeData() != null && solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() != null) {
+            long timeStamp = solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() * 1000;
+            this.timestamp = formatTimestamp(timeStamp, datePattern);
+            this.currentCurA = solarmanTuyaService.getPowerValueRealTimeData().getBmsCurrentValue();
+            this.bmsTempValue = solarmanTuyaService.getPowerValueRealTimeData().getBmsTempValue();
+            this.voltageCurV = solarmanTuyaService.getPowerValueRealTimeData().getBmsVoltageValue();
+            this.socPercent = solarmanTuyaService.getPowerValueRealTimeData().getBatterySocValue();
+            this.bmsStatusStr = solarmanTuyaService.getPowerValueRealTimeData().getBatteryStatusValue();
+            this.errorInfoDataHex = intToHex(0);
+            this.isActive = getIsActive(timeStamp, solarmanTuyaService.getTimeoutSecUpdate());
+        }
+    }
 
     public BatteryInfoDto(Map.Entry<Integer, UsrTcpWiFiBattery> usrTcpWiFiBatteryEntry, Long timeoutSecUpdate){
         this.port = usrTcpWiFiBatteryEntry.getKey();

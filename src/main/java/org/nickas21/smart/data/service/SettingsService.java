@@ -16,20 +16,24 @@ public class SettingsService {
     public DataSettingsDto getSettingsGolego() {
         DataSettingsDto dataSettingsDto = new DataSettingsDto();
         dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlGolego());
+        dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
         return dataSettingsDto;
     }
 
     public DataSettingsDto getSettingsDacha() {
         DataSettingsDto dataSettingsDto = new DataSettingsDto();
         dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlDacha());
+        dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
         dataSettingsDto.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());
-        dataSettingsDto.setLogsDachaLimit(deviceService.getLogsDachaLimit());
         return dataSettingsDto;
     }
 
     public DataSettingsDto setSettingsGolego(DataSettingsDto settingsGolego) {
         if (settingsGolego.getDevicesChangeHandleControl() != null) {
             deviceService.setDevicesChangeHandleControlGolego(settingsGolego.getDevicesChangeHandleControl());
+        }
+        if (settingsGolego.getLogsAppLimit() != null) {
+            deviceService.setLogsAppLimit(settingsGolego.getLogsAppLimit());
         }
         return getSettingsGolego();
     }
@@ -41,8 +45,8 @@ public class SettingsService {
         if (settingsDacha.getBatteryCriticalNightSocWinter() != null) {
             deviceService.setBatteryCriticalNightSocWinter(settingsDacha.getBatteryCriticalNightSocWinter());
         }
-        if (settingsDacha.getBatteryCriticalNightSocWinter() != null) {
-            deviceService.setLogsDachaLimit(settingsDacha.getLogsDachaLimit());
+        if (settingsDacha.getLogsAppLimit() != null) {
+            deviceService.setLogsAppLimit(settingsDacha.getLogsAppLimit());
         }
 
         return getSettingsDacha(); // Повертаємо оновлений стан

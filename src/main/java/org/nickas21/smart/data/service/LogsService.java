@@ -13,13 +13,8 @@ public class LogsService {
     private final RuntimeLogBuffer buffer;
 
 
-    public String getLogsDacha() {
-        int limit = this.deviceService.getLogsDachaLimit();
+    public String getLogsApp() {
+        int limit = this.deviceService.getLogsAppLimit();
         return buffer.get(limit);
     }
-
-//    public BatteryCellInfo getLogsGolego() throws IOException {
-//        // Твоя логіка для Golego
-//        return new BatteryCellInfo();
-//    }
 }

@@ -123,8 +123,8 @@ public class TuyaDeviceService {
 
     @Getter
     @Setter
-    @Value("${dacha.settings.logs_limit:100}")
-    private int logsDachaLimit;
+    @Value("${app.logs_limit:100}")
+    private int logsAppLimit;
 
     @Getter
     @Setter
@@ -1022,6 +1022,25 @@ public class TuyaDeviceService {
             Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdGolego());
             if (gridDevice != null) {
                 return gridDevice.getCurrentStateOnLineValue();
+            }
+        }
+        return null;
+    }
+
+    public Boolean getGridRelayCodeGolegoStateSwitch() {
+        if (this.getGridRelayCodeIdGolego() != null) {
+            Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdGolego());
+            if (gridDevice != null) {
+                return (Boolean) gridDevice.getStatus().get(offOnKey).getValue();
+            }
+        }
+        return null;
+    }
+    public Boolean getGridRelayCodeDachaStateSwitch() {
+        if (this.getGridRelayCodeIdGolego() != null) {
+            Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
+            if (gridDevice != null) {
+                return (Boolean) gridDevice.getStatus().get(offOnKey + "_1").getValue();
             }
         }
         return null;
