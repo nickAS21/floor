@@ -84,6 +84,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     private DynamicScheduler scheduler;
 
     @Value("${app.version:unknown}")
+    @Getter
     private String version;
 
     private UsrTcpWiFiProperties tcpProps;

@@ -1,5 +1,6 @@
 package org.nickas21.smart.data.service;
 
+import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.dataEntityDto.DataSettingsDto;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.springframework.stereotype.Service;
@@ -8,13 +9,16 @@ import org.springframework.stereotype.Service;
 public class SettingsService {
 
     private final TuyaDeviceService deviceService;
+    private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
 
-    public SettingsService(TuyaDeviceService deviceService) {
+    public SettingsService(TuyaDeviceService deviceService, DefaultSmartSolarmanTuyaService solarmanTuyaService) {
         this.deviceService = deviceService;
+        this.solarmanTuyaService = solarmanTuyaService;
     }
 
     public DataSettingsDto getSettingsGolego() {
         DataSettingsDto dataSettingsDto = new DataSettingsDto();
+        dataSettingsDto.setVersionBackend( solarmanTuyaService.getVersion());
         dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlGolego());
         dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
         return dataSettingsDto;
@@ -22,6 +26,7 @@ public class SettingsService {
 
     public DataSettingsDto getSettingsDacha() {
         DataSettingsDto dataSettingsDto = new DataSettingsDto();
+        dataSettingsDto.setVersionBackend( solarmanTuyaService.getVersion());
         dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlDacha());
         dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
         dataSettingsDto.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());

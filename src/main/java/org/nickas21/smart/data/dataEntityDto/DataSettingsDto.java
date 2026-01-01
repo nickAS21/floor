@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 public class DataSettingsDto {
 
     // Спільне поле
+    private String versionBackend;
     private Boolean devicesChangeHandleControl;
     private Integer logsAppLimit;
     // Специфічне поле (використовуємо Double замість double, щоб воно могло бути null)

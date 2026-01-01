@@ -1133,9 +1133,9 @@ public class TuyaDeviceService {
             /* працює тільки:
              * - влітку + денний тариф
              * - взимку + paramOnOffCriticalNightSwitchRelayDachaWinter = true
-             * - isDevicesChangeHandleControlDacha() = true; all day
+             * - isDevicesChangeHandleControlDacha() = true => all day + but not (7-8 hour? after night)
              */
-            if (devicesChangeHandleControlDacha()) {
+            if (devicesChangeHandleControlDacha() && !(curHour >= timeLocalNightTariffFinish && curHour < (timeLocalNightTariffFinish + 1))) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
             // For control
