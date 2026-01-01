@@ -2,6 +2,7 @@ package org.nickas21.smart.tuya;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Getter;
 import lombok.Setter;
@@ -1030,17 +1031,29 @@ public class TuyaDeviceService {
     public Boolean getGridRelayCodeGolegoStateSwitch() {
         if (this.getGridRelayCodeIdGolego() != null) {
             Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdGolego());
-            if (gridDevice != null) {
-                return (Boolean) gridDevice.getStatus().get(offOnKey).getValue();
+            String keySwitchGolego = offOnKey;
+            if (gridDevice != null && gridDevice.getStatus() != null && gridDevice.getStatus().containsKey(keySwitchGolego)) {
+                Object statusValueGolego = gridDevice.getStatus().get(keySwitchGolego).getValue();
+                if (statusValueGolego instanceof Boolean){
+                    return (Boolean) statusValueGolego;
+                } else {
+                    return ((BooleanNode)(statusValueGolego)).asBoolean();
+                }
             }
         }
         return null;
     }
     public Boolean getGridRelayCodeDachaStateSwitch() {
-        if (this.getGridRelayCodeIdGolego() != null) {
+        if (this.getGridRelayCodeIdDacha() != null) {
             Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
-            if (gridDevice != null) {
-                return (Boolean) gridDevice.getStatus().get(offOnKey + "_1").getValue();
+            String keySwitchDacha = offOnKey + "_1";
+            if (gridDevice != null && gridDevice.getStatus() != null && gridDevice.getStatus().containsKey(keySwitchDacha)) {
+                Object statusValueDacha = gridDevice.getStatus().get(keySwitchDacha).getValue();
+                if (statusValueDacha instanceof Boolean){
+                    return (Boolean) statusValueDacha;
+                } else {
+                    return ((BooleanNode)(statusValueDacha)).asBoolean();
+                }
             }
         }
         return null;

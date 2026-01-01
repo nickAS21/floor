@@ -74,8 +74,10 @@ public class DataHomeDto {
             this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
         }
-        this.gridStatusRealTimeOnLine = deviceService.getGridRelayCodeDachaStateOnLine() != null && deviceService.getGridRelayCodeDachaStateOnLine();
-        this.gridStatusRealTimeSwitch =  deviceService.getGridRelayCodeDachaStateSwitch() != null && deviceService.getGridRelayCodeDachaStateSwitch();
+        Boolean gridRelayCodeDachaStateOnLine = deviceService.getGridRelayCodeDachaStateOnLine();
+        if (gridRelayCodeDachaStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeDachaStateOnLine;
+        Boolean gridRelayCodeDachaStateSwitch =  deviceService.getGridRelayCodeDachaStateSwitch();
+        if (gridRelayCodeDachaStateSwitch!= null) this.gridStatusRealTimeSwitch = gridRelayCodeDachaStateSwitch;
         Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryDacha =  deviceService.getLastUpdateTimeGridStatusInfoDacha();
         this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryDacha != null ? formatTimestamp(lastUpdateTimeGridStatusEntryDacha.getKey(), datePatternGridStatus) : "null";
         log.warn("DataHomeDacha [{}]", this);
@@ -84,8 +86,10 @@ public class DataHomeDto {
     public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData) {
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
-        this.gridStatusRealTimeOnLine = deviceService.getGridRelayCodeGolegoStateOnLine() != null && deviceService.getGridRelayCodeGolegoStateOnLine();
-        this.gridStatusRealTimeSwitch =  deviceService.getGridRelayCodeGolegoStateSwitch() != null && deviceService.getGridRelayCodeGolegoStateSwitch();
+        Boolean gridRelayCodeGolegoStateOnLine = deviceService.getGridRelayCodeGolegoStateOnLine();
+        if (gridRelayCodeGolegoStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeGolegoStateOnLine;
+        Boolean gridRelayCodeGolegoStateSwitch =  deviceService.getGridRelayCodeGolegoStateSwitch();
+        if (gridRelayCodeGolegoStateSwitch != null) this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
         if (usrTcpWiFiBattery != null) {
             UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
             int portStart = tcpProps.getPortStart();
