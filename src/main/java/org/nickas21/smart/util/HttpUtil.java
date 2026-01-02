@@ -71,10 +71,13 @@ public class HttpUtil {
     // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
     // Поправка                      00:13                     23:00
     public static final int timeLocalNightTariffStart = 23;
-    public static final int timeLocalMinutesNightTariffStart_1 = 30; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
-    public static final int timeLocalMinutesNightTariffStart_2 = 15; //  друга черга опалення вночі через 15 хвилин
+    public static final int hourNightTariffStartDopDacha = 1; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
+    public static final int minutesNightTariffStartDopDacha = 20; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
+    public static final int hourNightTariffStartDopGolego = 0; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
+    public static final int minutesNightTariffStartDopGolego = 0; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
     public static final int timeLocalNightTariffFinish = 7;
-    public static final int timeLocalMinutesNightTariffFinish = 50;  // Golego finish on Grid 6:50
+    public static final int hourNightTariffFinish = 6;
+    public static final int minutesNightTariffFinish = 50;  // Finish night tariff 6:50
 
 
     public static String toLocaleTimeString(Long milliSec) {
@@ -107,17 +110,21 @@ public class HttpUtil {
     public static int toLocaleDateTimeHour() {
         Instant curInst = Instant.now();
         ZonedDateTime localDateTime = curInst.atZone(ZoneId.systemDefault());
-        DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("HH");
-        String hour = localDateTime.format(hourFormatter);
-        return Integer.parseInt(hour);
+        return localDateTime.getHour();
     }
 
     public static int toLocaleDateTimeMinutes() {
         Instant curInst = Instant.now();
         ZonedDateTime localDateTime = curInst.atZone(ZoneId.systemDefault());
-        DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("mm");
-        String min = localDateTime.format(hourFormatter);
-        return Integer.parseInt(min);
+        return localDateTime.getMinute();
+    }
+
+    public static int getCurrentTotalMinutes() {
+        Instant curInst = Instant.now();
+        ZonedDateTime localDateTime = curInst.atZone(ZoneId.systemDefault());
+        int hour = localDateTime.getHour();
+        int min = localDateTime.getMinute();
+        return hour * 60 + min;
     }
 
     public static String toLocaleDateTimeStringToTelegram(Long milliSec) {
@@ -175,5 +182,34 @@ public class HttpUtil {
 
     public static boolean isDeviceInHandleMode(String deviceId){
         return devicesInHandleMode.get(deviceId) != null;
+    }
+
+
+    /**
+     * curHour == (6:50 - 8:00)
+     * return true
+     */
+    public static boolean isSwitchRelayAfterNightOff(){
+        int curHour = toLocaleDateTimeHour();
+        int curMinutes = toLocaleDateTimeMinutes();
+        return (curHour == (hourNightTariffFinish) && curMinutes >= minutesNightTariffFinish) ||
+                curHour == (hourNightTariffFinish + 1);
+    }
+
+    /**
+     * if dop = 1:20 - then in one day, else if dop = 0 then two day
+     */
+    public static boolean isNightTariff(int dopHour, int dopMinutes) {
+        int currentTotalMinutes = getCurrentTotalMinutes();
+        int startTotalMinutes = (timeLocalNightTariffStart * 60) + (dopHour * 60 + dopMinutes);
+        // last from 26*60 = 1440 min
+        startTotalMinutes %= 1440;
+        int endTotalMinutes = (hourNightTariffFinish) * 60 + minutesNightTariffFinish;
+
+        if (startTotalMinutes > endTotalMinutes) { // two day
+            return currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes;
+        } else {    // one day
+            return currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes;
+        }
     }
 }

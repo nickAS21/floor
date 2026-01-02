@@ -41,12 +41,7 @@ import static org.nickas21.smart.util.HttpUtil.invMAINKey;
 import static org.nickas21.smart.util.HttpUtil.invProtocolVerKey;
 import static org.nickas21.smart.util.HttpUtil.invTempKey;
 import static org.nickas21.smart.util.HttpUtil.productionDailySolarPowerKey;
-import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart_1;
-import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart_2;
-import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateString;
-import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
-import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeMinutes;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
@@ -123,6 +118,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             double bmsCurNew = powerValueRealTimeData.getBmsCurrentValue();
             double bmsTempNew = powerValueRealTimeData.getBmsTempValue();
             double batterySocNew = powerValueRealTimeData.getBatterySocValue();
+            double batterySocUsr = usrBmsSummary == null ? -1: usrBmsSummary.socPercent();
             double batterySocMin = getBatSocMin();
             double batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
@@ -144,7 +140,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             } else {
                 initUpdateTimeoutSheduler();
                 tuyaDeviceService.updateGridStateOnLineToTelegram();
-                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew);
+                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, batterySocUsr);
             }
 
             log.info("""
@@ -237,30 +233,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     } catch (Exception e) {
                         log.error("Update parameters Is Day [{}] UpdateAllThermostat to min. Error: [{}}]", this.isDay, e.getMessage());
                     }
-                }
-                // on/off heating: 23:10 >= time <= 6:50: NightTariff (1/2 => 23:15; last => 23:25)
-                // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
-                // Поправка                      00:13                     23:00
-                int curHour = toLocaleDateTimeHour();
-                int curMinutes = toLocaleDateTimeMinutes();
-
-//                if (curHour >= timeLocalNightTariffStart || curHour < timeLocalNightTariffFinish) {
-                if (curHour < timeLocalNightTariffFinish) {
-                    if (powerValueRealTimeData.getGridStatusRelay().equals("Pull-in")) {
-                        if (curMinutes >= (timeLocalMinutesNightTariffStart_1 + timeLocalMinutesNightTariffStart_2)) {
-                            log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", this.isDay, curHour);
-                            tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
-                        } else if (curMinutes >= (timeLocalMinutesNightTariffStart_1)) {
-                            log.info("Update parameters isDay [{}]: Increased electricity consumption for everyone, TempSetNax, NightTariffStart_1, exact time: [{}].", this.isDay, curHour);
-                            tuyaDeviceService.updateAllThermostatNight_01(this.tuyaDeviceService.getDeviceProperties().getTempSetMax());
-                        }
-                    } else {
-                        log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, No grid power supply, night tariff, exact time: [{}].", this.isDay, curHour);
-                        tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
-                    }
-                } else {
-                    log.info("Update parameters isDay [{}]: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", this.isDay, curHour);
-                    tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
                 }
             }
 

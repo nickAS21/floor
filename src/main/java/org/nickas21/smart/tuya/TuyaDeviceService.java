@@ -77,18 +77,19 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.VALUE;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
 import static org.nickas21.smart.util.HttpUtil.deviceIdTempScaleVanna;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
+import static org.nickas21.smart.util.HttpUtil.hourNightTariffStartDopDacha;
+import static org.nickas21.smart.util.HttpUtil.hourNightTariffStartDopGolego;
 import static org.nickas21.smart.util.HttpUtil.isDeviceInHandleMode;
+import static org.nickas21.smart.util.HttpUtil.isNightTariff;
+import static org.nickas21.smart.util.HttpUtil.isSwitchRelayAfterNightOff;
+import static org.nickas21.smart.util.HttpUtil.minutesNightTariffStartDopDacha;
+import static org.nickas21.smart.util.HttpUtil.minutesNightTariffStartDopGolego;
 import static org.nickas21.smart.util.HttpUtil.offOnKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhny5;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhnyMin;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
-import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffFinish;
-import static org.nickas21.smart.util.HttpUtil.timeLocalMinutesNightTariffStart_1;
-import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffFinish;
-import static org.nickas21.smart.util.HttpUtil.timeLocalNightTariffStart;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
-import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeMinutes;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
@@ -114,13 +115,18 @@ public class TuyaDeviceService {
 
     @Getter
     @Setter
-    @Value("${dacha.settings.battery_soc_critical_night_charging:60}")
+    @Value("${dacha.settings.battery_critical_night_soc_charging:60}")
     private double batteryCriticalNightSocWinter; //60, 50, 40;
 
     @Getter
     @Setter
     @Value("${dacha.settings.devices_change_handle_control:false}")
     private boolean devicesChangeHandleControlDacha;
+
+    @Getter
+    @Setter
+    @Value("${dacha.settings.heater_night_auto_on_winter:false}")
+    private boolean heaterNightAutoOnDachaWinter;
 
     @Getter
     @Setter
@@ -343,7 +349,7 @@ public class TuyaDeviceService {
         }
     }
 
-    private DeviceUpdate getDeviceUpdate(Object valueNew, Device v) {
+    public DeviceUpdate getDeviceUpdate(Object valueNew, Device v) {
         String fieldNameValueUpdate;
         Object valueOld;
         if (valueNew instanceof Boolean) {
@@ -413,7 +419,7 @@ public class TuyaDeviceService {
             // Schedule the task to run at fixed intervals
             log.info("Start updateThermostats time size: [{}]", size);
             if (timeoutSecUpdateMillis == null) {
-                this.setTimeoutSecUpdateMillis(solarmanStationsService.getSolarmanStation().getTimeoutSec() / 2);
+                this.setTimeoutSecUpdateMillis(this.solarmanStationsService.getSolarmanStation().getTimeoutSec() / 2);
             }
             int intervalMillis = (timeoutSecUpdateMillis / size) / 4 < 30000 ? (int) (timeoutSecUpdateMillis / size) / 4 : 30000;
             AtomicInteger atomicTaskCnt = new AtomicInteger(0);
@@ -836,7 +842,7 @@ public class TuyaDeviceService {
     }
 
     private boolean hasRefreshAccessToken() {
-        Long deltaRefresh = solarmanStationsService.getSolarmanStation().getTimeoutSec() * 1000;
+        Long deltaRefresh = this.solarmanStationsService.getSolarmanStation().getTimeoutSec() * 1000;
         return (System.currentTimeMillis() - this.accessTuyaToken.getT()) > (this.accessTuyaToken.getExpireTimeMilli() - deltaRefresh);
     }
 
@@ -1063,94 +1069,56 @@ public class TuyaDeviceService {
         this.timeoutSecUpdateMillis = timeoutSecUpdate * 1000;
     }
 
-    public void updateOnOfSwitchRelay(double batterySocFromSolarman) {
+    /**
+     * All
+     * - Alarm == soc 30% Grid - on BoylerGolego - off
+     * - off:  from  6:50 to 8:00
+     * - on/off => handle (any) +
+     * Auto
+     * - Golego
+     * -- night: from 23:00 to 6:50
+     *     on:
+     * -- day: from 8:00 to 23
+     *    off:
+     * - Dacha
+     * -- night ==  from  23:00 + dop to 6:50
+     *      on:  batteryCriticalNightSocWinter = 60, 50, 40; and Winter:
+     *      off: // summer:
+     * -- day == from 8:00 to (23 + dop)
+     *     off
+     */
+    public void updateOnOfSwitchRelay(double batterySocFromSolarman, double batterySocFromUsr) {
         this.updateOnOfSwitchRelayDacha(batterySocFromSolarman);
-        this.updateOnOffSwitchRelayGolego(this.getGridRelayCodeIdGolego());
-        this.updateOnOffSwitchRelayGolego(this.getBoilerRelayCodeIdHome());
+        this.updateOnOffSwitchRelayGolego(this.getGridRelayCodeIdGolego(), batterySocFromUsr);
+        this.updateOnOffSwitchRelayGolego(this.getBoilerRelayCodeIdHome(), batterySocFromUsr);
     }
 
-    public void updateOnOffSwitchRelayGolego(String gridRelayCodeId) {
-        if (gridRelayCodeId != null) {
-            Device device = this.devices.getDevIds().get(gridRelayCodeId);
-            if (device.currentStateOnLine().getValue()) {
-                // on:            from 23:00 to 6:50
-                // off:            from  6:50 to 8:00
-                // is not change: from  8:00 to 23:00
-                int curHour = toLocaleDateTimeHour();
-                int curMinutes = toLocaleDateTimeMinutes();
-                boolean paramOnOff = curHour == timeLocalNightTariffStart;
-                if (!paramOnOff && curHour < timeLocalNightTariffFinish) {
-                    if (curHour == (timeLocalNightTariffFinish - 1)) {
-                        paramOnOff = curMinutes < timeLocalMinutesNightTariffFinish;
-                    } else {
-                        paramOnOff = true;
-                    }
-                }
-                Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-                DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-                // if day Tariff (8:00 - 23:00) - value is not change
-                if (devicesChangeHandleControlGolego()) {
-                    deviceUpdate.setValueNew(deviceUpdate.getValueOld());
-                }
-                if (deviceUpdate.isUpdate()) {
-                    log.info("Grid relay [{}] to [{}], night tariff, exact time: [{}].", device.getName(), paramOnOff ? "on" : "off", toLocaleDateTimeHour());
-                    queueUpdate.put(device, deviceUpdate);
-                } else {
-                    log.info("Grid Relay switch: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
-                            device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
-                }
-                queueLock.lock();
-                try {
-                    updateThermostats(queueUpdate, false);
-                } finally {
-                    queueLock.unlock();
-                }
-            } else {
-                log.warn("Device relay switch [{}] cannot be updated, is offline...", device.getName());
-            }
-        }
-    }
-
-    public void updateOnOfSwitchRelayDacha(double batterySocFromSolarman) {
+    public void updateOnOffSwitchRelayGolego(String gridRelayCodeId, double batterySocFromUsr) {
         Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
         if (device == null) {
-            log.error("Device Relay Dacha switch is null... , is offline... and is not update");
+            log.error("Device Relay Golego switch is null... , is offline... and is not update");
         } else if (device.currentStateOnLine().getValue()) {
-            // Проблема: якщо реальний час:  Дача лічильник  => +1:17 станом на 10/10/2025
-            // Поправка                   з   00:17  замість 23:00
-            boolean paramOnOff;
-            int curHour = toLocaleDateTimeHour();
-            if (batterySocFromSolarman <= ALARM.getSoc()) {
-                paramOnOff = true;
-            } else if (curHour >= timeLocalNightTariffFinish && curHour < (timeLocalNightTariffFinish + 1)) {  // off: from  7:00 to 8:00
+            boolean paramOnOff = false;
+            boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
+            if (batterySocFromUsr >= 0 && batterySocFromUsr <= ALARM.getSoc()) {
+                paramOnOff = this.getGridRelayCodeIdGolego().equals(gridRelayCodeId);
+            } else if (isSwitchRelayAfterNightOff()) {  // off:  from  6:50 to 8:00
                 paramOnOff = false;
-            } else {
-                paramOnOff =  this.batteryCriticalNightSwitchRelayDachaOnOffWinter(batterySocFromSolarman);
+            } else if (nightTariff) {  // night: from 23:00 to 6:50
+                paramOnOff = true;
             }
+
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-            //  manual control
-            /* працює тільки:
-             * - влітку + денний тариф
-             * - взимку + paramOnOffCriticalNightSwitchRelayDachaWinter = true
-             * - isDevicesChangeHandleControlDacha() = true => all day + but not (7-8 hour? after night)
-             */
-            if (devicesChangeHandleControlDacha() && !(curHour >= timeLocalNightTariffFinish && curHour < (timeLocalNightTariffFinish + 1))) {
+            if (!isSwitchRelayAfterNightOff() && this.devicesChangeHandleControlGolego) {
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
-            // For control
-            log.info("""
-                    UpdateOnOfSwitchRelayDacha Test => Seasons: [{}], paramOnOff: [{}], this.isUpdateHourChargeBatt: [{}], isNightTariff: [{}], isChange [{}]""",
-                    Seasons.fromTypeById(solarmanStationsService.getSolarmanStation().getSeasonsId()),
-                    paramOnOff,
-                    this.batteryCriticalNightWinter,
-                    nightTariffDacha(),
-                    deviceUpdate.isUpdate());
+
             if (deviceUpdate.isUpdate()) {
-                log.info("Grid relay [{}] to [{}], night tariff, exact time: [{}].", device.getName(), paramOnOff ? "on" : "off", toLocaleDateTimeHour());
+                log.info("Relay switch [{}] updated to [{}], night tariff: [{}].", device.getName(), paramOnOff ? "on" : "off", nightTariff);
                 queueUpdate.put(device, deviceUpdate);
             } else {
-                log.info("Grid Relay switch: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                log.info("Relay switch: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
                         device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
             }
             queueLock.lock();
@@ -1159,8 +1127,49 @@ public class TuyaDeviceService {
             } finally {
                 queueLock.unlock();
             }
+
+        } else {
+            log.warn("Device relay switch [{}] cannot be updated, is offline...", device.getName());
+        }
+    }
+
+    public void updateOnOfSwitchRelayDacha(double batterySocFromSolarman) {
+        Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
+        if (device == null) {
+            log.error("Device Relay Dacha switch is null... , is offline... and is not update");
+        } else if (device.currentStateOnLine().getValue()) {
+            boolean paramOnOff;
+            if (batterySocFromSolarman <= ALARM.getSoc()) {
+                paramOnOff = true;
+            } else if (isSwitchRelayAfterNightOff()) {  // off:  from  6:50 to 8:00
+                paramOnOff = false;
+            } else {
+                paramOnOff =  this.batteryCriticalNightSwitchRelayDachaOnOffWinter(batterySocFromSolarman);
+            }
+            updateSwitchRelayDacha(device, paramOnOff);
         } else {
             log.warn("Device Relay Dacha switch [{}] cannot be updated, is offline...", device.getName());
+        }
+    }
+
+    public void updateSwitchRelayDacha(Device device, boolean paramOnOff) {
+        Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+        DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
+        if (!isSwitchRelayAfterNightOff() && this.devicesChangeHandleControlDacha) {
+            deviceUpdate.setValueNew(deviceUpdate.getValueOld());
+        }
+        if (deviceUpdate.isUpdate()) {
+            log.info("Grid Relay Dacha switch: [{}] updated to [{}], night tariff: [{}].", device.getName(), paramOnOff ? "on" : "off",  isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha));
+            queueUpdate.put(device, deviceUpdate);
+        } else {
+            log.info("Grid Relay Dacha switch: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                    device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+        }
+        queueLock.lock();
+        try {
+            updateThermostats(queueUpdate, false);
+        } finally {
+            queueLock.unlock();
         }
     }
 
@@ -1185,24 +1194,24 @@ public class TuyaDeviceService {
         if (tempCur != null) {
             boolean isUpdateSwitchThermostat = false;
             boolean switchValue = false;
-            int curHour = toLocaleDateTimeHour();
             String msg = null;
             if (tempCur <= tempCurrentKuhnyMin) {
                 isUpdateSwitchThermostat = true;
                 switchValue = true;
                 msg = "Critical temperature at the Country House: [" + tempCur + "].";
-                this.updateMessageAlarmToTelegram(msg);
-            } else if (curHour == timeLocalNightTariffFinish && solarmanStationsService.getSolarmanStation().getSeasonsId() != Seasons.SUMMER.getSeasonsId()) {
-                if (tempCur < tempCurrentKuhny5) {
-                    isUpdateSwitchThermostat = true;
-                    switchValue = true;
-                    msg = "Attention, low temperature at the Country House after the night: [" + tempCur + "] degrees Celsius.";
-                    this.updateMessageAlarmToTelegram(msg);
-                } else {
+            } else {
+                if (isSwitchRelayAfterNightOff()) {
+                    isUpdateSwitchThermostat = true;    // switchValue = false;
                     msg = "Temperature is more [" + tempCurrentKuhny5 + "] at the Country House after night: [" + tempCur + "] degrees Celsius.";
-                    isUpdateSwitchThermostat = true;
-                    switchValue = false;
+                } else {
+                    if (!this.devicesChangeHandleControlDacha) {// is auto
+                        isUpdateSwitchThermostat = this.updateHeaterFirstWinterAuto();
+                        switchValue = isUpdateSwitchThermostat;
+                    }
                 }
+            }
+            if (msg != null) {
+                this.updateMessageAlarmToTelegram(msg);
             }
 
             if (isUpdateSwitchThermostat) {
@@ -1224,12 +1233,46 @@ public class TuyaDeviceService {
                         queueLock.unlock();
                     }
                 } else {
-                    log.error("UpdateSwitchThermostatTemp_3. Devices is null, Devices not Update.");
+                    log.error("UpdateSwitchThermostatTemp. Devices is null, Devices not Update.");
                 }
             }
-
-
         }
+    }
+
+    private boolean updateHeaterFirstWinterAuto() {
+        // auto on/off heating:
+        // isHeaterWinterNightAutoOnDacha winter + NightTariff + grid switch online + grid switch state - on
+        // 23 + dop >= time <= 6:50: NightTariff (1/2 => first (23 + dop) + 15; second =>  (23 + dop) + 25)
+        Device device = this.getDevices().getDevIds().get(this.getGridRelayCodeIdDacha());
+        int curHour = toLocaleDateTimeHour();
+        if (device != null && device.currentStateOnLine().getValue()) {
+            if (isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha)) {
+                if (this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId()) {
+                    boolean paramOnOff = true;
+                    if (this.heaterNightAutoOnDachaWinter) {
+                        DeviceUpdate deviceUpdate = this.getDeviceUpdate(paramOnOff, device);
+                        if (!deviceUpdate.isUpdate()) {
+                            log.info("Update parameters: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", curHour);
+                            this.updateAllThermostat(this.getDeviceProperties().getTempSetMax());
+                            log.info("Update parameters: Increased electricity consumption for everyone, TempSetNax, NightTariffStart_1, exact time: [{}].", curHour);
+                            this.updateAllThermostatNight_01(this.getDeviceProperties().getTempSetMax());
+                            return true;
+                        }
+                    } else {
+                        this.updateAllThermostat(this.getDeviceProperties().getTempSetMin());
+                        log.info("Update parameters: Reducing electricity consumption, TempSetMin, No grid power supply, night tariff, exact time: [{}].", curHour);
+                        this.updateSwitchRelayDacha(device, paramOnOff);
+                    }
+                } else {
+                    log.info("Update parameters: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", curHour);
+                    this.updateAllThermostat(this.getDeviceProperties().getTempSetMin());
+                }
+            }
+        } else {
+            log.info("Update parameters: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", curHour);
+            this.updateAllThermostat(this.getDeviceProperties().getTempSetMin());
+        }
+        return false;
     }
 
     private void deviceUpdateCategory(Device device, String[] filters, Map<Device, DeviceUpdate> queueUpdate, Object valueNew) {
@@ -1257,10 +1300,10 @@ public class TuyaDeviceService {
      * --if batterySocFromSolarman <= batteryCriticalNightSocWinter → critical night mode ON = true => 60%/50%/40%
      */
     public boolean batteryCriticalNightSwitchRelayDachaOnOffWinter(double batterySocFromSolarman) {
-        boolean isWinter = solarmanStationsService.getSolarmanStation().getSeasonsId()
+        boolean isWinter = this.solarmanStationsService.getSolarmanStation().getSeasonsId()
                 == Seasons.WINTER.getSeasonsId();
 
-        if (!isWinter || !nightTariffDacha()) { // summer or day
+        if (!isWinter || !isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha)) { // summer or day
             this.batteryCriticalNightWinter = false;
             return false;
         }
@@ -1269,43 +1312,12 @@ public class TuyaDeviceService {
             return true;
         }
 
-        if (batterySocFromSolarman <= batteryCriticalNightSocWinter) {
+        if (batterySocFromSolarman <= this.batteryCriticalNightSocWinter) {
             this.batteryCriticalNightWinter = true;
             return true;
         }
 
         return false;
-    }
-
-    /**
-     * manual control dacha
-     * працює тільки:
-     *  - влітку
-     *  - денний тариф після 8:00
-     *  - взимку + paramOnOffCriticalNightSwitchRelayDacha_Winter = true
-     *  - devicesChangeHandleControlDacha = true;
-     */
-    private boolean devicesChangeHandleControlDacha() {
-        boolean isWinter = solarmanStationsService.getSolarmanStation().getSeasonsId()
-                == Seasons.WINTER.getSeasonsId();
-        return this.devicesChangeHandleControlDacha || !isWinter || toLocaleDateTimeHour() > timeLocalNightTariffFinish || this.batteryCriticalNightWinter;
-    }
-    /**
-     * manual control dacha
-     * працює тільки:
-     *  - денний тариф після 8:00 до 23:00
-     *  - devicesChangeHandleControlDacha = true;
-     */
-    private boolean devicesChangeHandleControlGolego() {
-        int curHour = toLocaleDateTimeHour();
-        return this.devicesChangeHandleControlGolego || (curHour > timeLocalNightTariffFinish && curHour < timeLocalNightTariffStart);
-    }
-
-    private boolean nightTariffDacha() {
-        int curHour = toLocaleDateTimeHour();
-        int curMinutes = toLocaleDateTimeMinutes();
-        return (curHour == 0 && curMinutes > timeLocalMinutesNightTariffStart_1)
-                || (curHour > 0 && curHour < timeLocalNightTariffFinish);
     }
 }
 

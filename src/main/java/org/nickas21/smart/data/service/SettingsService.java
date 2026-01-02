@@ -30,6 +30,7 @@ public class SettingsService {
         dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlDacha());
         dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
         dataSettingsDto.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());
+        dataSettingsDto.setHeaterNightAutoOnDachaWinter(deviceService.isHeaterNightAutoOnDachaWinter());
         return dataSettingsDto;
     }
 
@@ -49,6 +50,9 @@ public class SettingsService {
         }
         if (settingsDacha.getBatteryCriticalNightSocWinter() != null) {
             deviceService.setBatteryCriticalNightSocWinter(settingsDacha.getBatteryCriticalNightSocWinter());
+        }
+        if (settingsDacha.getHeaterNightAutoOnDachaWinter() != null) {
+            deviceService.setHeaterNightAutoOnDachaWinter(settingsDacha.getHeaterNightAutoOnDachaWinter());
         }
         if (settingsDacha.getLogsAppLimit() != null) {
             deviceService.setLogsAppLimit(settingsDacha.getLogsAppLimit());
