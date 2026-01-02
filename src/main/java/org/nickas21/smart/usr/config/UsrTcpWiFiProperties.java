@@ -8,6 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class UsrTcpWiFiProperties {
 
     private Integer portStart = 8891;
-    private Integer batteriesCnt = 8;
+    private Integer batteriesCnt = 10;
     private Integer portMaster = 8898;
 }

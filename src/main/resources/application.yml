@@ -98,7 +98,7 @@ logging.level:
 usr:
   tcp:
     portStart: "${USR_CLIENT_PORT_START:8891}"
-    batteriesCnt: "${USR_CLIENT_BATTERIES_CNT:8}"
+    batteriesCnt: "${USR_CLIENT_BATTERIES_CNT:10}"
     portMaster: "${USR_CLIENT_PORT_MASTER:8898}"
     logs:
       dir: "${USR_TCP_LOGS_DIR:./logs/}"
