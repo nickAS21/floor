@@ -1,5 +1,6 @@
 package org.nickas21.smart.solarman;
 
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.api.Communication;
@@ -34,6 +35,7 @@ import static org.nickas21.smart.util.JacksonUtil.fromString;
 public class SolarmanStationsService {
     private final SolarmanConnectionProperties solarmanConnectionProperties;
     private final SolarmanStationProperties stationProperties;
+    @Getter
     private SolarmanStation solarmanStation;
     private SolarmanToken accessSolarmanToken;
     private Map<Long, Station> stations;
@@ -71,10 +73,6 @@ public class SolarmanStationsService {
             log.error("Bad start. Solarman stations required, none available.");
             System.exit(0);
         }
-    }
-
-    public SolarmanStation getSolarmanStation() {
-        return this.solarmanStation;
     }
 
 

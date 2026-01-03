@@ -1322,5 +1322,7 @@ public class TuyaDeviceService {
 
         return false;
     }
+
+
 }
 

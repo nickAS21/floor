@@ -2,6 +2,7 @@ package org.nickas21.smart.data.service;
 
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.dataEntityDto.DataSettingsDto;
+import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.springframework.stereotype.Service;
 
@@ -10,10 +11,12 @@ public class SettingsService {
 
     private final TuyaDeviceService deviceService;
     private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
+    private final SolarmanStationsService solarmanStationsService;
 
-    public SettingsService(TuyaDeviceService deviceService, DefaultSmartSolarmanTuyaService solarmanTuyaService) {
+    public SettingsService(TuyaDeviceService deviceService, DefaultSmartSolarmanTuyaService solarmanTuyaService, SolarmanStationsService solarmanStationsService) {
         this.deviceService = deviceService;
         this.solarmanTuyaService = solarmanTuyaService;
+        this.solarmanStationsService = solarmanStationsService;
     }
 
     public DataSettingsDto getSettingsGolego() {
@@ -26,11 +29,12 @@ public class SettingsService {
 
     public DataSettingsDto getSettingsDacha() {
         DataSettingsDto dataSettingsDto = new DataSettingsDto();
-        dataSettingsDto.setVersionBackend( solarmanTuyaService.getVersion());
+        dataSettingsDto.setVersionBackend(solarmanTuyaService.getVersion());
         dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlDacha());
         dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
         dataSettingsDto.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());
         dataSettingsDto.setHeaterNightAutoOnDachaWinter(deviceService.isHeaterNightAutoOnDachaWinter());
+        dataSettingsDto.setSeasonsId(solarmanStationsService.getSolarmanStation().getSeasonsId());
         return dataSettingsDto;
     }
 
@@ -56,6 +60,9 @@ public class SettingsService {
         }
         if (settingsDacha.getLogsAppLimit() != null) {
             deviceService.setLogsAppLimit(settingsDacha.getLogsAppLimit());
+        }
+        if (settingsDacha.getSeasonsId() != null) {
+            solarmanStationsService.getSolarmanStation().setSeasonsId(settingsDacha.getSeasonsId());
         }
 
         return getSettingsDacha(); // Повертаємо оновлений стан

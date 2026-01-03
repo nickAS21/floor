@@ -18,4 +18,5 @@ public class DataSettingsDto {
     // Специфічне поле (використовуємо Double замість double, щоб воно могло бути null)
     private Double batteryCriticalNightSocWinter;
     private Boolean heaterNightAutoOnDachaWinter;
+    private Integer seasonsId;
 }
