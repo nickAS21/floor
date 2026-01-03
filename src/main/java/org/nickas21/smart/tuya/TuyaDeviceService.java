@@ -86,7 +86,6 @@ import static org.nickas21.smart.util.HttpUtil.minutesNightTariffStartDopDacha;
 import static org.nickas21.smart.util.HttpUtil.minutesNightTariffStartDopGolego;
 import static org.nickas21.smart.util.HttpUtil.offOnKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
-import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhny5;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhnyMin;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
@@ -1202,7 +1201,7 @@ public class TuyaDeviceService {
             } else {
                 if (isSwitchRelayAfterNightOff()) {
                     isUpdateSwitchThermostat = true;    // switchValue = false;
-                    msg = "Temperature is more [" + tempCurrentKuhny5 + "] at the Country House after night: [" + tempCur + "] degrees Celsius.";
+                    this.updateAllThermostat(this.getDeviceProperties().getTempSetMin());
                 } else {
                     if (!this.devicesChangeHandleControlDacha) {// is auto
                         isUpdateSwitchThermostat = this.updateHeaterFirstWinterAuto();
