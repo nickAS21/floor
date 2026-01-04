@@ -249,14 +249,15 @@ public class UsrTcpWiFiParseData {
             if (c0Data.getTimestamp() == null || c1Data.getTimestamp() == null) return null;
             try {
                 double batteryCurrentAll = 0;
-                double batterySocMin = c0Data.getSocPercent();
+                double batterySocMax = c0Data.getSocPercent();
                 for (int i = 0; i < this.usrTcpWiFiProperties.getBatteriesCnt(); i++) {
                     int portOut = this.usrTcpWiFiProperties.getPortStart() + i;
                     UsrTcpWiFiBattery usrTcpWiFiBatteryA = this.getBattery(portOut);
                     if (usrTcpWiFiBatteryA != null && usrTcpWiFiBatteryA.getC0Data() != null) {
                         log.warn("port [{}] batteryCurrent [{}] soc [{}]", portOut, usrTcpWiFiBatteryA.getC0Data().getCurrentCurA(), usrTcpWiFiBatteryA.getC0Data().getSocPercent());
                         batteryCurrentAll += usrTcpWiFiBatteryA.getC0Data().getCurrentCurA();
-                        batterySocMin = usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 ? Math.min(batterySocMin, usrTcpWiFiBatteryA.getC0Data().getSocPercent()) : batterySocMin;
+                        // TODO - 8894 - 20% this is bad then only master
+                        batterySocMax = usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 ? Math.max(batterySocMax, usrTcpWiFiBatteryA.getC0Data().getSocPercent()) : batterySocMax;
                     }
                 }
 
@@ -269,7 +270,7 @@ public class UsrTcpWiFiParseData {
                 if (!errorBuilder.toString().isEmpty()) {
                     bmsErrors = (String.format("Error info Data:\n%s", errorBuilder));
                 }
-                return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), batterySocMin, bmsErrors, out.toString());
+                return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), batterySocMax, bmsErrors, out.toString());
             } catch (Exception e) {
                 log.error("CRITICAL DECODE ERROR C0", e);
                 return null;

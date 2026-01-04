@@ -95,7 +95,7 @@ public class DataHomeDto {
             int portStart = tcpProps.getPortStart();
             int batteriesCnt = tcpProps.getBatteriesCnt();
             double batteryCurrentAll = 0;
-            double batterySocMin = c0Data.getSocPercent();
+            double batterySocMax = c0Data.getSocPercent();
             int batteriesActiveCnt = 0;
             List<Integer> batteriesNoActive = new ArrayList<>();
             for (int i = 0; i < batteriesCnt; i++) {
@@ -109,12 +109,13 @@ public class DataHomeDto {
                     } else {
                         batteriesNoActive.add(port);
                     }
-                    batterySocMin = usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 ? Math.min(batterySocMin, usrTcpWiFiBatteryA.getC0Data().getSocPercent()) : batterySocMin;
+                    // TODO - 8894 - 20% this is bad then only master
+                    batterySocMax = usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 ? Math.max(batterySocMax, usrTcpWiFiBatteryA.getC0Data().getSocPercent()) : batterySocMax;
                 }
             }
 //            log.warn("port All batteryCurrent [{}]", batteryCurrentAll);
             this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
-            this.batterySoc = batterySocMin;
+            this.batterySoc = batterySocMax;
             this.batteryStatus = c0Data.getBmsStatusStr();
             this.batteryVol = c0Data.getVoltageCurV();
             this.batteryCurrent = batteryCurrentAll;
