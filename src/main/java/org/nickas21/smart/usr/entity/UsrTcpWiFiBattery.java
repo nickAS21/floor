@@ -32,24 +32,4 @@ public class UsrTcpWiFiBattery {
         this.c0Data = new UsrTcpWifiC0Data();
         this.c1Data = new UsrTcpWifiC1Data();
     }
-
-    public void updateC0(UsrTcpWifiC0Data data, Instant lastTime) {
-        this.c0Data = data;
-        this.lastTime = lastTime;
-    }
-
-    public void updateC1(UsrTcpWifiC1Data data, Instant lastTime) {
-        this.c1Data = data;
-        this.lastTime = lastTime;
-    }
-
-    // Метод для оновлення часу (коли приходить нова посилка)
-    public void updateStartTime(Instant lastTime) {
-        this.lastTime = lastTime;
-    }
-
-    public boolean isOnline() {
-        return this.lastTime != null && this.lastTime.isAfter(Instant.now().minusSeconds(60));
-    }
-
 }

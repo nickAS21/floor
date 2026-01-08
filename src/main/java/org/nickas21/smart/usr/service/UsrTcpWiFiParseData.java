@@ -5,9 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
+import org.nickas21.smart.usr.data.InvertorGolegoDecoders;
 import org.nickas21.smart.usr.data.UsrTcpWiFiDecoders;
 import org.nickas21.smart.usr.data.UsrTcpWiFiMessageType;
 import org.nickas21.smart.usr.data.UsrTcpWifiCrcUtilities;
+import org.nickas21.smart.usr.entity.InverterData;
+import org.nickas21.smart.usr.entity.InvertorGolegoData32;
+import org.nickas21.smart.usr.entity.InvertorGolegoData90;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
@@ -31,6 +35,7 @@ import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.A2;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C0;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C1;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.D0;
+import static org.nickas21.smart.usr.data.UsrTcpWifiCrcUtilities.isValidInverterGolegoCrc;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.AUTO_RECOVERABLE_MAX;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.SERVICE_REQUIRED_MAX;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFaultLogType.B1;
@@ -38,6 +43,7 @@ import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFaultLogType.E1;
 import static org.nickas21.smart.util.StringUtils.bytesToHex;
 import static org.nickas21.smart.util.StringUtils.getCurrentTimeString;
 import static org.nickas21.smart.util.StringUtils.intToHex;
+import static org.nickas21.smart.util.StringUtils.payloadToHexString;
 
 @Slf4j
 @Service
@@ -49,6 +55,7 @@ public class UsrTcpWiFiParseData {
     public final UsrTcpWiFiProperties usrTcpWiFiProperties;
     @Getter
     public final UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties;
+    @Getter
     public final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
 
 
@@ -68,6 +75,15 @@ public class UsrTcpWiFiParseData {
     // ------------------ parse & process (core) ------------------
     protected byte[] parseAndProcessData(byte[] buffer, int port) {
         if (buffer == null || buffer.length == 0) return buffer;
+        if (port == (usrTcpWiFiProperties.getPortInverterGolego())) {
+            return parseAndProcessInverterGolego(buffer);
+        } else {
+            return parseAndProcessBmsGolego(buffer, port);
+        }
+    }
+
+    protected byte[] parseAndProcessBmsGolego(byte[] buffer, int port) {
+
         int currentIndex = 0;
         int endIndex = -1;
         List<byte[]> packets = new ArrayList<>();
@@ -184,7 +200,7 @@ public class UsrTcpWiFiParseData {
                         // 1764862063274;8897;C1;43;28100CDF0CD50CDF0CDB0CEA0CDB0CE80CEB0CF00CE20CE70CEB0CEA0CF50CF90CFC03F25F000000000C10
                         long now = System.currentTimeMillis();
                         if (now - lastWriteTime >= this.usrTcpLogsWiFiProperties.getWriteInterval()) {
-                            for (Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getAll().entrySet()) {
+                            for (Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getBatteriesAll().entrySet()) {
                                 int portWrite = entry.getKey();
                                 UsrTcpWiFiBattery battery = entry.getValue();
 
@@ -276,7 +292,7 @@ public class UsrTcpWiFiParseData {
                 return null;
             }
         } else {
-            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", portMaster, this.usrTcpWiFiBatteryRegistry.getAll().size());
+            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", portMaster, this.usrTcpWiFiBatteryRegistry.getBatteriesAll().size());
             return null;
         }
     }
@@ -289,7 +305,7 @@ public class UsrTcpWiFiParseData {
     @NotNull
     private StringBuilder getStringBuilderError() {
         StringBuilder errorBuilder = new StringBuilder();
-        for (Map.Entry<Integer, UsrTcpWiFiBattery> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getAll().entrySet()) {
+        for (Map.Entry<Integer, UsrTcpWiFiBattery> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getBatteriesAll().entrySet()) {
             if (batteryEntry.getValue().getErrRecordE1() != null){
                 errorBuilder.append(batteryEntry.getValue().getErrRecordE1().toMsgForBot());
             }
@@ -298,5 +314,147 @@ public class UsrTcpWiFiParseData {
             }
         }
         return errorBuilder;
+    }
+
+    protected byte[] parseAndProcessInverterGolego(byte[] buffer) {
+        int currentIndex = 0;
+
+        // Нам треба мінімум 5 байт (Addr + Func + Len + CRC_low + CRC_high), щоб почати
+        while (currentIndex + 5 <= buffer.length) {
+
+            // 1. Отримуємо довжину даних (Payload) з 3-го байта
+            int payloadLen = buffer[currentIndex + 2] & 0xFF;
+
+            // Перевірка на адекватність (Modbus RTU Payload зазвичай не більше 250 байт)
+            if (payloadLen > 250) {
+                currentIndex++; // Це явно не початок пакета, зсуваємося
+                continue;
+            }
+
+            int fullPacketLen = payloadLen + 5; // 3 заголовок + N дані + 2 CRC
+
+            // 2. Перевіряємо, чи весь пакет долетів
+            if (currentIndex + fullPacketLen <= buffer.length) {
+                byte[] packet = Arrays.copyOfRange(buffer, currentIndex, currentIndex + fullPacketLen);
+
+                try {
+                    // 3. Валідація CRC (тепер передаємо ПОВНИЙ пакет 95 байт)
+                    if (isValidInverterGolegoCrc(packet)) {
+                        // Пакет валідний — обробляємо
+                        this.processInverterGolego(packet);
+
+                        // Зсуваємо індекс на всю довжину обробленого пакета
+                        currentIndex += fullPacketLen;
+                    } else {
+                        // CRC не збіглося — можливо, ми знайшли випадковий байт 0x05 в даних.
+                        // Зсуваємося на 1 байт, щоб шукати справжній початок далі.
+                        currentIndex++;
+                    }
+                } catch (Exception e) {
+                    log.error("Error decoding Inverter packet at port {}: {}", usrTcpWiFiProperties.getPortInverterGolego(), e.getMessage());
+                    currentIndex++;
+                }
+            } else {
+                // Пакет ще не повний (наприклад, прийшло 40 байт з 95)
+                // Виходимо з циклу і чекаємо решту байтів
+                break;
+            }
+        }
+
+        // Повертаємо те, що залишилося в буфері і не було оброблено
+        if (currentIndex >= buffer.length) return new byte[0];
+        return Arrays.copyOfRange(buffer, currentIndex, buffer.length);
+    }
+
+    /**
+     * 05 03 5A  03 00  00 00   00 00  00 00  00 00  0B 02  29 00  00 00  05 00 FC 08 F4 01 58 01 AD 00 05 00 05 00 01 00 B8 01 F2 1C 00 00 02 00 38 18 38 18 E6 00 1A 00 E0 01 E6 00 F4 01 1A 00 00 00 00 00 9F 15 9F 15 9F 15 37 00 ED 01 01 00 00 00 01 00 02 00 00 00 28 00 E6 00 28 00 EA 01 1C 02 96 AE
+     * 05 - це адреса
+     * 03 - це тип
+     * 5A -> 90  len
+     * [0:1] 04 00: 4 -> Статус (Заряд)
+     * [2:3] C4 08: 2244 -> 224.4 Ac Input Voltage
+     * [4:5] F3 01: 499 -> 49,9 Hz AC Input Frewquency
+     *  [6:7] 00 00: 0 -> Rezerv_06
+     *  [8:9] 00 00: 0  -> Rezerv_08
+     * [10:11] 1C 02: 540 -> V 54.0 (Напруга АКБ)
+     * [12:13] 5F 00: 95 -> Soc 95%
+     * [14:15] 28 00: 40 -> 40 A Currency
+     * [16:17] 00 00: 0 -> Rezerv_16
+     *  [18:19] C9 08: 2249 -> AC  Input Voltage 224.9 V
+     *  [20:21] F4 01: 500 -> AC  Input  Frequency 50.0Hz
+     * [22:23] 0D 01: 269 -> 269 VA OutPut Apparent Power
+     * [24:25] FD 00: 253 -> 253 W OutPut Active Power
+     * [26:27] 04 00: 4 -> 4% AC Out Put Load
+     * [28:29] 04 00: 4 ->  Rezerv _28
+     *  [30:31] 01 00: 1 -> Rezerv _30
+     * [32:33] B8 01: 440 -> Rezerv _32
+     * [34:35] F2 1C: 7410 -> 7410  Main CPU Version
+     * [36:37] 00 00: 0  -> Rezerv_36
+     *[38:39] 02 00: 2   -> Rezerv_38
+     * [40:41] 38 18: 6200 ->  6200 VA Nominal Output Apparent Power
+     * [42:43] 38 18: 6200 ->  6200 W Nominal Output Active Power
+     * [44:45] E6 00: 230 -> 230 V Nominal Output Voltage
+     * [46:47] 1A 00: 26 -> 26A Nominal AC current
+     * [48:49] E0 01: 480 -> 48.0 V Rated Battery Voltage
+     * [50:51] E6 00: 230 -> 230V Nominal OutPut Voltage
+     * [52:53] F4 01: 500 -> 50.0 Hz Nominal OutPut Frequency
+     * [54:55] 1A 00: 26 -> 26A Nominal OutPut Current
+     * [56:57] 00 00: 0 ->  Rezerv_56
+     * [58:59] 00 00: 0 ->  Rezerv_58
+     * [60:61] 9F 15: 5535 -> 55.35 V  Rezerv_60
+     *  [62:63] 9F 15: 5535 -> 55.35 V  Rezerv_62
+     *  [64:65] 9F 15: 5535 -> 55.35 V  Rezerv_64
+     *  [66:67] 37 00: 55-> 55.00 V  Rezerv_66
+     *  [68:69] ED 01: 493 -> 49.3 V Rezerv_68
+     *  [70:71] 01 00: 1 -> 1 Rezerv_70
+     *  [72:73] 00 00: 0 -> 0 Rezerv_72
+     *   [76:77] 02 00: 2  -> 2 Rezerv_76
+     *    [78:79] 00 00: 0  -> 0 Rezerv_78
+     * [80:81] 28 00: 40 -> 40A Max Total Charge Current
+     * [82:83] E6 00: 230 -> 230 V Rezerv_82
+     * [84:85] 28 00: 40 -> 40A Max Utility Charge Current
+     * [86:87] EA 01: 490 -> 49.0 V Rezerv_86
+     *  [88:89] 1C 02: 540 -> 54.0 V Rezerv_88
+     */
+
+    /**
+     * 32 ==> Type [03], len [32], payload [21 02 21 02 E0 01 21 02 05 00 84 03 5A 00 62 05 02 00 0C 00 00 00 14 00 00 00 00 00 05 00 01 00]
+     * 32 ==> Type [03], len [32], payload [         05 00 01 00]
+     * [00:01] 21 02: 545 -> 54.5 V (Напруга АКБ)
+     * [02:03] 21 02: 545 -> 54.5 V (Напруга АКБ)
+     *  [04:05] E0 01: 480 -> 48.0 V Rated Battery Voltage
+     *  [06:07] 21 02: 545 -> 54.5 V (Напруга АКБ)
+     *   [08:09] 05 00: 5 -> 5 V (Напруга АКБ)
+     *   [10:11] 84 03: 900 -> 900 min (Battery Equalyze Timeout)
+     *   [12:13] 5A 00: 90 -> 90 day (Battery Equalyze Intervsal)
+     *   [14:15 62 05: 1378 -> Rezerv_14
+     *   [16:17] 02 00: 2 -> Rezerv_16
+     *   [18:19] 0C 00: 12 -> Rezerv_18
+     *   [20:21`] 14 00: 16 -> Rezerv_20
+     *   [22:23] 00 00: 0 -> Rezerv_22
+     *   [24:25] 00 00: 0 -> Rezerv_24
+     *   [26:27] 00 00: 0 -> Rezerv_26
+     *   [28:29] 05 00: 0 -> Rezerv_28
+     *   [30:31] 01 00: 1 -> Rezerv_30
+     */
+    private void processInverterGolego(byte[] packet) {
+        int payloadLen = packet[2] & 0xFF;
+        byte[] payload = Arrays.copyOfRange(packet, 3, 3 + payloadLen);
+        String typeHex = String.format("%02X", packet[1]);
+        log.info("Type [{}], len [{}], payload [{}]", typeHex, payloadLen, payloadToHexString(payload));
+        InverterData inverterData = usrTcpWiFiBatteryRegistry.getInverter(usrTcpWiFiProperties.getPortInverterGolego());
+        if (payloadLen == 90) {
+            InvertorGolegoData90 entity90 = InvertorGolegoDecoders.decodeInverterGolegoPayload90(packet, usrTcpWiFiProperties.getPortInverterGolego());
+            if (entity90 != null) {
+                inverterData.inverterDataUpdate(entity90);
+                log.info(entity90.toString());
+            }
+        } else if (payloadLen == 32) {
+            InvertorGolegoData32 entity32 = InvertorGolegoDecoders.decodeInverterGolegoPayload32(packet, usrTcpWiFiProperties.getPortInverterGolego());
+            if (entity32 != null) {
+                inverterData.inverterDataUpdate(entity32);
+                log.info(entity32.toString());
+            }
+        }
     }
 }

@@ -8,8 +8,11 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.PowerValueRealTimeData;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
+import org.nickas21.smart.usr.entity.InverterData;
+import org.nickas21.smart.usr.entity.InvertorGolegoData90;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
+import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 
 import java.util.ArrayList;
@@ -53,6 +56,7 @@ public class DataHomeDto {
     String timestampLastUpdateGridStatus;
 
 
+    // Dacha
     public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService) {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
         if (powerValueRealTimeData != null) {
@@ -83,6 +87,7 @@ public class DataHomeDto {
         log.warn("DataHomeDacha [{}]", this);
     }
 
+    // Golego
     public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData) {
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
@@ -116,22 +121,35 @@ public class DataHomeDto {
 //            log.warn("port All batteryCurrent [{}]", batteryCurrentAll);
             this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
             this.batterySoc = batterySocMax;
-            this.batteryStatus = c0Data.getBmsStatusStr();
-            this.batteryVol = c0Data.getVoltageCurV();
-            this.batteryCurrent = batteryCurrentAll;
-//            log.warn("batterySoc [{}] batteryVol [{}] batteryCurrent [{}] BatteriesActiv [{}]",this.batterySoc, this.batteryVol, this.batteryCurrent, batteriesActiveCnt);
+            // log.warn("batterySoc [{}] batteryVol [{}] batteryCurrent [{}] BatteriesActiv [{}]",this.batterySoc, this.batteryVol, this.batteryCurrent, batteriesActiveCnt);
             log.warn("Golego: BatteriesActivCnt [{}] BatteriesNoActive {}",batteriesActiveCnt, batteriesNoActive.toString());
             if (this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch) {
                 this.gridPower = this.batteryVol * this.batteryCurrent + golegoPowerDefault + golegoInverterPowerDefault;
             } else {
                 this.gridPower = 0;
             }
-            if (this.batteryCurrent == 0 && this.gridPower == 0) {
-                this.homePower = 0;
-            } else if (this.batteryCurrent < 0 ) {
-                this.homePower = (this.batteryVol * Math.abs(this.batteryCurrent)) - this.golegoInverterPowerDefault;
+
+            // from inverter
+            UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
+            Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
+            InverterData inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego);
+            if (inverterDataGolego != null && inverterDataGolego.getInvertorGolegoData90() != null && inverterDataGolego.getInvertorGolegoData90().getHexMap().length > 0) {
+                InvertorGolegoData90 invertorGolegoData90 = inverterDataGolego.getInvertorGolegoData90();
+                this.batteryStatus = invertorGolegoData90.getStatus();
+                this.batteryVol = invertorGolegoData90.getBatteryVoltage();
+                this.batteryCurrent = invertorGolegoData90.getBatteryCurrent();
+                this.homePower = invertorGolegoData90.getLoadOutputActivePower();
             } else {
-                this.homePower = this.golegoPowerDefault;
+                this.batteryStatus = c0Data.getBmsStatusStr();
+                this.batteryVol = c0Data.getVoltageCurV();
+                this.batteryCurrent = batteryCurrentAll;
+                 if (this.batteryCurrent == 0 && this.gridPower == 0) {
+                    this.homePower = 0;
+                } else if (this.batteryCurrent < 0) {
+                    this.homePower = (this.batteryVol * Math.abs(this.batteryCurrent)) - this.golegoInverterPowerDefault;
+                } else {
+                    this.homePower = this.golegoPowerDefault;
+                }
             }
             this.solarPower = 0;
             this.dailyConsumptionPower = 0;

@@ -8,6 +8,7 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
+import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 
 import java.util.Map;
 
@@ -23,7 +24,6 @@ import static org.nickas21.smart.util.StringUtils.isBlank;
 public class BatteryInfoDto {
 
     private final String datePattern = "yyyy-MM-dd HH:mm";
-    private final long marginMs = 3660 * 1000L; // +1 hour
 
     String timestamp;
     int port;
@@ -34,14 +34,15 @@ public class BatteryInfoDto {
     String bmsStatusStr;
     String errorInfoDataHex;
     String errorOutput;
-    Boolean isActive = false;
+    String connectionStatus;
     // Metadata for front
     Double deltaMv; // in V critical if > 0,110 V
     Integer minCellIdx;
     Integer maxCellIdx;
     Map<Integer, Float> cellVoltagesV;
 
-    public BatteryInfoDto(DefaultSmartSolarmanTuyaService solarmanTuyaService){
+    // Dacha akkum
+    public BatteryInfoDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, UsrTcpWiFiService usrTcpWiFiService){
         if (solarmanTuyaService.getPowerValueRealTimeData() != null && solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() != null) {
             long timeStamp = solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() * 1000;
             this.timestamp = formatTimestamp(timeStamp, datePattern);
@@ -51,11 +52,11 @@ public class BatteryInfoDto {
             this.socPercent = solarmanTuyaService.getPowerValueRealTimeData().getBatterySocValue();
             this.bmsStatusStr = solarmanTuyaService.getPowerValueRealTimeData().getBatteryStatusValue();
             this.errorInfoDataHex = intToHex(0);
-            this.isActive = getIsActive(timeStamp, solarmanTuyaService.getTimeoutSecUpdate());
+            this.connectionStatus = usrTcpWiFiService.calculateStatus(timeStamp, solarmanTuyaService.getTimeoutSecUpdate());
         }
     }
 
-    public BatteryInfoDto(Map.Entry<Integer, UsrTcpWiFiBattery> usrTcpWiFiBatteryEntry, Long timeoutSecUpdate){
+    public BatteryInfoDto(Map.Entry<Integer, UsrTcpWiFiBattery> usrTcpWiFiBatteryEntry, Long timeoutSecUpdate, UsrTcpWiFiService usrTcpWiFiService){
         this.port = usrTcpWiFiBatteryEntry.getKey();
         UsrTcpWiFiBattery batteryData = usrTcpWiFiBatteryEntry.getValue();
 
@@ -67,7 +68,7 @@ public class BatteryInfoDto {
             this.bmsStatusStr = c0Data.getBmsStatusStr();
             this.errorInfoDataHex =  intToHex(c0Data.getErrorInfoData());
             this.errorOutput = c0Data.getErrorOutput();
-            this.isActive = getIsActive(c0Data.getTimestamp().toEpochMilli(), timeoutSecUpdate);
+            this.connectionStatus = usrTcpWiFiService.getStatusByPort(this.port);
         }
 
         UsrTcpWifiC1Data c1Data = batteryData.getC1Data();
@@ -92,17 +93,8 @@ public class BatteryInfoDto {
             this.deltaMv = c1Data.getDeltaMv() / 1000.0;  // this.deltaMv in V Critical > 0.100 V
             this.minCellIdx =  c1Data.getMinCellV().get(keyIdx).asInt();
             this.maxCellIdx =  c1Data.getMaxCellV().get(keyIdx).asInt();
-            if (!this.isActive) {
-                this.isActive = getIsActive(c1Data.getTimestamp().toEpochMilli(), timeoutSecUpdate);
-            }
+            this.connectionStatus = usrTcpWiFiService.getStatusByPort(this.port);
             this.cellVoltagesV = c1Data.getCellVoltagesV();
-
         }
-    }
-
-    private boolean getIsActive(long timestamp, Long timeoutSecUpdate) {
-        long timeoutMs = timeoutSecUpdate * 1000L;
-        long currentMillis = System.currentTimeMillis();
-        return this.socPercent > 0 && (currentMillis - timestamp) < (timeoutMs + marginMs);
     }
 }

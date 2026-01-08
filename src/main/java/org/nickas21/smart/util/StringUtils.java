@@ -119,5 +119,14 @@ public class StringUtils {
         // 3. Створюємо новий рядок із декодованих байтів, використовуючи UTF-8
         return new String(decodedBytes, StandardCharsets.UTF_8);
     }
+
+    public static String payloadToHexString(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < bytes.length; i++) {
+            sb.append(String.format("%02X", bytes[i]));
+            if (i != (i/2)*2) sb.append(" ");
+        }
+        return sb.toString();
+    }
 }
 

@@ -74,4 +74,40 @@ public class UsrTcpWifiCrcUtilities {
             return "CRC Status: BAD. Calc: " + calcCrcHex + " != Expected: " + expectedCrcHex;
         }
     }
+
+    public static int calculateCrc16ModbusInverterGolego(byte[] bytes) {
+        int crc = 0xFFFF;
+        for (byte b : bytes) {
+            crc ^= (b & 0xFF);
+            for (int i = 0; i < 8; i++) {
+                if ((crc & 0x0001) != 0) {
+                    crc = (crc >> 1) ^ 0xA001;
+                } else {
+                    crc >>= 1;
+                }
+            }
+        }
+        // Повертаємо результат, де байти вже у правильному порядку для Modbus
+        return crc & 0xFFFF;
+    }
+
+    public static boolean isValidInverterGolegoCrc(byte[] packet) {
+        if (packet == null || packet.length < 5) return false;
+
+        // 1. Відрізаємо рівно 93 байти (від 0 до 92 включно)
+        byte[] body = new byte[packet.length - 2];
+        System.arraycopy(packet, 0, body, 0, packet.length - 2);
+
+        // 2. Рахуємо новим методом
+        int calculated = calculateCrc16ModbusInverterGolego(body);
+
+        // 3. Дістаємо байти з пакета (для -19 та 56)
+        int low = packet[packet.length - 2] & 0xFF;  // стане 237 (0xED)
+        int high = packet[packet.length - 1] & 0xFF; // стане 56 (0x38)
+
+        // 4. Збираємо очікуваний CRC (у Modbus Low йде першим)
+        int expected = (high << 8) | low; // Отримаємо 0x38ED (14573)
+
+        return calculated == expected;
+    }
 }
