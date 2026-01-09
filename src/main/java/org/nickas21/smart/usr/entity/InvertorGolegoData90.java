@@ -1,6 +1,8 @@
 package org.nickas21.smart.usr.entity;
 
 import lombok.Data;
+import org.nickas21.smart.usr.data.UsrWifiBmsInverterStatus;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -110,13 +112,10 @@ public class InvertorGolegoData90 {
     }
 
     public String getStatus() {
-        if (this.status == null) {
-            return ""; // Або "Unknown", щоб бачити, що даних ще немає
-        }
-        return this.status == 3 ? "Discharging" : this.status == 4 ? "Charging" : "";
+        return UsrWifiBmsInverterStatus.fromCode(this.status).getStatus();
     }
 
     public Integer getBatteryCurrent() {
-        return this.status == 3 ? this.batteryDischargingCurrent : this.batteryChargingCurrent;
+        return UsrWifiBmsInverterStatus.DISCHARGING.getCode().equals(this.status) ? this.batteryDischargingCurrent : this.batteryChargingCurrent;
     }
 }

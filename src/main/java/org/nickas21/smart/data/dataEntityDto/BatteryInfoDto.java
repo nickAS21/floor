@@ -12,6 +12,7 @@ import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 
 import java.util.Map;
 
+import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.datePatternGridStatus;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyIdx;
 import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 import static org.nickas21.smart.util.StringUtils.intToHex;
@@ -23,7 +24,6 @@ import static org.nickas21.smart.util.StringUtils.isBlank;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BatteryInfoDto {
 
-    private final String datePattern = "yyyy-MM-dd HH:mm";
 
     String timestamp;
     int port;
@@ -45,7 +45,7 @@ public class BatteryInfoDto {
     public BatteryInfoDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, UsrTcpWiFiService usrTcpWiFiService){
         if (solarmanTuyaService.getPowerValueRealTimeData() != null && solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() != null) {
             long timeStamp = solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() * 1000;
-            this.timestamp = formatTimestamp(timeStamp, datePattern);
+            this.timestamp = formatTimestamp(timeStamp, datePatternGridStatus);
             this.currentCurA = solarmanTuyaService.getPowerValueRealTimeData().getBmsCurrentValue();
             this.bmsTempValue = solarmanTuyaService.getPowerValueRealTimeData().getBmsTempValue();
             this.voltageCurV = solarmanTuyaService.getPowerValueRealTimeData().getBmsVoltageValue();
@@ -56,13 +56,13 @@ public class BatteryInfoDto {
         }
     }
 
-    public BatteryInfoDto(Map.Entry<Integer, UsrTcpWiFiBattery> usrTcpWiFiBatteryEntry, Long timeoutSecUpdate, UsrTcpWiFiService usrTcpWiFiService){
+    public BatteryInfoDto(Map.Entry<Integer, UsrTcpWiFiBattery> usrTcpWiFiBatteryEntry, UsrTcpWiFiService usrTcpWiFiService){
         this.port = usrTcpWiFiBatteryEntry.getKey();
         UsrTcpWiFiBattery batteryData = usrTcpWiFiBatteryEntry.getValue();
 
         UsrTcpWifiC0Data c0Data = batteryData.getC0Data();
         if (c0Data != null && c0Data.getTimestamp() != null) {
-            this.timestamp = formatTimestamp(c0Data.getTimestamp().toEpochMilli(), datePattern);
+            this.timestamp = formatTimestamp(c0Data.getTimestamp().toEpochMilli(), datePatternGridStatus);
             this.currentCurA = c0Data.getCurrentCurA();
             this.socPercent = c0Data.getSocPercent();
             this.bmsStatusStr = c0Data.getBmsStatusStr();
@@ -74,7 +74,7 @@ public class BatteryInfoDto {
         UsrTcpWifiC1Data c1Data = batteryData.getC1Data();
         if (c1Data != null && c1Data.getTimestamp() != null) {
             if (isBlank(this.timestamp)) {
-                this.timestamp = formatTimestamp(c1Data.getTimestamp().toEpochMilli(), datePattern);
+                this.timestamp = formatTimestamp(c1Data.getTimestamp().toEpochMilli(), datePatternGridStatus);
             }
             if (this.socPercent == 0) {
                 this.socPercent = c1Data.getSocPercent();

@@ -11,7 +11,7 @@ import java.util.Arrays;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.lenErrorInfoData;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C0;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFault.formatErrorCodeOutput;
-import static org.nickas21.smart.usr.data.UsrTcpWifiStatus.fromCode;
+import static org.nickas21.smart.usr.data.UsrWifiBmsBatteryStatus.fromCode;
 
 @Slf4j
 @Data

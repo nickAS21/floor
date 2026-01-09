@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -261,6 +262,10 @@ public class UsrTcpWiFiService {
     // Метод 1: Для основної системи (по порту)
     public String getStatusByPort(Integer port) {
         return portStatusMap.getOrDefault(port, PortStatus.OFFLINE).name();
+    }
+
+    public Optional<Long> getLastTimeActiveByPort(Integer port) {
+        return Optional.ofNullable(lastSeenMap.get(port));
     }
 
     // Метод 2: Для дачі (по часу та SOC)

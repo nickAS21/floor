@@ -1667,11 +1667,11 @@ public enum TuyaCategory {
 //        },
 //        {
 //            "code": "zcnbq",
-//                "name": "String Inverter"
+//                "name": "String InverterInfo"
 //        },
 //        {
 //            "code": "wxnbq",
-//                "name": "Micro Inverter"
+//                "name": "Micro InverterInfo"
 //        },
 //        {
 //            "code": "cjq",

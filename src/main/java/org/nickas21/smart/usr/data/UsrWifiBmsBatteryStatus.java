@@ -3,7 +3,7 @@ package org.nickas21.smart.usr.data;
 import lombok.Getter;
 
 @Getter
-public enum UsrTcpWifiStatus {
+public enum UsrWifiBmsBatteryStatus {
 
     CHARGING(1, "Charging"),
     DISCHARGING(2, "Discharging"),
@@ -13,7 +13,7 @@ public enum UsrTcpWifiStatus {
     private final int code;
     private final String status;
 
-    UsrTcpWifiStatus(int code, String status) {
+    UsrWifiBmsBatteryStatus(int code, String status) {
         this.code = code;
         this.status = status;
     }
@@ -21,8 +21,8 @@ public enum UsrTcpWifiStatus {
     /**
      * Linear search — OK for small enums.
      */
-    public static UsrTcpWifiStatus fromCode(int code) {
-        for (UsrTcpWifiStatus s : values()) {
+    public static UsrWifiBmsBatteryStatus fromCode(int code) {
+        for (UsrWifiBmsBatteryStatus s : values()) {
             if (s.code == code) return s;
         }
         return UNKNOWN;
@@ -32,7 +32,7 @@ public enum UsrTcpWifiStatus {
      * Human-friendly status lookup.
      */
     public static String fromStatusByCode(int code) {
-        UsrTcpWifiStatus s = fromCode(code);
+        UsrWifiBmsBatteryStatus s = fromCode(code);
         return s == UNKNOWN
                 ? String.format("UNKNOWN_STATUS (0x%02X)", code)
                 : s.status;

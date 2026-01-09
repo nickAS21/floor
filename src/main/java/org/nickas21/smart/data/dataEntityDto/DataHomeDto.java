@@ -131,13 +131,6 @@ public class DataHomeDto {
 
             this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
             this.batterySoc = batterySocMax;
-            // log.warn("batterySoc [{}] batteryVol [{}] batteryCurrent [{}] BatteriesActiv [{}]",this.batterySoc, this.batteryVol, this.batteryCurrent, batteriesActiveCnt);
-
-            if (this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch) {
-                this.gridPower = this.batteryVol * this.batteryCurrent + golegoPowerDefault + golegoInverterPowerDefault;
-            } else {
-                this.gridPower = 0;
-            }
 
             // from inverter
             UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
@@ -160,6 +153,11 @@ public class DataHomeDto {
                 } else {
                     this.homePower = this.golegoPowerDefault;
                 }
+            }
+            if (this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch) {
+                this.gridPower = this.batteryVol * this.batteryCurrent + golegoPowerDefault + golegoInverterPowerDefault;
+            } else {
+                this.gridPower = 0;
             }
             this.solarPower = 0;
             this.dailyConsumptionPower = 0;

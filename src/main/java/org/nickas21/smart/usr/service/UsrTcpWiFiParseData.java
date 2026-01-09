@@ -355,7 +355,7 @@ public class UsrTcpWiFiParseData {
                         currentIndex++;
                     }
                 } catch (Exception e) {
-                    log.error("Error decoding Inverter packet at port {}: {}", usrTcpWiFiProperties.getPortInverterGolego(), e.getMessage());
+                    log.error("Error decoding InverterInfo packet at port {}: {}", usrTcpWiFiProperties.getPortInverterGolego(), e.getMessage());
                     currentIndex++;
                 }
             } else {

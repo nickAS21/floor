@@ -34,7 +34,9 @@ public class SettingsService {
         dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
         dataSettingsDto.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());
         dataSettingsDto.setHeaterNightAutoOnDachaWinter(deviceService.isHeaterNightAutoOnDachaWinter());
-        dataSettingsDto.setSeasonsId(solarmanStationsService.getSolarmanStation().getSeasonsId());
+        if (solarmanStationsService.getSolarmanStation() != null) {
+            dataSettingsDto.setSeasonsId(solarmanStationsService.getSolarmanStation().getSeasonsId());
+        }
         return dataSettingsDto;
     }
 

@@ -194,13 +194,13 @@ public class SolarmanStationsService {
             solarmanStation.setInverterSn(communications.get(loggerSn).getChildList().get(0).getDeviceSn());
         } else {
             isLoggerInverterError = true;
-            log.error("Create solarman Inverter Sn required, not null.");
+            log.error("Create solarman InverterInfo Sn required, not null.");
         }
         if (communications.get(loggerSn).getChildList().get(0).getDeviceId() > 0) {
             solarmanStation.setInverterId(communications.get(loggerSn).getChildList().get(0).getDeviceId());
         } else {
             isLoggerInverterError = true;
-            log.error("Create solarman Inverter Id required, not zero.");
+            log.error("Create solarman InverterInfo Id required, not zero.");
         }
         if (communications.get(loggerSn).getDeviceId() > 0) {
             solarmanStation.setLoggerId(communications.get(loggerSn).getDeviceId());
