@@ -14,6 +14,7 @@ import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
+import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,7 +58,7 @@ public class DataHomeDto {
 
 
     // Dacha
-    public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService) {
+    public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService, UsrTcpWiFiService usrTcpWiFiService) {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
         if (powerValueRealTimeData != null) {
             this.timestamp = powerValueRealTimeData.getCollectionTime() * 1000;
@@ -84,11 +85,15 @@ public class DataHomeDto {
         if (gridRelayCodeDachaStateSwitch!= null) this.gridStatusRealTimeSwitch = gridRelayCodeDachaStateSwitch;
         Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryDacha =  deviceService.getLastUpdateTimeGridStatusInfoDacha();
         this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryDacha != null ? formatTimestamp(lastUpdateTimeGridStatusEntryDacha.getKey(), datePatternGridStatus) : "null";
+        if (solarmanTuyaService.getPowerValueRealTimeData() != null) {
+            String connectionBatteryStatus = usrTcpWiFiService.calculateStatus(solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() * 1000, solarmanTuyaService.getTimeoutSecUpdate());
+            log.warn("Dacha inverter and battery: is -> [{}]", connectionBatteryStatus);
+        }
         log.warn("DataHomeDacha [{}]", this);
     }
 
     // Golego
-    public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData) {
+    public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, UsrTcpWiFiService usrTcpWiFiService) {
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
         Boolean gridRelayCodeGolegoStateOnLine = deviceService.getGridRelayCodeGolegoStateOnLine();
@@ -105,24 +110,29 @@ public class DataHomeDto {
             List<Integer> batteriesNoActive = new ArrayList<>();
             for (int i = 0; i < batteriesCnt; i++) {
                 int port = portStart + i;
-                UsrTcpWiFiBattery usrTcpWiFiBatteryA = usrTcpWiFiParseData.getBattery(port);
-                if (usrTcpWiFiBatteryA != null && usrTcpWiFiBatteryA.getC0Data() != null) {
-//                    log.warn("port [{}] batteryCurrent [{}] soc [{}]", port, usrTcpWiFiBatteryA.getC0Data().getCurrentCurA(), usrTcpWiFiBatteryA.getC0Data().getSocPercent());
-                    batteryCurrentAll += usrTcpWiFiBatteryA.getC0Data().getCurrentCurA();
-                    if (usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0) {
-                        batteriesActiveCnt++;
-                    } else {
-                        batteriesNoActive.add(port);
+                if (port == usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego() ) {
+                    log.warn("Golego inverter port [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
+                } else  {
+                    UsrTcpWiFiBattery usrTcpWiFiBatteryA = usrTcpWiFiParseData.getBattery(port);
+                    if (usrTcpWiFiBatteryA != null && usrTcpWiFiBatteryA.getC0Data() != null) {
+                        batteryCurrentAll += usrTcpWiFiBatteryA.getC0Data().getCurrentCurA();
+                        if (usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0) {
+                            batteriesActiveCnt++;
+                        } else {
+                            batteriesNoActive.add(port);
+                        }
+                        // TODO - 8894 - 20% this is bad then only master
+                        batterySocMax = usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 ? Math.max(batterySocMax, usrTcpWiFiBatteryA.getC0Data().getSocPercent()) : batterySocMax;
                     }
-                    // TODO - 8894 - 20% this is bad then only master
-                    batterySocMax = usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 ? Math.max(batterySocMax, usrTcpWiFiBatteryA.getC0Data().getSocPercent()) : batterySocMax;
                 }
+
             }
-//            log.warn("port All batteryCurrent [{}]", batteryCurrentAll);
+            log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}",batteriesActiveCnt, batteriesNoActive.toString());
+
             this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
             this.batterySoc = batterySocMax;
             // log.warn("batterySoc [{}] batteryVol [{}] batteryCurrent [{}] BatteriesActiv [{}]",this.batterySoc, this.batteryVol, this.batteryCurrent, batteriesActiveCnt);
-            log.warn("Golego: BatteriesActivCnt [{}] BatteriesNoActive {}",batteriesActiveCnt, batteriesNoActive.toString());
+
             if (this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch) {
                 this.gridPower = this.batteryVol * this.batteryCurrent + golegoPowerDefault + golegoInverterPowerDefault;
             } else {

@@ -76,6 +76,7 @@ public class UsrTcpWiFiParseData {
     protected byte[] parseAndProcessData(byte[] buffer, int port) {
         if (buffer == null || buffer.length == 0) return buffer;
         if (port == (usrTcpWiFiProperties.getPortInverterGolego())) {
+            log.warn("Start decoder byteArray from port [{}]", port);
             return parseAndProcessInverterGolego(buffer);
         } else {
             return parseAndProcessBmsGolego(buffer, port);
@@ -298,6 +299,9 @@ public class UsrTcpWiFiParseData {
     }
 
     public UsrTcpWiFiBattery getBattery(int port){
+        return this.usrTcpWiFiBatteryRegistry.getBattery(port);
+    }
+    public UsrTcpWiFiBattery getInverter(int port){
         return this.usrTcpWiFiBatteryRegistry.getBattery(port);
     }
 
