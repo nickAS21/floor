@@ -116,6 +116,6 @@ public class InvertorGolegoData90 {
     }
 
     public Integer getBatteryCurrent() {
-        return UsrWifiBmsInverterStatus.DISCHARGING.getCode().equals(this.status) ? this.batteryDischargingCurrent : this.batteryChargingCurrent;
+        return UsrWifiBmsInverterStatus.DISCHARGING.getCode().equals(this.status) ? -this.batteryDischargingCurrent : this.batteryChargingCurrent;
     }
 }

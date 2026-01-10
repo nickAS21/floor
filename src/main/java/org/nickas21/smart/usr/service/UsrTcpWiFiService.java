@@ -177,10 +177,8 @@ public class UsrTcpWiFiService {
     // HANDLE ONE CONNECTION
     // --------------------------
     private void handleConnection(Socket conn, int port) {
-        // 1. Реєструємо активне з'єднання та початковий час для Watchdog
         activeConnections.put(port, conn);
         lastSeenMap.put(port, System.currentTimeMillis());
-        // Встановлюємо початковий статус
         portStatusMap.put(port, PortStatus.ACTIVE);
 
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -191,40 +189,31 @@ public class UsrTcpWiFiService {
 
             while ((read = in.read(readBuf)) != -1) {
                 if (read > 0) {
-                    // 2. ОНОВЛЕННЯ ЧАСУ: Дані прийшли, скидаємо таймер неактивності
+                    // ПРАВИЛО 1: Оновлюємо час АКТИВНОСТІ завжди, коли прийшли байти
                     lastSeenMap.put(port, System.currentTimeMillis());
-
-                    // Якщо ми були в STANDBY/OFFLINE, повертаємо в ACTIVE
-                    if (portStatusMap.get(port) != PortStatus.ACTIVE) {
-                        portStatusMap.put(port, PortStatus.ACTIVE);
-                    }
+                    portStatusMap.put(port, PortStatus.ACTIVE);
 
                     buffer.write(readBuf, 0, read);
 
-                    // ВАША ЛОГІКА ПАРСИНГУ
-                    byte[] remaining = usrTcpWiFiParseData.parseAndProcessData(buffer.toByteArray(), port);
-
-                    buffer.reset();
-                    if (remaining != null && remaining.length > 0) {
-                        buffer.write(remaining);
+                    try {
+                        byte[] remaining = usrTcpWiFiParseData.parseAndProcessData(buffer.toByteArray(), port);
+                        buffer.reset();
+                        if (remaining != null && remaining.length > 0) {
+                            buffer.write(remaining);
+                        }
+                    } catch (Exception e) {
+                        // ПРАВИЛО 2: Якщо дані не розпарсились - логуємо помилку декодера,
+                        // але НЕ скидаємо ACTIVE статус, бо фізично пристрій щось шле.
+                        log.error("Port {}: Decoder error - invalid data format: {}", port, e.getMessage());
+                        buffer.reset(); // Очищуємо "сміття", щоб не забити пам'ять
                     }
                 }
             }
-
-            // нормальне закриття з'єднання
             flushRemaining(buffer, port);
-
-        } catch (SocketException e) {
-            flushRemaining(buffer, port);
-            log.debug("Client disconnected (reset) on port {}", port);
-
         } catch (IOException e) {
-            flushRemaining(buffer, port);
-            log.warn("I/O error on port {}", port, e);
+            log.warn("Connection lost on port {}", port);
         } finally {
-            // 3. ОЧИЩЕННЯ: Видаляємо сокет з активних при розриві
             activeConnections.remove(port);
-            // Ми НЕ видаляємо port з lastSeenMap, щоб моніторинг бачив час останнього коннекту
         }
     }
     // --------------------------

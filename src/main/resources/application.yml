@@ -100,7 +100,7 @@ usr:
     port-start: "${USR_CLIENT_PORT_START:8891}"
     batteries-cnt: "${USR_CLIENT_BATTERIES_CNT:10}"
     port-master: "${USR_CLIENT_PORT_MASTER:8898}"
-    port-inverter-dacha: "${USR_CLIENT_PORT_INVERTER_Dacaha:8899}"
+    port-inverter-dacha: "${USR_CLIENT_PORT_INVERTER_DACHA:8899}"
     port-inverter-golego: "${USR_CLIENT_PORT_INVERTER_GOLEGO:8900}"
     monitor-inactivity-time-out: "${MONITOR_ACTIVITY_TIME_OUT:1200000}"
     margin-ms: "${MARGIN_MS:1200000}"

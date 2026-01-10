@@ -38,8 +38,11 @@ public class DataUnitService {
         List<BatteryInfoDto> batteries = new ArrayList<>();
         List<DeviceDto> devices = new ArrayList<>();
         for(Map.Entry<Integer, UsrTcpWiFiBattery> entry : batteriesAll.entrySet()) {
-            BatteryInfoDto batteryInfoDto = new BatteryInfoDto(entry, this.usrTcpWiFiService);
-            batteries.add(batteryInfoDto);
+            if (!entry.getKey().equals(this.usrTcpWiFiService.getTcpProps().getPortInverterGolego()) &&
+                    !entry.getKey().equals(this.usrTcpWiFiService.getTcpProps().getPortInverterDacha())) {
+                BatteryInfoDto batteryInfoDto = new BatteryInfoDto(entry, this.usrTcpWiFiService);
+                batteries.add(batteryInfoDto);
+            }
         }
         Integer port = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
         Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(port).orElse(0L);

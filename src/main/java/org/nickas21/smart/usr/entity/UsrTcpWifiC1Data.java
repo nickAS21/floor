@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyIdx;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyVoltage;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C1;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.T_C1;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.getBalanceStatus;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFault.formatErrorCodeOutput;
 import static org.nickas21.smart.util.JacksonUtil.newObjectNode;
@@ -198,7 +198,7 @@ public class UsrTcpWifiC1Data {
             return new UsrTcpWiFiPacketRecord(
                     this.timestamp.toEpochMilli(),
                     port,
-                    C1.name(),
+                    T_C1.name(),
                     this.payloadBytesCur.length,
                     this.payloadBytesCur);
         }

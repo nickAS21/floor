@@ -20,6 +20,7 @@ import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
 import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecord;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,14 +28,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_END;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_START;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_BMS_END;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.MIN_PACKET_LENGTH;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.A2;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C0;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C1;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.D0;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_5E;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_AA;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.T_C0;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.T_C1;
 import static org.nickas21.smart.usr.data.UsrTcpWifiCrcUtilities.isValidInverterGolegoCrc;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.AUTO_RECOVERABLE_MAX;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.SERVICE_REQUIRED_MAX;
@@ -84,154 +83,91 @@ public class UsrTcpWiFiParseData {
     }
 
     protected byte[] parseAndProcessBmsGolego(byte[] buffer, int port) {
-
         int currentIndex = 0;
         int endIndex = -1;
         List<byte[]> packets = new ArrayList<>();
 
+        // 1. Пошук пакетів у буфері
         while (true) {
-            int startIndex = indexOf(buffer, START_SIGN, currentIndex);
-            if (startIndex == -1) break;
-            int foundEnd = indexOf(buffer, START_SIGN, startIndex + START_SIGN.length);
+            // Шукаємо найближчий маркер AA AA або 5E 5E
+            int idxAA = indexOf(buffer, START_SIGN_AA, currentIndex);
+            int idx5E = indexOf(buffer, START_SIGN_5E, currentIndex);
+
+            int startIndex;
+            byte[] currentSign;
+
+            // Визначаємо, який маркер зустрівся першим у потоці
+            if (idxAA != -1 && (idx5E == -1 || idxAA < idx5E)) {
+                startIndex = idxAA;
+                currentSign = START_SIGN_AA;
+            } else if (idx5E != -1) {
+                startIndex = idx5E;
+                currentSign = START_SIGN_5E;
+            } else {
+                break; // Маркерів більше немає
+            }
+
+            // Шукаємо кінець пакета за таким самим маркером
+            int foundEnd = indexOf(buffer, currentSign, startIndex + currentSign.length);
+
             if (foundEnd == -1) {
+                // Пакет неповний, зберігаємо залишок для наступного читання
                 if (buffer.length - startIndex >= MIN_PACKET_LENGTH) {
                     packets.add(Arrays.copyOfRange(buffer, startIndex, buffer.length));
                     currentIndex = buffer.length;
                 }
                 break;
             } else {
+                // Знайдено повний пакет
                 byte[] pkt = Arrays.copyOfRange(buffer, startIndex, foundEnd);
-                if (pkt.length >= MIN_PACKET_LENGTH) packets.add(pkt);
+                if (pkt.length >= MIN_PACKET_LENGTH) {
+                    packets.add(pkt);
+                }
                 currentIndex = foundEnd;
                 endIndex = foundEnd;
             }
         }
 
+        // 2. Обробка знайдених пакетів
         for (byte[] packet : packets) {
             try {
-                if (!validationPacket(packet)) {
+                // Отримуємо тип повідомлення з 3-го байта
+                UsrTcpWiFiMessageType msgType = UsrTcpWiFiMessageType.fromByte(packet[2]);
+
+                // ПРАВИЛО: Група 1 — ігноруємо повністю без перевірок
+                if (msgType.getGroupBms() == 1) {
                     continue;
                 }
-                UsrTcpWiFiMessageType msgType = UsrTcpWiFiMessageType.fromByte(packet[2]);
-                if (C0.equals(msgType) || C1.equals(msgType)) {
-                    String typeFrameName = msgType.name();
 
-                    byte[] idBytes = Arrays.copyOfRange(packet, ID_START, ID_END);
-                    String idValue = new String(idBytes, java.nio.charset.StandardCharsets.US_ASCII);
-
-                    byte[] payloadWithCrc = Arrays.copyOfRange(packet, ID_END, packet.length);
-                    byte[] payloadBytes = Arrays.copyOfRange(payloadWithCrc, 0, payloadWithCrc.length - 2);
-                    String crcMessage = UsrTcpWifiCrcUtilities.checkPacketCrc(packet, typeFrameName);
-
-                    Instant nowInstant = Instant.now();
-                    String timestampStr = getCurrentTimeString(nowInstant);
-                    String fullPacketHex = bytesToHex(packet);
-                    String output = String.format(
-                        """
-                         [%s] %s => %s
-                        """, timestampStr, fullPacketHex, crcMessage
-                    );
-
-                    // Extra BMS info for C0 and update C0/C1
-                     if (C0.equals(msgType)) {
-                        UsrTcpWifiC0Data c0Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC0Data();
-                        UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, nowInstant, port);
-
-                        this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c0Data.getTimestamp());
-//                        if (testFront) {
-//                            String infoC0BmsMsg = c0Data.decodeC0BmsInfoPayload(output);
-//                            if (!infoC0BmsMsg.isBlank()) {
-//                                log.info("""
-//                                        {}
-//                                        """, infoC0BmsMsg.trim());
-//                            }
-//                        }
-                    } else {
-                        UsrTcpWifiC1Data c1Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC1Data();
-                        UsrTcpWiFiDecoders.decodeC1Payload(payloadBytes, c1Data, nowInstant);
-                        this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c1Data.getTimestamp());
-                        // write to file error history C1 - unBalance = delta + min/max + level_code
-                        // 764862063274;8897;C1;len;c1Data.balanceS
-                        List<String> key = List.of(String.valueOf(port), B1.name());
-                        if (c1Data.getBalanceS() != null &&
-                                (c1Data.getBalanceS().equals(AUTO_RECOVERABLE_MAX) || c1Data.getBalanceS().equals(SERVICE_REQUIRED_MAX))) {
-                            String newValue =  c1Data.getBalanceS().name() + ": " + intToHex(c1Data.getErrorInfoData());
-                            String oldValue =  lastErrorRecords.get(key);
-                            if (!newValue.equals(oldValue)) {
-                                this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(c1Data.getErrorUnbalanceForRecords(port));
-                                lastErrorRecords.compute(key, (k, v) -> newValue);
-                                logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
-                            }
-                        } else {
-                            this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(null);
-                            lastErrorRecords.compute(key, (k, v) -> null);
-                        }
-//                        if (testFront) {
-//                            String infoC1BmsMsg = c1Data.decodeC1BmsInfoPayload(output);
-//                            if (!infoC1BmsMsg.isBlank()) {
-//                                log.info("""
-//                                        {}
-//                                        """, infoC1BmsMsg.trim());
-//                            }
-//                        }
-
-                        // write to file error history C1 - errors
-                        // 1764862063274;8897;C1;len;2008
-                        // 1764862063274;8897;C1;len;1007 => c1Data.errOutput
-                        key = List.of(String.valueOf(port), E1.name());
-                        Integer errorInfoData = c1Data.getErrorInfoData();
-                        if (errorInfoData != null && errorInfoData > 0) {
-                            String newValue =  intToHex(errorInfoData);
-                            String oldValue =  lastErrorRecords.get(key);
-                            if (!newValue.equals(oldValue)) {
-                                this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(c1Data.getErrorOutputForRecords(port));
-                                lastErrorRecords.put(key, newValue);
-                                logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
-                            }
-                        } else {
-                            this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(null);
-                            lastErrorRecords.compute(key, (k, v) -> null);
-                        }
-                    }
-
-                    synchronized (this) {
-                        // --- Write ALL last info c0/c1 by port every 30 minutes ---
-                        // write to file today
-                        // 1764862062785;8895;C0;21;140014AAFFF75A00040000000A0000000500000000
-                        // 1764862063274;8897;C1;43;28100CDF0CD50CDF0CDB0CEA0CDB0CE80CEB0CF00CE20CE70CEB0CEA0CF50CF90CFC03F25F000000000C10
-                        long now = System.currentTimeMillis();
-                        if (now - lastWriteTime >= this.usrTcpLogsWiFiProperties.getWriteInterval()) {
-                            for (Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getBatteriesAll().entrySet()) {
-                                int portWrite = entry.getKey();
-                                UsrTcpWiFiBattery battery = entry.getValue();
-
-                                UsrTcpWiFiPacketRecord lastRecordC0 = battery.getC0Data().getInfoForRecords(portWrite);
-                                UsrTcpWiFiPacketRecord lastRecordC1 = battery.getC1Data().getInfoForRecords(portWrite);
-
-                                if (lastRecordC0 != null) logWriter.writeToday(portWrite, lastRecordC0);
-                                if (lastRecordC1 != null) logWriter.writeToday(portWrite, lastRecordC1);
-                            }
-                            lastWriteTime = now;
-                        }
-                    }
-                } else if (!A2.equals(msgType) && !D0.equals(msgType)) {
-                    log.error("UNKNOWN message type: 0x{}", String.format("%02X", packet[2]));
+                // Для груп 2, 3, 4, 5 — виконуємо валідацію (CRC, сигнатура тощо)
+                byte[] sign = Arrays.copyOfRange(packet, 0, 2);
+                if (!validationPacket(packet, sign, msgType)) {
+                    log.warn("Port [{}]: Validation failed for type [{}]", port, msgType.name());
+                    continue;
                 }
+
+                // Обробка за алгоритмом залежно від групи
+                if (msgType.getGroupBms() >= 2 && msgType.getGroupBms() <= 5) {
+                    if (T_C0.equals(msgType) || T_C1.equals(msgType)) {
+                        decodeTypeC0_C1(msgType, packet, port);
+                    } else {
+                        // Групи 2 та 5 (T_00, T_02, T_05 тощо), які пройшли валідацію
+                        log.info("Port [{}]: Received service packet Type: [{}],\n Hex: [{}]",
+                                port, msgType.name(), bytesToHex(packet));
+                    }
+                }
+
             } catch (Exception e) {
-                String msgError = String.format("Error processing packet at %d. Packet (HEX): [%s]", port, bytesToHex(packet));
-                log.error(msgError + e.getMessage(), e);
+                log.error("Error processing packet at port {}: {}", port, e.getMessage());
             }
         }
 
+        // 3. Управління буфером: повертаємо необроблені дані
         if (packets.isEmpty()) return buffer;
-        else {
-            if (endIndex == -1) {
-                return buffer;
-            } else {
-                if (currentIndex >= buffer.length) return new byte[0];
-                return Arrays.copyOfRange(buffer, currentIndex, buffer.length);
-            }
-        }
+        if (endIndex == -1) return buffer;
+        if (currentIndex >= buffer.length) return new byte[0];
+
+        return Arrays.copyOfRange(buffer, currentIndex, buffer.length);
     }
 
     private static int indexOf(byte[] haystack, byte[] needle, int fromIndex) {
@@ -245,13 +181,123 @@ public class UsrTcpWiFiParseData {
         return -1;
     }
 
-    private boolean validationPacket(byte[] packet) {
-        if (packet.length < MIN_PACKET_LENGTH) {
-            log.warn("WARNING: Packet of type is too short for Ident + CRC length.");
-            return  false;
+    private void decodeTypeC0_C1(UsrTcpWiFiMessageType msgType, byte[] packet, int port) throws IOException {
+        String typeFrameName = msgType.name();
+
+        byte[] payloadWithCrc = Arrays.copyOfRange(packet, ID_BMS_END, packet.length);
+        byte[] payloadBytes = Arrays.copyOfRange(payloadWithCrc, 0, payloadWithCrc.length - 2);
+        String crcMessage = UsrTcpWifiCrcUtilities.checkPacketCrc(packet, typeFrameName);
+
+        Instant nowInstant = Instant.now();
+        String timestampStr = getCurrentTimeString(nowInstant);
+        String fullPacketHex = bytesToHex(packet);
+        String output = String.format(
+                """
+                         [%s] %s => %s
+                        """, timestampStr, fullPacketHex, crcMessage
+        );
+
+        // Extra BMS info for C0 and update C0/C1
+        if (T_C0.equals(msgType)) {
+            UsrTcpWifiC0Data c0Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC0Data();
+            UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, nowInstant, port);
+
+            this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c0Data.getTimestamp());
+//                        if (testFront) {
+//                            String infoC0BmsMsg = c0Data.decodeC0BmsInfoPayload(output);
+//                            if (!infoC0BmsMsg.isBlank()) {
+//                                log.info("""
+//                                        {}
+//                                        """, infoC0BmsMsg.trim());
+//                            }
+//                        }
+        } else {
+            UsrTcpWifiC1Data c1Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC1Data();
+            UsrTcpWiFiDecoders.decodeC1Payload(payloadBytes, c1Data, nowInstant);
+            this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c1Data.getTimestamp());
+            // write to file error history C1 - unBalance = delta + min/max + level_code
+            // 764862063274;8897;C1;len;c1Data.balanceS
+            List<String> key = List.of(String.valueOf(port), B1.name());
+            if (c1Data.getBalanceS() != null &&
+                    (c1Data.getBalanceS().equals(AUTO_RECOVERABLE_MAX) || c1Data.getBalanceS().equals(SERVICE_REQUIRED_MAX))) {
+                String newValue = c1Data.getBalanceS().name() + ": " + intToHex(c1Data.getErrorInfoData());
+                String oldValue = lastErrorRecords.get(key);
+                if (!newValue.equals(oldValue)) {
+                    this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(c1Data.getErrorUnbalanceForRecords(port));
+                    lastErrorRecords.compute(key, (k, v) -> newValue);
+                    logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
+                }
+            } else {
+                this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(null);
+                lastErrorRecords.compute(key, (k, v) -> null);
+            }
+//                        if (testFront) {
+//                            String infoC1BmsMsg = c1Data.decodeC1BmsInfoPayload(output);
+//                            if (!infoC1BmsMsg.isBlank()) {
+//                                log.info("""
+//                                        {}
+//                                        """, infoC1BmsMsg.trim());
+//                            }
+//                        }
+
+            // write to file error history C1 - errors
+            // 1764862063274;8897;C1;len;2008
+            // 1764862063274;8897;C1;len;1007 => c1Data.errOutput
+            key = List.of(String.valueOf(port), E1.name());
+            Integer errorInfoData = c1Data.getErrorInfoData();
+            if (errorInfoData != null && errorInfoData > 0) {
+                String newValue = intToHex(errorInfoData);
+                String oldValue = lastErrorRecords.get(key);
+                if (!newValue.equals(oldValue)) {
+                    this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(c1Data.getErrorOutputForRecords(port));
+                    lastErrorRecords.put(key, newValue);
+                    logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
+                }
+            } else {
+                this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(null);
+                lastErrorRecords.compute(key, (k, v) -> null);
+            }
         }
-        if (packet[0] != START_SIGN[0] || packet[1] != START_SIGN[1] ) {
-            log.warn("ERROR: Invalid start signature!");
+
+        synchronized (this) {
+            // --- Write ALL last info c0/c1 by port every 30 minutes ---
+            // write to file today
+            // 1764862062785;8895;C0;21;140014AAFFF75A00040000000A0000000500000000
+            // 1764862063274;8897;C1;43;28100CDF0CD50CDF0CDB0CEA0CDB0CE80CEB0CF00CE20CE70CEB0CEA0CF50CF90CFC03F25F000000000C10
+            long now = System.currentTimeMillis();
+            if (now - lastWriteTime >= this.usrTcpLogsWiFiProperties.getWriteInterval()) {
+                for (Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getBatteriesAll().entrySet()) {
+                    int portWrite = entry.getKey();
+                    UsrTcpWiFiBattery battery = entry.getValue();
+
+                    UsrTcpWiFiPacketRecord lastRecordC0 = battery.getC0Data().getInfoForRecords(portWrite);
+                    UsrTcpWiFiPacketRecord lastRecordC1 = battery.getC1Data().getInfoForRecords(portWrite);
+
+                    if (lastRecordC0 != null) logWriter.writeToday(portWrite, lastRecordC0);
+                    if (lastRecordC1 != null) logWriter.writeToday(portWrite, lastRecordC1);
+                }
+                lastWriteTime = now;
+            }
+        }
+    }
+
+    private boolean validationPacket(byte[] packet, byte[] startSign, UsrTcpWiFiMessageType msgType) {
+        if (msgType.getGroupBms() == 1){    // not parse
+            return false;
+        }
+        if (packet.length < MIN_PACKET_LENGTH) {
+            log.warn("DECODER ERROR: Packet too short ({} bytes)", packet.length);
+            return false;
+        }
+        // TODO double
+        if (packet[0] != startSign[0] || packet[1] != startSign[1]) {
+            // Тут ми бачимо, що дані прийшли, але вони не BMS Golego
+            log.error("DECODER ERROR: Invalid signature 0x{} 0x{} on port. Check device protocol!",
+                    String.format("%02X", packet[0]), String.format("%02X", packet[1]));
+            return false;
+        }
+        if (UsrTcpWiFiMessageType.UNKNOWN == msgType) {
+            log.error("UNKNOWN message type: 0x{}", String.format("%02X", packet[2]));
             return false;
         }
         return true;

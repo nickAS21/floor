@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.Arrays;
 
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.lenErrorInfoData;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.C0;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.T_C0;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFault.formatErrorCodeOutput;
 import static org.nickas21.smart.usr.data.UsrWifiBmsBatteryStatus.fromCode;
 
@@ -86,7 +86,7 @@ public class UsrTcpWifiC0Data {
             return new UsrTcpWiFiPacketRecord(
                     this.timestamp.toEpochMilli(),
                     port,
-                    C0.name(),
+                    T_C0.name(),
                     this.payloadBytesCur.length,
                     this.payloadBytesCur);
         }

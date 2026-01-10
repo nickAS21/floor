@@ -1,6 +1,7 @@
 package org.nickas21.smart.data.dataEntityDto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
 import java.time.LocalDate;
@@ -17,7 +18,7 @@ public enum InverterInfo {
             "JSY-H4862E120-D",
             6.2,
             LocalDate.of(2024, 8, 7),
-            PhaseType.SINGLE_PHASE, // Передаємо об'єкт
+            PhaseType.SINGLE_PHASE,
             true,
             "120A MPPT Charge Controller",
             48
@@ -40,6 +41,7 @@ public enum InverterInfo {
     private final double ratedPower;
     private final String commissioningDate; // Long Timestamp
     private final String phaseType;        // Текстовий опис
+    @JsonProperty("isHybrid") // Додайте це
     private final boolean isHybrid;
     private final String mpptControllerName;
     private final int inputVoltage;
