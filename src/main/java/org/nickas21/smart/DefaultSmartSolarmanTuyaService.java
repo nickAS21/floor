@@ -35,6 +35,9 @@ import static org.nickas21.smart.util.HttpUtil.dailyEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.getSunRiseSunset;
 import static org.nickas21.smart.util.HttpUtil.gridRelayStatusKey;
 import static org.nickas21.smart.util.HttpUtil.gridStatusKey;
+import static org.nickas21.smart.util.HttpUtil.gridVoltageL1Key;
+import static org.nickas21.smart.util.HttpUtil.gridVoltageL2Key;
+import static org.nickas21.smart.util.HttpUtil.gridVoltageL3Key;
 import static org.nickas21.smart.util.HttpUtil.homeDailyConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.invHMIKey;
 import static org.nickas21.smart.util.HttpUtil.invMAINKey;
@@ -144,15 +147,18 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
 
             log.info("""
-                            Current data:\s
-                            Current Dacha real time data: [{}], -Update Dacha real time data: [{}],\s
-                            -batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], -batterySocMin: [{} %],\s
-                            -batteryStatus: [{}], -batteryPower: [{} W], -batVolNew: [{} V], -batCurrentNew: [{} A],  -bmsVolNew: [{} V], -bmsCurrentNew: [{} A], -BMS Temperature: [{}  grad C]\s
-                            -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],\s
-                            -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],\s
+                            \nCurrent data:
+                            Current Dacha real time data: [{}], -Update Dacha real time data: [{}],
+                            -batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], -batterySocMin: [{} %],
+                            -batteryStatus: [{}], -batteryPower: [{} W], -batVolNew: [{} V], -batCurrentNew: [{} A],  -bmsVolNew: [{} V], -bmsCurrentNew: [{} A], -BMS Temperature: [{}  grad C]
+                            -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],
+                            -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],
                             -relayStatus: [{}], -gridStatusSolarman: [{}], -gridDachaStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh],
                             -AC (inverter) Temperature:  [{} grad C].
-                            - usrBmsSummary:\s -Update Golego real time data: [{}], -batSocLast: [{} %], -gridGolegoStatusRealTime: [{}], \s
+                            - usrBmsSummary:
+                            -- Update Golego real time data: [{}],
+                            -- batSocLast: [{} %], 
+                            -- gridGolegoStatusRealTime: [{}],
                              {}
                        """,
                     curInstStr,
@@ -326,6 +332,12 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 .map(RealTimeDataValue::getValue).orElse(null);
         String gridStatus = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridStatusKey)).findFirst()
                 .map(RealTimeDataValue::getValue).orElse(null);
+        double gridVoltageL1 = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridVoltageL1Key)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
+        double gridVoltageL2 = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridVoltageL2Key)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
+        double gridVoltageL3 = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridVoltageL3Key)).findFirst()
+                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
 
         powerValueRealTimeData.setCollectionTime(solarmanRealTimeData.getCollectionTime());
         powerValueRealTimeData.setInverterProtocolVersionValue(inverterProtocolVersionValue);
@@ -358,6 +370,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         powerValueRealTimeData.setGridStatusRelay(gridRelayStatus);
         powerValueRealTimeData.setGridStatusSolarman(gridStatus);
         powerValueRealTimeData.setTotalGridPower(totalGridPower);
+        powerValueRealTimeData.setGridVoltageL1(gridVoltageL1);
+        powerValueRealTimeData.setGridVoltageL2(gridVoltageL2);
+        powerValueRealTimeData.setGridVoltageL3(gridVoltageL3);
     }
 
 

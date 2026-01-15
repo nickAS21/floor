@@ -31,6 +31,9 @@ public class PowerValueRealTimeData {
     double totalProductionSolarPower;             // unit W
     double totalHomePower;   // unit W
     double totalGridPower;          // unit W
+    double gridVoltageL1;          // unit V
+    double gridVoltageL2;          // unit V
+    double gridVoltageL3;          // unit V
 
     double totalEnergySell;         // unit kWh
     double totalEnergyBuy;          // unit kWh

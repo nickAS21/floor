@@ -32,7 +32,6 @@ public class HttpUtil {
             "bfa0c1041fa8ad83e1oeik", "Boiler_Dacha_WiFi"         // bad devices old
     ));
     public static final Integer tempCurrentKuhnyMin = 2;
-    public static final Integer tempCurrentKuhny5 = 5;
     public static final String offOnKey = "switch";
     public static final String tempSetKey = "temp_set";
     public static final String deviceIdTempScaleVanna = "bfe02a3417a1a4774alyab";
@@ -52,6 +51,11 @@ public class HttpUtil {
     public static final String totalGridPowerKey = "PG_Pt1";
     public static final String gridRelayStatusKey = "GRID_RELAY_ST1";
     public static final String gridStatusKey = "ST_PG1";
+    public static final String gridVoltageL1Key = "G_V_L1";
+    public static final String gridVoltageL2Key = "G_V_L2";
+    public static final String gridVoltageL3Key = "G_V_L3";
+
+
     // battery
     public static final String batteryStatusKey = "B_ST1";
     public static final String batteryPowerKey = "B_P1";           // W
@@ -75,7 +79,6 @@ public class HttpUtil {
     public static final int minutesNightTariffStartDopDacha = 20; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
     public static final int hourNightTariffStartDopGolego = 0; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
     public static final int minutesNightTariffStartDopGolego = 0; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
-    public static final int timeLocalNightTariffFinish = 7;
     public static final int hourNightTariffFinish = 6;
     public static final int minutesNightTariffFinish = 50;  // Finish night tariff 6:50
 

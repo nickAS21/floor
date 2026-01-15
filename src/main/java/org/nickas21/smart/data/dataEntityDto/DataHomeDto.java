@@ -19,6 +19,7 @@ import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 
@@ -47,6 +48,7 @@ public class DataHomeDto {
     double gridPower;
     boolean gridStatusRealTimeOnLine;
     boolean gridStatusRealTimeSwitch;
+    Map<Integer, Double> gridVoltageLs = new ConcurrentHashMap<>();
 
     double dailyConsumptionPower;
     double dailyGridPower;
@@ -78,6 +80,9 @@ public class DataHomeDto {
             this.dailyBatteryCharge = powerValueRealTimeData.getDailyBatteryCharge();
             this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
+            this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
+            this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
+            this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());
         }
         Boolean gridRelayCodeDachaStateOnLine = deviceService.getGridRelayCodeDachaStateOnLine();
         if (gridRelayCodeDachaStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeDachaStateOnLine;
@@ -127,7 +132,7 @@ public class DataHomeDto {
                 }
 
             }
-            log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}",batteriesActiveCnt, batteriesNoActive.toString());
+            log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}",batteriesActiveCnt, batteriesNoActive);
 
             this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
             this.batterySoc = batterySocMax;
@@ -142,6 +147,7 @@ public class DataHomeDto {
                 this.batteryVol = invertorGolegoData90.getBatteryVoltage();
                 this.batteryCurrent = invertorGolegoData90.getBatteryCurrent();
                 this.homePower = invertorGolegoData90.getLoadOutputActivePower();
+                this.gridVoltageLs.put(1, invertorGolegoData90.getAcInputVoltage());
             } else {
                 this.batteryStatus = c0Data.getBmsStatusStr();
                 this.batteryVol = c0Data.getVoltageCurV();

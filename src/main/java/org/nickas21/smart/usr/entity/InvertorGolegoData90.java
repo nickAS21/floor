@@ -57,8 +57,8 @@ public class InvertorGolegoData90 {
         sb.append(formatLine(12, hexMap[6], soc, "Soc %"));
         sb.append(formatLine(14, hexMap[7], batteryChargingCurrent, "A Battery -> Charging Current "));
         sb.append(formatLine(16, hexMap[8], batteryDischargingCurrent, "A Battery -> Discharging Current "));
-        sb.append(formatLine(18, hexMap[9], loadAcOutputVoltage, "AC Load -> Input Voltage V"));
-        sb.append(formatLine(20, hexMap[10], acOutputFrequency, "AC Input Frequency Hz"));
+        sb.append(formatLine(18, hexMap[9], loadAcOutputVoltage, "AC Load -> Output Voltage V"));
+        sb.append(formatLine(20, hexMap[10], acOutputFrequency, "AC Output Frequency Hz"));
         sb.append(formatLine(22, hexMap[11], loadOutputApparentPower, "VA Load -> OutPut Apparent Power"));
         sb.append(formatLine(24, hexMap[12], loadOutputActivePower, "W Load -> OutPut Active Power"));
         sb.append(formatLine(26, hexMap[13], acOutputLoadPercent, "% AC Out Put Load"));
