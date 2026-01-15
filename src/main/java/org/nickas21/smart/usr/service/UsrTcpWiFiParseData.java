@@ -3,6 +3,7 @@ package org.nickas21.smart.usr.service;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.nickas21.smart.data.dataEntityDto.ErrorInfoDto;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.data.InvertorGolegoDecoders;
@@ -17,7 +18,6 @@ import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
-import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecord;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -39,6 +39,7 @@ import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.AUTO
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.SERVICE_REQUIRED_MAX;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFaultLogType.B1;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFaultLogType.E1;
+import static org.nickas21.smart.util.LocationType.GOLEGO;
 import static org.nickas21.smart.util.StringUtils.bytesToHex;
 import static org.nickas21.smart.util.StringUtils.getCurrentTimeString;
 import static org.nickas21.smart.util.StringUtils.intToHex;
@@ -225,7 +226,8 @@ public class UsrTcpWiFiParseData {
                 if (!newValue.equals(oldValue)) {
                     this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(c1Data.getErrorUnbalanceForRecords(port));
                     lastErrorRecords.compute(key, (k, v) -> newValue);
-                    logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
+                    ErrorInfoDto errorInfoDto = new ErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
+                    logWriter.writeError(GOLEGO, errorInfoDto);
                 }
             } else {
                 this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(null);
@@ -251,7 +253,8 @@ public class UsrTcpWiFiParseData {
                 if (!newValue.equals(oldValue)) {
                     this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(c1Data.getErrorOutputForRecords(port));
                     lastErrorRecords.put(key, newValue);
-                    logWriter.writeError(port, this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
+                    ErrorInfoDto errorInfoDto = new ErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
+                    logWriter.writeError(GOLEGO, errorInfoDto);
                 }
             } else {
                 this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(null);
@@ -260,22 +263,8 @@ public class UsrTcpWiFiParseData {
         }
 
         synchronized (this) {
-            // --- Write ALL last info c0/c1 by port every 30 minutes ---
-            // write to file today
-            // 1764862062785;8895;C0;21;140014AAFFF75A00040000000A0000000500000000
-            // 1764862063274;8897;C1;43;28100CDF0CD50CDF0CDB0CEA0CDB0CE80CEB0CF00CE20CE70CEB0CEA0CF50CF90CFC03F25F000000000C10
             long now = System.currentTimeMillis();
-            if (now - lastWriteTime >= this.usrTcpLogsWiFiProperties.getWriteInterval()) {
-                for (Map.Entry<Integer, UsrTcpWiFiBattery> entry : usrTcpWiFiBatteryRegistry.getBatteriesAll().entrySet()) {
-                    int portWrite = entry.getKey();
-                    UsrTcpWiFiBattery battery = entry.getValue();
-
-                    UsrTcpWiFiPacketRecord lastRecordC0 = battery.getC0Data().getInfoForRecords(portWrite);
-                    UsrTcpWiFiPacketRecord lastRecordC1 = battery.getC1Data().getInfoForRecords(portWrite);
-
-                    if (lastRecordC0 != null) logWriter.writeToday(portWrite, lastRecordC0);
-                    if (lastRecordC1 != null) logWriter.writeToday(portWrite, lastRecordC1);
-                }
+            if (now - lastWriteTime >= this.usrTcpLogsWiFiProperties.getActiveInterval()) {
                 lastWriteTime = now;
             }
         }

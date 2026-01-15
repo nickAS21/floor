@@ -4,22 +4,40 @@ package org.nickas21.smart.data.dataEntityDto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
+@NoArgsConstructor // Обов'язково для Jackson
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class HistoryDto {
-    // --- Short Info (Header) ---
     private long timestamp;
-    private String gridStatus;
     private double batterySoc;
     private String batteryStatus;
     private double batteryVol;
-
-    // --- Full Info (Payload) ---
-    private double batteryCurrent;
     private boolean gridStatusRealTimeOnLine;
-    private boolean gridStatusRealTimeSwitch;
-    private String batteriesFault;
-    private HistoryFullInfoDto fullInfo;
+    private DataHomeDto dataHome;
+    private List<BatteryInfoDto> batteries;
+
+    public HistoryDto(DataHomeDto dataHome, List<BatteryInfoDto> batteries) {
+        this.dataHome = dataHome;
+        this.batteries = batteries;
+
+        if (dataHome != null) {
+            this.timestamp = dataHome.getTimestamp();
+            this.batterySoc = dataHome.getBatterySoc();
+            this.batteryStatus = dataHome.getBatteryStatus();
+            this.batteryVol = dataHome.getBatteryVol();
+            this.gridStatusRealTimeOnLine = dataHome.isGridStatusRealTimeOnLine();
+        } else {
+            this.batteryStatus = "DATA_MISSING";
+        }
+
+        // Якщо timestamp не прийшов від пристрою, ставимо системний
+        if (this.timestamp == 0) {
+            this.timestamp = System.currentTimeMillis();
+        }
+    }
 }

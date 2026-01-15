@@ -112,7 +112,9 @@ usr:
       yesterday-prefix: "${USR_TCP_LOGS_YESTERDAY_PREFIX:usrTcpWiFiYesterday}"
       error-limit: "${USR_TCP_LOGS_ERROR_LIMIT:2000}"
       # 30 min
-      write-interval: "${LOGS_WRITE_INTERVAL:1800000}"
+      active-interval: "${LOGS_WRITE_INTERVAL:1800000}"
+      # 8 min
+      write-interval: "${LOGS_WRITE_INTERVAL:480000}"
       # USR_TCP_LOGS_ROTATION_CRON="0 45 13 * * *" 13:45
       # USR_TCP_LOGS_ROTATION_CRON="0 0 1 * * *" 01:00
       rotation-cron: "${USR_TCP_LOGS_ROTATION_CRON:0 0 1 * * *}"

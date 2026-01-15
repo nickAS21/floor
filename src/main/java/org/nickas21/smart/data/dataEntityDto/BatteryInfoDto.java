@@ -3,6 +3,7 @@ package org.nickas21.smart.data.dataEntityDto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
@@ -20,6 +21,7 @@ import static org.nickas21.smart.util.StringUtils.isBlank;
 
 @Slf4j
 @Data
+@NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BatteryInfoDto {

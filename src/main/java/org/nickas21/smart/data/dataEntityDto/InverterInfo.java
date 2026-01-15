@@ -41,7 +41,7 @@ public enum InverterInfo {
     private final double ratedPower;
     private final String commissioningDate; // Long Timestamp
     private final String phaseType;        // Текстовий опис
-    @JsonProperty("isHybrid") // Додайте це
+    @JsonProperty("isHybrid")
     private final boolean isHybrid;
     private final String mpptControllerName;
     private final int inputVoltage;

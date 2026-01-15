@@ -1,8 +1,11 @@
 package org.nickas21.smart.usr.io;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.data.dataEntityDto.ErrorInfoDto;
+import org.nickas21.smart.data.dataEntityDto.HistoryDto;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
-import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
+import org.nickas21.smart.util.LocationType;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedWriter;
@@ -18,131 +21,89 @@ import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
 @Slf4j
 @Component
 public class UsrTcpWiFiLogWriter implements Closeable {
 
-    private final Map<Integer, BufferedWriter> todayWriters = new HashMap<>();
-    private final Map<Integer, BufferedWriter> errorWriters = new HashMap<>();
-
+    private final Map<LocationType, BufferedWriter> todayWriters = new HashMap<>();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private String logDir;
-    private UsrTcpWiFiProperties tcpProps;
     private UsrTcpLogsWiFiProperties tcpLogsProps;
 
-    public void init(String logDir, UsrTcpWiFiProperties tcpProps, UsrTcpLogsWiFiProperties tcpLogsProps, Integer[] ports) {
+    public void init(String logDir, UsrTcpLogsWiFiProperties tcpLogsProps) {
+        this.logDir = logDir;
+        this.tcpLogsProps = tcpLogsProps;
         try {
-            log.info("UsrTcpWiFiLogWriter init... logDir: {}", logDir);
-            this.logDir = logDir;
-            this.tcpProps = tcpProps;
-            this.tcpLogsProps = tcpLogsProps;
-
-            for (Integer port : ports) {
-                todayWriters.put(port, openWriter(todayFileName(port)));
-                errorWriters.put(port, openWriter(errorFileName(port)));
+            for (LocationType locationType : LocationType.values()) {
+                todayWriters.put(locationType, openWriter(fileNameInfo(locationType, tcpLogsProps.getTodayPrefix())));
             }
-
-        } catch (Exception e) {
-            log.error("Failed to initialize writers", e);
-            throw new RuntimeException(e);
+        } catch (IOException e) {
+            log.error("Init writers failed", e);
         }
     }
 
-    private String todayFileName(int port) {
-        return tcpLogsProps.getTodayPrefix() + "_" + String.format("%02d", port) + ".log";
-    }
-
-    private String yesterdayFileName(int port) {
-        return tcpLogsProps.getYesterdayPrefix() + "_" + String.format("%02d", port) + ".log";
-    }
-
-    private String errorFileName(int port) {
-        return tcpLogsProps.getErrorPrefix() + "_" + String.format("%02d", port) + ".log";
+    public static String fileNameInfo(LocationType location, String prefix) {
+        return prefix + location.getNameForFile() + ".jsonl";
     }
 
     private BufferedWriter openWriter(String filename) throws IOException {
         File file = Paths.get(this.logDir, filename).toFile();
-        return new BufferedWriter(
-                new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8)
-        );
+        return new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8));
     }
 
-    // ---- WRITE TODAY ----
-    public synchronized void writeToday(Integer port, UsrTcpWiFiPacketRecord rec) throws IOException {
-        BufferedWriter writer = todayWriters.get(port);
+    // Запис логів Today (HistoryDto)
+    public synchronized void writeToday(LocationType locationType, HistoryDto rec) throws IOException {
+        BufferedWriter writer = todayWriters.get(locationType);
         if (writer != null) {
-            writer.write(rec.toLine());
-            writer.flush();
+            writer.write(objectMapper.writeValueAsString(rec));
+            writer.newLine();
+            writer.flush(); // Захист від втрати даних при відключенні світла
         }
     }
 
-    // ---- WRITE ERROR ----
-    public synchronized void writeError(Integer port, UsrTcpWiFiPacketRecordError rec) throws IOException {
-        File file = Paths.get(logDir, errorFileName(port)).toFile();
-
-        enforceErrorLogLimit(file);
-
-        BufferedWriter writerError = errorWriters.get(port);
-        if (writerError != null) {
-            writerError.write(rec.toLine());
-            writerError.flush();
+    // Оптимізований запис Error - тільки APPEND
+    public synchronized void writeError(LocationType locationType, ErrorInfoDto rec) throws IOException {
+        String filename = fileNameInfo(locationType, tcpLogsProps.getErrorPrefix());
+        File file = Paths.get(logDir, filename).toFile();
+        try (BufferedWriter errWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8))) {
+            errWriter.write(objectMapper.writeValueAsString(rec));
+            errWriter.newLine();
         }
     }
 
-    private void enforceErrorLogLimit(File file) throws IOException {
-        List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
-        if (lines.size() >= tcpLogsProps.getErrorLimit()) {
-            lines.remove(0); // remove oldest
-            Files.write(file.toPath(), lines, StandardCharsets.UTF_8,
-                    StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-        }
-    }
-
-    // ---- DAILY ROTATION ----
+    // Ротація та підрізання файлів помилок
     public synchronized void rotateLogs() throws IOException {
-        log.info("Rotating USR WiFi logs...");
+        for (LocationType loc : LocationType.values()) {
+            // 1. Закриваємо поточний Today
+            if (todayWriters.containsKey(loc)) todayWriters.get(loc).close();
 
-        for (Integer port : todayWriters.keySet()) {
-            // Close current writers
-            todayWriters.get(port).close();
-
-            // Rename today -> yesterday
-            File today = Paths.get(logDir, todayFileName(port)).toFile();
-            File yesterday = Paths.get(logDir, yesterdayFileName(port)).toFile();
-
+            // 2. Ротація Today -> Yesterday
+            File today = Paths.get(logDir, fileNameInfo(loc, tcpLogsProps.getTodayPrefix())).toFile();
+            File yesterday = Paths.get(logDir, fileNameInfo(loc, tcpLogsProps.getYesterdayPrefix())).toFile();
             if (yesterday.exists()) yesterday.delete();
             if (today.exists()) today.renameTo(yesterday);
 
-            // Create new today writer
-            todayWriters.put(port, openWriter(todayFileName(port)));
-        }
+            // 3. Відкриваємо новий Today
+            todayWriters.put(loc, openWriter(fileNameInfo(loc, tcpLogsProps.getTodayPrefix())));
 
-        log.info("Rotation complete.");
+            // 4. "Підрізаємо" Error файл за лімітом рядків
+            enforceErrorLogLimit(loc);
+        }
+    }
+
+    private void enforceErrorLogLimit(LocationType loc) throws IOException {
+        File file = Paths.get(logDir, fileNameInfo(loc, tcpLogsProps.getErrorPrefix())).toFile();
+        if (!file.exists()) return;
+        List<String> lines = Files.readAllLines(file.toPath());
+        if (lines.size() > tcpLogsProps.getErrorLimit()) {
+            List<String> trimmed = lines.subList(lines.size() - tcpLogsProps.getErrorLimit(), lines.size());
+            Files.write(file.toPath(), trimmed, StandardOpenOption.TRUNCATE_EXISTING);
+        }
     }
 
     @Override
-    public void close() {
-        log.info("Closing all log writers...");
-
-        // Функція для закриття колекції writer'ів та логування помилок
-        Consumer<Map<Integer, BufferedWriter>> closeWriters = map -> {
-            for (BufferedWriter writer : map.values()) {
-                if (writer != null) {
-                    try {
-                        writer.close();
-                    } catch (IOException e) {
-                        // Логуємо, але продовжуємо закривати інші writer'и
-                        log.error("Error closing log writer", e);
-                    }
-                }
-            }
-            map.clear(); // Очищаємо мапу після закриття
-        };
-
-        closeWriters.accept(todayWriters);
-        closeWriters.accept(errorWriters);
-
-        log.info("All log writers successfully closed.");
+    public void close() throws IOException {
+        for (BufferedWriter w : todayWriters.values()) if (w != null) w.close();
     }
 }

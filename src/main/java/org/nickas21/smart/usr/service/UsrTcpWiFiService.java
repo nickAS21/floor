@@ -36,13 +36,12 @@ public class UsrTcpWiFiService {
     private final java.util.concurrent.ConcurrentHashMap<Integer, Long> lastSeenMap = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.concurrent.ConcurrentHashMap<Integer, Socket> activeConnections = new java.util.concurrent.ConcurrentHashMap<>();
     private final ConcurrentHashMap<Integer, PortStatus> portStatusMap = new ConcurrentHashMap<>();
+    @Getter
     private String logsDir;
-
-
-    private final UsrTcpWiFiParseData usrTcpWiFiParseData;
-    private final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
     @Getter
     private final UsrTcpWiFiProperties tcpProps;
+    private final UsrTcpWiFiParseData usrTcpWiFiParseData;
+    private final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
 
     @Autowired
     public UsrTcpWiFiService(UsrTcpWiFiParseData usrTcpWiFiParseData, UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry, UsrTcpWiFiProperties tcpProps
@@ -80,7 +79,7 @@ public class UsrTcpWiFiService {
             }
             Files.createDirectories(Paths.get(logsDir));
             log.info("LogsDir: [{}], Starting USR TCP WiFi listeners...", logsDir);
-            usrTcpWiFiLogWriter.init(this.logsDir, tcpProps, usrTcpLogsWiFiProperties, ports);
+            usrTcpWiFiLogWriter.init(this.logsDir, usrTcpLogsWiFiProperties);
             for (int port : ports) {
                 Thread t = new Thread(() -> listenOnPort(port), "usr-tcp-listener-" + port);
                 t.setDaemon(true);

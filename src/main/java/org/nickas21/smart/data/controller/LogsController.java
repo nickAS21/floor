@@ -16,7 +16,7 @@ public class LogsController extends BaseController{
     private final LogsService logsService;
 
     @GetMapping("/app")
-    public String getLogsHomeGolego() throws IOException {
+    public String getLogsFromAppTerminal() throws IOException {
         return logsService.getLogsApp();
     }
 }

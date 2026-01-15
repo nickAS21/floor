@@ -157,7 +157,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             -AC (inverter) Temperature:  [{} grad C].
                             - usrBmsSummary:
                             -- Update Golego real time data: [{}],
-                            -- batSocLast: [{} %], 
+                            -- batSocLast: [{} %],
                             -- gridGolegoStatusRealTime: [{}],
                              {}
                        """,

@@ -10,6 +10,7 @@ public class UsrTcpLogsWiFiProperties {
     private String errorPrefix = "usrTcpWiFiError";
     private String todayPrefix = "usrTcpWiFiToday";
     private String yesterdayPrefix = "usrTcpWiFiYesterday";
-    private Long writeInterval = 1800000L;
+    private Long writeInterval = 480000L;   // 8 min
+    private Long activeInterval = 1800000L; // 30 min
     private Integer errorLimit = 2000;
 }

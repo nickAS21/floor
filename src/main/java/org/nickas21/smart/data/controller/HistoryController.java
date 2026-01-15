@@ -19,13 +19,23 @@ public class HistoryController {
         this.historyService = historyService;
     }
 
-    @GetMapping("/golego")
-    public ResponseEntity<List<HistoryDto>> getInfoHomeGolego() {
-        return ResponseEntity.ok(this.historyService.getHistoryGolego());
+    @GetMapping("/golego/today")
+    public ResponseEntity<List<HistoryDto>> getInfoHomeGolegoToday() {
+        return ResponseEntity.ok(this.historyService.getHistoryGolegoToday());
     }
 
-    @GetMapping("/dacha")
-    public ResponseEntity<List<HistoryDto>> getInfoHomeDacha() {
-        return ResponseEntity.ok(this.historyService.getHistoryDacha());
+    @GetMapping("/dacha/today")
+    public ResponseEntity<List<HistoryDto>> getInfoHomeDachaToday() {
+        return ResponseEntity.ok(this.historyService.getHistoryDachaToday());
+    }
+
+    @GetMapping("/golego/yesterday")
+    public ResponseEntity<List<HistoryDto>> getInfoHomeGolegoYesterday() {
+        return ResponseEntity.ok(this.historyService.getHistoryGolegoYesterday());
+    }
+
+    @GetMapping("/dacha/yesterday")
+    public ResponseEntity<List<HistoryDto>> getInfoHomeDachaYesterday() {
+        return ResponseEntity.ok(this.historyService.getHistoryDachaYesterday());
     }
 }
