@@ -18,6 +18,7 @@ public class HistoryDto {
     private String batteryStatus;
     private double batteryVol;
     private boolean gridStatusRealTimeOnLine;
+    private boolean gridStatusRealTimeSwitch;
     private DataHomeDto dataHome;
     private List<BatteryInfoDto> batteries;
 
@@ -31,6 +32,7 @@ public class HistoryDto {
             this.batteryStatus = dataHome.getBatteryStatus();
             this.batteryVol = dataHome.getBatteryVol();
             this.gridStatusRealTimeOnLine = dataHome.isGridStatusRealTimeOnLine();
+            this.gridStatusRealTimeSwitch = dataHome.isGridStatusRealTimeSwitch();
         } else {
             this.batteryStatus = "DATA_MISSING";
         }
