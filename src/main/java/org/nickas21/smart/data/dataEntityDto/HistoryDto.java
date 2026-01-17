@@ -19,10 +19,12 @@ public class HistoryDto {
     private double batteryVol;
     private boolean gridStatusRealTimeOnLine;
     private boolean gridStatusRealTimeSwitch;
+    private Integer inverterPort;
+    private String inverterPortConnectionStatus;
     private DataHomeDto dataHome;
     private List<BatteryInfoDto> batteries;
 
-    public HistoryDto(DataHomeDto dataHome, List<BatteryInfoDto> batteries) {
+    public HistoryDto(DataHomeDto dataHome, List<BatteryInfoDto> batteries, Integer inverterPort, String inverterPortConnectionStatus) {
         this.dataHome = dataHome;
         this.batteries = batteries;
 
@@ -41,5 +43,7 @@ public class HistoryDto {
         if (this.timestamp == 0) {
             this.timestamp = System.currentTimeMillis();
         }
+        this.inverterPort = inverterPort;
+        this.inverterPortConnectionStatus = inverterPortConnectionStatus;
     }
 }

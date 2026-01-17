@@ -75,7 +75,6 @@ import static org.nickas21.smart.tuya.constant.TuyaApi.POST_DEVICE_COMMANDS_URL_
 import static org.nickas21.smart.tuya.constant.TuyaApi.TOKEN_GRANT_TYPE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.VALUE;
 import static org.nickas21.smart.util.HttpUtil.creatHttpPathWithQueries;
-import static org.nickas21.smart.util.HttpUtil.deviceIdTempScaleVanna;
 import static org.nickas21.smart.util.HttpUtil.getBodyHash;
 import static org.nickas21.smart.util.HttpUtil.hourNightTariffStartDopDacha;
 import static org.nickas21.smart.util.HttpUtil.hourNightTariffStartDopGolego;
@@ -107,7 +106,8 @@ public class TuyaDeviceService {
     public final String gridRelayDopPrefixDacha = "gridOnlineDacha";
     public final String gridRelayDopPrefixHome = "gridOnlineHome";
     public final String boilerRelayDopPrefixHome = "boilerOnlineHome";
-    public final String deviceIdKuhny = "bf6c65fa548db455c5xty8";
+    public static final String deviceIdTempScaleVanna = "bfe02a3417a1a4774alyab";
+    public static final String deviceIdTempScaleKuhny = "bf12ddeca9ec3aeaaboax1";
     public final String deviceId3_floor = "bf4f86fd54edc80f6aegzd";
     public final String deviceIdBadRoom = "bfa270cc48a9f36de9xi6p";
     public final String deviceIdBoylerWiFi = "bfa0c1041fa8ad83e1oeik";
@@ -365,7 +365,7 @@ public class TuyaDeviceService {
             }
         } else {
             fieldNameValueUpdate = tempSetKey;
-            if (deviceIdTempScaleVanna.equals(v.getId())){
+            if (deviceIdTempScaleVanna.equals(v.getId()) || deviceIdTempScaleKuhny.equals(v.getId())){
                 valueNew = Objects.equals(valueNew, deviceProperties.getTempSetMin()) ? Integer.valueOf((Integer) valueNew * 10) : v.getValueSetMaxOn() != null ? (Integer)v.getValueSetMaxOn() * 10 : null;
                 valueOld = v.getStatusValue(fieldNameValueUpdate, deviceProperties.getTempSetMin() * 10);
             } else {
@@ -1189,7 +1189,7 @@ public class TuyaDeviceService {
      *  If the                              8-23 -> off/on hand
      */
     public void updateSwitchThermostatFirstFloor() {
-        Integer tempCur = (Integer) this.devices.getDevIds().get(this.deviceIdKuhny).getStatus().get(tempCurrentKey).getValue();
+        Integer tempCur = (Integer) this.devices.getDevIds().get(deviceIdTempScaleKuhny).getStatus().get(tempCurrentKey).getValue();
         if (tempCur != null) {
             boolean isUpdateSwitchThermostat = false;
             boolean switchValue = false;

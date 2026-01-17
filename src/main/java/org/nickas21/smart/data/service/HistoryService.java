@@ -106,7 +106,9 @@ public class HistoryService {
         try {
             DataHomeDto dachaData = new DataHomeDto(solarmanTuyaService, deviceService, usrTcpWiFiService);
             List<BatteryInfoDto> batteries = this.unitService.getBatteries (DACHA);
-            logWriter.writeToday(LocationType.DACHA, new HistoryDto(dachaData, batteries));
+            Integer inverterPort = usrTcpWiFiService.getTcpProps().getPortInverterDacha();
+            String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(inverterPort);
+            logWriter.writeToday(LocationType.DACHA, new HistoryDto(dachaData, batteries, inverterPort, inverterPortConnectionStatus));
         } catch (Exception e) {
             log.error("Error writing Dacha logs", e);
         }
@@ -114,8 +116,10 @@ public class HistoryService {
         try {
             // Тепер Golego пишеться з тим самим ритмом, що і Dacha
             DataHomeDto golegoData = new DataHomeDto(deviceService, usrTcpWiFiParseData, usrTcpWiFiService);
-            List<BatteryInfoDto> batteries = this.unitService.getBatteries (GOLEGO);
-            logWriter.writeToday(LocationType.GOLEGO, new HistoryDto(golegoData, batteries));
+            List<BatteryInfoDto> batteries = this.unitService.getBatteries(GOLEGO);
+            Integer inverterPort = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
+            String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(inverterPort);
+            logWriter.writeToday(LocationType.GOLEGO, new HistoryDto(golegoData, batteries, inverterPort, inverterPortConnectionStatus));
         } catch (Exception e) {
             log.error("Error writing Golego logs", e);
         }
