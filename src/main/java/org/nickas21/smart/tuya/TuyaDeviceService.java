@@ -46,14 +46,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -87,7 +85,6 @@ import static org.nickas21.smart.util.HttpUtil.offOnKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.tempCurrentKuhnyMin;
 import static org.nickas21.smart.util.HttpUtil.tempSetKey;
-import static org.nickas21.smart.util.HttpUtil.toLocaleDateTimeHour;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.JacksonUtil.objectToJsonNode;
 import static org.nickas21.smart.util.JacksonUtil.toJsonNode;
@@ -310,34 +307,6 @@ public class TuyaDeviceService {
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
                 this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, tempSet);
-            }
-            queueLock.lock();
-            try {
-                updateThermostats(queueUpdate, false);
-            } finally {
-                queueLock.unlock();
-            }
-        } else {
-            log.error("Devices is null, Devices not Update.");
-        }
-    }
-
-    public void updateAllThermostatNight_01(Object tempSet) {
-        boolean isUpdate = true;
-        String[] filters = getDeviceProperties().getCategoryForControlPowers();
-        Set<String> filterSet = new HashSet<>(Arrays.asList(filters));
-        if (this.devices != null) {
-            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-                if (filterSet.contains(entry.getValue().getCategory())) {
-                    if (isUpdate) {
-                        this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, tempSet);
-                        isUpdate = false;
-                    } else {
-                        isUpdate = true;
-                    }
-                }
-
             }
             queueLock.lock();
             try {
@@ -1206,101 +1175,115 @@ public class TuyaDeviceService {
     /**
      *  If the temperatureIn Kuhny <= 2  -> on Always
      *
-     *  handle - нічого не робимо
-     *  If the temperatureIn Kuhny >= 5 and 7-8 -> off auto
-     *  If the                              8-23 -> off/on hand
      */
-    public void updateSwitchThermostatFirstFloor() {
-        Integer tempCur = (Integer) this.devices.getDevIds().get(deviceIdTempScaleKuhny).getStatus().get(tempCurrentKey).getValue();
-        if (tempCur != null) {
+    public void updateSwitchThermostatFirstFloor(double batterySocCur) {
+        Integer tempCurKuhny = (Integer) this.devices.getDevIds().get(deviceIdTempScaleKuhny).getStatus().get(tempCurrentKey).getValue()/10;
+        if (tempCurKuhny != null && this.devices != null) {
+            Integer thermostatValueNew = this.getDeviceProperties().getTempSetMin();
+            boolean thermostatSwitchOffOnNew = false;
+            boolean gridRelayDachaStateOnLine = this.getGridRelayCodeDachaStateOnLine();
+            boolean gridRelayDachaSwitchOffOnOLd = this.getGridRelayCodeDachaStateSwitch();
+            boolean gridRelayDachaSwitchOffOnNew = gridRelayDachaSwitchOffOnOLd;
+
             boolean isUpdateSwitchThermostat = false;
-            boolean switchValue = false;
             String msg = null;
-            if (tempCur <= tempCurrentKuhnyMin) {
+
+            if (tempCurKuhny <= tempCurrentKuhnyMin) { // tempMin
                 isUpdateSwitchThermostat = true;
-                switchValue = true;
-                msg = "Critical temperature at the Country House: [" + tempCur + "].";
+                gridRelayDachaSwitchOffOnNew = true;
+                thermostatSwitchOffOnNew = true;
+                thermostatValueNew = this.getDeviceProperties().getTempSetMin();
+                msg = "Critical temperature at the Country House: [" + tempCurKuhny + "].";
             } else {
                 if (isSwitchRelayAfterNightOff()) {
-                    isUpdateSwitchThermostat = true;    // switchValue = false;
-                    this.updateAllThermostat(this.getDeviceProperties().getTempSetMin());
+                    isUpdateSwitchThermostat = true;
+                    gridRelayDachaSwitchOffOnNew = false;
+                    thermostatValueNew = this.getDeviceProperties().getTempSetMin();
                 } else {
-                    if (this.heaterGridOnAutoAllDayDacha) {
-                        isUpdateSwitchThermostat = true;
-                        switchValue = this.getGridRelayCodeDachaStateSwitch();
-                    } else if (!this.devicesChangeHandleControlDacha) {// is auto
-                        isUpdateSwitchThermostat = this.updateHeaterFirstWinterAuto();
-                        switchValue = isUpdateSwitchThermostat;
-                    }
+                     if (this.heaterGridOnAutoAllDayDacha) {
+                        if (gridRelayDachaStateOnLine) {
+                            isUpdateSwitchThermostat = true;
+                            gridRelayDachaSwitchOffOnNew = true;
+                            thermostatSwitchOffOnNew = true;
+                            thermostatValueNew = this.getDeviceProperties().getTempSetMax();
+                        } else {
+                            isUpdateSwitchThermostat = true;
+                            thermostatValueNew = this.getDeviceProperties().getTempSetMin();
+                         }
+                    } else if (this.heaterNightAutoOnDachaWinter) {// auto night in winter  if grid - on
+                         thermostatValueNew = this.updateHeaterFirstWinterAuto(gridRelayDachaStateOnLine, batterySocCur);
+                         if (this.getDeviceProperties().getTempSetMin().equals(thermostatValueNew)) {
+                             isUpdateSwitchThermostat = true;
+                             gridRelayDachaSwitchOffOnNew = false;
+                         } else {
+                             isUpdateSwitchThermostat = true;
+                             gridRelayDachaSwitchOffOnNew = true;
+                             thermostatSwitchOffOnNew = true;
+                         }
+                    } else if (!this.devicesChangeHandleControlDacha) {
+                         isUpdateSwitchThermostat = true;
+                         thermostatValueNew = this.getDeviceProperties().getTempSetMin();
+                     }
                 }
             }
+
             if (msg != null) {
                 this.updateMessageAlarmToTelegram(msg);
             }
 
             if (isUpdateSwitchThermostat) {
-                String[] filters = getDeviceProperties().getCategoryForControlPowers();
-                if (this.devices != null) {
-                    Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-                    for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-                        if (!deviceId3_floor.equals(entry.getKey()) &&
-                                !deviceIdBadRoom.equals(entry.getKey()) &&
-                                !deviceIdBoylerWiFi.equals(entry.getKey())) {
-                            this.deviceUpdateCategory(entry.getValue(), filters, queueUpdate, switchValue);
-                        }
-                    }
-                    queueLock.lock();
-                    try {
-                        log.info("updateSwitchThermostatFirstFloor msg: {}", msg);
-                        updateThermostats(queueUpdate, false);
-                    } finally {
-                        queueLock.unlock();
-                    }
-                } else {
-                    log.error("UpdateSwitchThermostatTemp. Devices is null, Devices not Update.");
+                if (gridRelayDachaSwitchOffOnOLd != gridRelayDachaSwitchOffOnNew) {
+                    Device device = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
+                    this.updateSwitchRelayDacha(device, gridRelayDachaSwitchOffOnNew);
+                    log.info("updateGridRelayDachaSwitchOffOnFirstFloor: [{}] msgError: [{}]", gridRelayDachaSwitchOffOnNew, msg == null ? "empty" : msg);
                 }
+                // update temp switch
+                String[] filters = getDeviceProperties().getCategoryForControlPowers();
+                Map<Device, DeviceUpdate> queueUpdateSwitch = new ConcurrentHashMap<>();
+                for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                    if (!deviceId3_floor.equals(entry.getKey()) &&
+                            !deviceIdBadRoom.equals(entry.getKey()) &&
+                            !deviceIdBoylerWiFi.equals(entry.getKey())) {
+                        this.deviceUpdateCategory(entry.getValue(), filters, queueUpdateSwitch, thermostatSwitchOffOnNew); // on/off term
+                    }
+                }
+                queueLock.lock();
+                try {
+                    log.info("updateSwitchThermostatFirstFloor: switch: [{}] msgError: [{}]", thermostatSwitchOffOnNew, msg == null ? "empty" : msg);
+                    updateThermostats(queueUpdateSwitch, false);
+                } finally {
+                    queueLock.unlock();
+                }
+                // update temp Value
+                Map<Device, DeviceUpdate> queueUpdateValue = new ConcurrentHashMap<>();
+                for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                    if (!deviceId3_floor.equals(entry.getKey()) &&
+                            !deviceIdBadRoom.equals(entry.getKey()) &&
+                            !deviceIdBoylerWiFi.equals(entry.getKey())) {
+                        this.deviceUpdateCategory(entry.getValue(), filters, queueUpdateValue, thermostatValueNew); // on/off term
+                    }
+                }
+                queueLock.lock();
+                try {
+                    log.info("updatValueThermostatFirstFloor: value: [{}]  msgError: {}", thermostatValueNew, msg == null ? "empty" : msg);
+                    updateThermostats(queueUpdateValue, false);
+                } finally {
+                    queueLock.unlock();
+                }
+
             }
+        } else {
+            log.error("UpdateSwitchThermostatTemp. Devices is null, Devices not Update.");
         }
     }
 
-    private boolean updateHeaterFirstWinterAuto() {
-        // auto on/off heating:
-        // isHeaterWinterNightAutoOnDacha winter + NightTariff + grid switch online + grid switch state - on
-        // 23 + dop >= time <= 6:50: NightTariff (1/2 => first (23 + dop) + 15; second =>  (23 + dop) + 25)
-        Device device = this.getDevices().getDevIds().get(this.getGridRelayCodeIdDacha());
-        int curHour = toLocaleDateTimeHour();
-        if (device != null && device.currentStateOnLine().getValue()) {
-            if (isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha)) {
-                if (this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId()) {
-                    boolean paramOnOff = true;
-                    if (this.heaterNightAutoOnDachaWinter) {
-                        DeviceUpdate deviceUpdate = this.getDeviceUpdate(paramOnOff, device);
-                        if (!deviceUpdate.isUpdate()) {
-                            log.info("Update parameters: Increased electricity consumption for everyone, TempSetNax, night tariff, exact time: [{}].", curHour);
-                            this.updateAllThermostat(this.getDeviceProperties().getTempSetMax());
-                            log.info("Update parameters: Increased electricity consumption for everyone, TempSetNax, NightTariffStart_1, exact time: [{}].", curHour);
-                            this.updateAllThermostatNight_01(this.getDeviceProperties().getTempSetMax());
-                        } else {
-                            this.updateAllThermostat(this.getDeviceProperties().getTempSetMin());
-                            log.info("Update parameters: Reducing electricity consumption, TempSetMin, No grid power supply, night tariff, exact time: [{}].", curHour);
-                            this.updateSwitchRelayDacha(device, paramOnOff);
-                            this.batteryCriticalOrHeatNightWinter = true;
-                        }
-                        return true;
-                    } else {
-                        this.updateAllThermostat(this.getDeviceProperties().getTempSetMin());
-                        log.info("Update parameters: Reducing electricity consumption, TempSetMin, No grid power supply, night tariff, exact time: [{}].", curHour);
-                    }
-                } else {
-                    log.info("Update parameters: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", curHour);
-                    this.updateAllThermostat(this.getDeviceProperties().getTempSetMin());
-                }
-            }
-        } else {
-            log.info("Update parameters: Reducing electricity consumption, TempSetMin, night tariff has expired, exact time: [{}].", curHour);
-            this.updateAllThermostat(this.getDeviceProperties().getTempSetMin());
+    private Integer updateHeaterFirstWinterAuto(boolean switchOnLine, double batterySocCur) {
+        if (isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha) &&
+            this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() &&
+                switchOnLine && this.batteryCriticalNightSocWinter > batterySocCur) {
+                    return this.getDeviceProperties().getTempSetMax();
         }
-        return false;
+        return this.getDeviceProperties().getTempSetMin();
     }
 
     private void deviceUpdateCategory(Device device, String[] filters, Map<Device, DeviceUpdate> queueUpdate, Object valueNew) {

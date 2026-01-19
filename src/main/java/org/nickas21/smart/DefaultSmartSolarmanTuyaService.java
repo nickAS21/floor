@@ -243,8 +243,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
 
             if (this.batterySocCur > 0) {
-                // update auto switch dacha heating -> if (time = 7-8 && tempCurrentKuhny >= 5): if hour = 8-23 hand mode
-                this.tuyaDeviceService.updateSwitchThermostatFirstFloor();
+
+                this.tuyaDeviceService.updateSwitchThermostatFirstFloor(this.batterySocCur);
                 String msgProgressBar = toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli())) + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
                 this.setProgressBarThread(msgProgressBar);
             }
