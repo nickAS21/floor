@@ -22,7 +22,8 @@ public class SettingsService {
     public DataSettingsDto getSettingsGolego() {
         DataSettingsDto dataSettingsDto = new DataSettingsDto();
         dataSettingsDto.setVersionBackend( solarmanTuyaService.getVersion());
-        dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlGolego());
+        dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlGolego()); //
+        dataSettingsDto.setHeaterGridOnAutoAllDay(deviceService.isHeaterGridOnAutoAllDayGolego());
         dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
         return dataSettingsDto;
     }
@@ -34,6 +35,7 @@ public class SettingsService {
         dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
         dataSettingsDto.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());
         dataSettingsDto.setHeaterNightAutoOnDachaWinter(deviceService.isHeaterNightAutoOnDachaWinter());
+        dataSettingsDto.setHeaterGridOnAutoAllDay(deviceService.isHeaterGridOnAutoAllDayDacha());
         if (solarmanStationsService.getSolarmanStation() != null) {
             dataSettingsDto.setSeasonsId(solarmanStationsService.getSolarmanStation().getSeasonsId());
         }
@@ -42,7 +44,10 @@ public class SettingsService {
 
     public DataSettingsDto setSettingsGolego(DataSettingsDto settingsGolego) {
         if (settingsGolego.getDevicesChangeHandleControl() != null) {
-            deviceService.setDevicesChangeHandleControlGolego(settingsGolego.getDevicesChangeHandleControl());
+            deviceService.setDevicesChangeHandleControlGolego(settingsGolego.getDevicesChangeHandleControl()); //
+        }
+        if (settingsGolego.getHeaterGridOnAutoAllDay() != null) {
+            deviceService.setHeaterGridOnAutoAllDayGolego(settingsGolego.getHeaterGridOnAutoAllDay());
         }
         if (settingsGolego.getLogsAppLimit() != null) {
             deviceService.setLogsAppLimit(settingsGolego.getLogsAppLimit());
@@ -59,6 +64,9 @@ public class SettingsService {
         }
         if (settingsDacha.getHeaterNightAutoOnDachaWinter() != null) {
             deviceService.setHeaterNightAutoOnDachaWinter(settingsDacha.getHeaterNightAutoOnDachaWinter());
+        }
+        if (settingsDacha.getHeaterGridOnAutoAllDay() != null) {
+            deviceService.setHeaterGridOnAutoAllDayDacha(settingsDacha.getHeaterGridOnAutoAllDay());
         }
         if (settingsDacha.getLogsAppLimit() != null) {
             deviceService.setLogsAppLimit(settingsDacha.getLogsAppLimit());

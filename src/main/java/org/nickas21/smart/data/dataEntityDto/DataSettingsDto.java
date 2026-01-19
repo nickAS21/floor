@@ -16,7 +16,8 @@ public class DataSettingsDto {
     private Boolean devicesChangeHandleControl;
     private Integer logsAppLimit;
     // Специфічне поле (використовуємо Double замість double, щоб воно могло бути null)
-    private Double batteryCriticalNightSocWinter;
+    private Double batteryCriticalNightSocWinter; // BatteryStatus -> max = STATIC("Static", 98.00) min =  DISCHARGING("Discharging", 40.00),
     private Boolean heaterNightAutoOnDachaWinter;
+    private Boolean heaterGridOnAutoAllDay;
     private Integer seasonsId;
 }

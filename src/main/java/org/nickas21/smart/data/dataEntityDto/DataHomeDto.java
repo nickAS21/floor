@@ -101,6 +101,8 @@ public class DataHomeDto {
 
     // Golego
     public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, UsrTcpWiFiService usrTcpWiFiService) {
+        int portDacha = usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha();
+        log.warn("Dacha inverter port [{}]: is -> [{}]", portDacha, usrTcpWiFiService.getStatusByPort(portDacha));
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
         Boolean gridRelayCodeGolegoStateOnLine = deviceService.getGridRelayCodeGolegoStateOnLine();
