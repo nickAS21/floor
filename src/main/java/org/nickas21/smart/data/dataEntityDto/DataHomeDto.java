@@ -64,7 +64,7 @@ public class DataHomeDto {
     // Dacha
     public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService, UsrTcpWiFiService usrTcpWiFiService) {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
-        if (powerValueRealTimeData != null) {
+        if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
             this.timestamp = powerValueRealTimeData.getCollectionTime() * 1000;
             this.batterySoc = powerValueRealTimeData.getBatterySocValue();
             this.batteryStatus = powerValueRealTimeData.getBatteryStatusValue();

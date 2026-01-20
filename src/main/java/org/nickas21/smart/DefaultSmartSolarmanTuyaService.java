@@ -208,8 +208,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                 infoActionDop = "TempSetMin";
                                 isDayPrevious = isDay;
                             } else if (this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() || this.tuyaDeviceService.getGridRelayCodeDachaStateSwitch()) {
-                                infoAction = "GridRelayDachaStateSwitch is on";
-                                infoActionDop = "Update TempSet to UpdateOnOfSwitchRelay";
+                                infoAction = "Is run GridRelayDachaStateSwitch: ";
+                                infoActionDop = "Update TempSet from UpdateOnOfSwitchRelay";
                             } else {
                                 if (batterySocNew < batterySocMin) {
                                     // Reducing electricity consumption

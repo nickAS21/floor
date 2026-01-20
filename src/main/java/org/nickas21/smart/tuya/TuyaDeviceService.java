@@ -101,8 +101,9 @@ import static org.nickas21.smart.util.StringUtils.isDecimal;
 public class TuyaDeviceService {
 
     public final String gridRelayDopPrefixDacha = "gridOnlineDacha";
-    public final String gridRelayDopPrefixHome = "gridOnlineHome";
-    public final String boilerRelayDopPrefixHome = "boilerOnlineHome";
+    public final String boilerRelayDopPrefixDacha = "boilerOnlineDacha";
+    public final String gridRelayDopPrefixGolego = "gridOnlineGolego";
+    public final String boilerRelayDopPrefixGolego = "boilerOnlineGolego";
     public static final String deviceIdTempScaleVanna = "bfe02a3417a1a4774alyab";
     public static final String deviceIdTempScaleKuhny = "bf12ddeca9ec3aeaaboax1";
     public final String deviceId3_floor = "bf4f86fd54edc80f6aegzd";
@@ -153,6 +154,7 @@ public class TuyaDeviceService {
     private Devices devices;
 
     private String gridRelayCodeIdDacha;
+    private String boilerRelayCodeIdDacha;
     private String gridRelayCodeIdHome;
     private String boilerRelayCodeIdHome;
 
@@ -332,7 +334,7 @@ public class TuyaDeviceService {
         Object valueOld;
         if (valueNew instanceof Boolean) {
             fieldNameValueUpdate = gridRelayDopPrefixDacha.equals(v.getValueSetMaxOn()) ||
-                    boilerRelayDopPrefixHome.equals(v.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
+                    boilerRelayDopPrefixGolego.equals(v.getValueSetMaxOn()) ? offOnKey + "_1" : offOnKey;
             valueOld = v.getStatusValue(fieldNameValueUpdate, false);
         } else if (v.getValueSetMaxOn() != null && v.getValueSetMaxOn() instanceof Boolean) {
             fieldNameValueUpdate = offOnKey;
@@ -778,7 +780,7 @@ public class TuyaDeviceService {
                 log.warn("Device with id [{}] is not available", deviceId);
             }
         } else {
-            log.error("Device with id [{}] is not available. Device in handle mode or bad or delete", deviceId);
+            log.error("Device with id [{}] is not available. Device is off or handle mode or bad or delete", deviceId);
         }
         return device;
     }
@@ -978,16 +980,24 @@ public class TuyaDeviceService {
         return this.gridRelayCodeIdDacha;
     }
 
+    public String getBoilerRelayCodeIdDacha() {
+        if (this.boilerRelayCodeIdDacha == null) {
+            this.boilerRelayCodeIdDacha = this.getGridRelayCode(this.boilerRelayDopPrefixDacha);
+        }
+        return this.boilerRelayCodeIdHome;
+    }
+
     public String getGridRelayCodeIdGolego() {
         if (this.gridRelayCodeIdHome == null) {
-            this.gridRelayCodeIdHome = this.getGridRelayCode(this.gridRelayDopPrefixHome);
+            this.gridRelayCodeIdHome = this.getGridRelayCode(this.gridRelayDopPrefixGolego);
         }
         return this.gridRelayCodeIdHome;
     }
 
-    public String getBoilerRelayCodeIdHome() {
+
+    public String getBoilerRelayCodeIdGolego() {
         if (this.boilerRelayCodeIdHome == null) {
-            this.boilerRelayCodeIdHome = this.getGridRelayCode(this.boilerRelayDopPrefixHome);
+            this.boilerRelayCodeIdHome = this.getGridRelayCode(this.boilerRelayDopPrefixGolego);
         }
         return this.boilerRelayCodeIdHome;
     }
@@ -1068,7 +1078,7 @@ public class TuyaDeviceService {
     public void updateOnOfSwitchRelay(double batterySocFromSolarman, double batterySocFromUsr) {
         this.updateSwitchReleayDachaAndThermostatFirstFloor(batterySocFromSolarman);
         this.updateOnOffSwitchRelayGolego(this.getGridRelayCodeIdGolego(), batterySocFromUsr);
-        this.updateOnOffSwitchRelayGolego(this.getBoilerRelayCodeIdHome(), batterySocFromUsr);
+        this.updateOnOffSwitchRelayGolego(this.getBoilerRelayCodeIdGolego(), batterySocFromUsr);
     }
 
     /**
@@ -1157,6 +1167,12 @@ public class TuyaDeviceService {
      *  If the temperatureIn Kuhny <= 2  -> on Always
      */
     public void updateSwitchReleayDachaAndThermostatFirstFloor(double batterySocFromSolarman) {
+        log.info("updateGridRelayDachaSwitchOffOnFirstFloor start: heaterGridOnAutoAllDayDacha [{}], devicesChangeHandleControlDacha [{}], heaterNightAutoOnDachaWinter [{}], SeasonsID [{}], batteryCriticalNightSocWinter [{}]",
+                this.heaterGridOnAutoAllDayDacha, this.devicesChangeHandleControlDacha, this.heaterNightAutoOnDachaWinter,
+                this.solarmanStationsService.getSolarmanStation().getSeasonsId(), this.batteryCriticalNightSocWinter);
+        log.info("this.devices != null [{}], this.devices.getDevIds() != mull [{}], this.devices.getDevIds().get(deviceIdTempScaleKuhny) [{}]",
+                this.devices != null, this.devices.getDevIds() != null, this.devices.getDevIds().get(deviceIdTempScaleKuhny) != null);
+
         if (this.devices != null && this.devices.getDevIds().get(deviceIdTempScaleKuhny) != null) {
             Integer tempCurKuhny = (Integer) this.devices.getDevIds().get(deviceIdTempScaleKuhny).getStatus().get(tempCurrentKey).getValue();
             if (tempCurKuhny != null) {
@@ -1206,8 +1222,13 @@ public class TuyaDeviceService {
                                 thermostatSwitchOffOnNew = true;
                             }
                         } else if (!this.devicesChangeHandleControlDacha) {
-                            isUpdateSwitchThermostat = true;
-                            thermostatValueNew = this.getDeviceProperties().getTempSetMin();
+                            Integer thermostatValueForGridSwitch = this.updateHeaterFirstWinterAuto(gridRelayDachaStateOnLine, batterySocFromSolarman);
+                            if (this.getDeviceProperties().getTempSetMin().equals(thermostatValueForGridSwitch)) {
+                                gridRelayDachaSwitchOffOnNew = false;
+                            } else {
+                                // is not handler + winter +  night + batteryCriticalNightSocWinter
+                                gridRelayDachaSwitchOffOnNew = true;
+                            }
                         }
                     }
                 }
