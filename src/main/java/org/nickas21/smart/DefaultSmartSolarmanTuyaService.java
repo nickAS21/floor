@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.BatteryStatus;
+import org.nickas21.smart.solarman.Seasons;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
@@ -142,8 +143,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 tuyaDeviceService.updateMessageAlarmToTelegram(null);
             } else {
                 initUpdateTimeoutSheduler();
-                tuyaDeviceService.updateGridStateOnLineToTelegram();
-                tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, batterySocUsr);
+                this.tuyaDeviceService.updateGridStateOnLineToTelegram();
+                this.tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, batterySocUsr);
             }
 
             log.info("""
@@ -206,16 +207,21 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                                 infoAction = "After the night...";
                                 infoActionDop = "TempSetMin";
                                 isDayPrevious = isDay;
-                            } else if (batterySocNew < batterySocMin) {
-                                // Reducing electricity consumption
-                                tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
-                                infoAction = "Reducing";
-                                infoActionDop = "TempSetMin";
+                            } else if (this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() || this.tuyaDeviceService.getGridRelayCodeDachaStateSwitch()) {
+                                infoAction = "GridRelayDachaStateSwitch is on";
+                                infoActionDop = "Update TempSet to UpdateOnOfSwitchRelay";
                             } else {
-                                // Battery charge/discharge analysis program
-                                this.batteryChargeDischarge(isCharge, freePowerCorrect);
-                                infoAction = "Change";
-                                infoActionDop = "TempSet_Min/Max";
+                                if (batterySocNew < batterySocMin) {
+                                    // Reducing electricity consumption
+                                    this.tuyaDeviceService.updateAllThermostat(this.tuyaDeviceService.getDeviceProperties().getTempSetMin());
+                                    infoAction = "Reducing";
+                                    infoActionDop = "TempSetMin";
+                                } else {
+                                    // Battery charge/discharge analysis program
+                                    this.batteryChargeDischarge(isCharge, freePowerCorrect);
+                                    infoAction = "Change";
+                                    infoActionDop = "TempSet_Min/Max";
+                                }
                             }
                             log.info("{} electricity consumption, battery batterySocNew [{}], battery StatusCorrect [{}], battery StatusFact [{}], freePower [{}],  action [{}].",
                                     infoAction,
@@ -243,8 +249,6 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             }
 
             if (this.batterySocCur > 0) {
-
-                this.tuyaDeviceService.updateSwitchThermostatFirstFloor(this.batterySocCur);
                 String msgProgressBar = toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli())) + ". Next update: " + toLocaleTimeString(Instant.ofEpochMilli(curInst.toEpochMilli() + this.timeoutSecUpdate * 1000)) + ",  after [" + this.timeoutSecUpdate / 60 + "] min: ";
                 this.setProgressBarThread(msgProgressBar);
             }
