@@ -1103,7 +1103,8 @@ public class TuyaDeviceService {
             Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
             DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
 
-            if (!isSwitchRelayAfterNightOff() && this.devicesChangeHandleControlGolego) {   // handle and not -> 7-8 (AfterNight)
+//            if (!isSwitchRelayAfterNightOff() && this.devicesChangeHandleControlGolego) {   // handle and not -> 7-8 (AfterNight)
+            if (this.devicesChangeHandleControlGolego) {   // handle and not -> 7-8 (AfterNight)
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
 
@@ -1288,9 +1289,13 @@ public class TuyaDeviceService {
     }
 
     private Integer updateHeaterFirstWinterAuto(boolean switchOnLine, double batterySocCur) {
-        if (isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha) &&
-            this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() &&
-                switchOnLine && this.batteryCriticalNightSocWinter > batterySocCur) {
+
+//        if (isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha) &&
+//            this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() &&
+//                switchOnLine && this.batteryCriticalNightSocWinter > batterySocCur) {
+//                    return this.getDeviceProperties().getTempSetMax();
+//        }
+        if ( batteryCriticalOrHeatNightSwitchRelayDachaOnOffWinter(batterySocCur) && switchOnLine) {
                     return this.getDeviceProperties().getTempSetMax();
         }
         return this.getDeviceProperties().getTempSetMin();
@@ -1308,6 +1313,37 @@ public class TuyaDeviceService {
                 }
             }
         }
+    }
+
+
+    /**
+     * battery is charge/discharge  if night and Winter
+     * працює тільки взимку + нічний тариф + тільки для dacha
+     * якщо SOC батареї падає нижче критичного, фіксує стан batteryCriticalOrHeatNightWinter = true
+     * після цього повертає true завжди, доки не закінчиться ніч або зима
+     *
+     * paramOnOff = true/false if: is NightTariff && this.getHourChargeBattery() in NightTariff && Winter
+     * -- HourChargeBattery < 7 ... =>  HourChargeBattery >= 1:30
+     * --if batterySocFromSolarman <= batteryCriticalNightSocWinter → critical night mode ON = true => 60%/50%/40%
+     */
+    public boolean batteryCriticalOrHeatNightSwitchRelayDachaOnOffWinter(double batterySocFromSolarman) {
+        boolean isWinter = this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId();
+
+        if (!isWinter || !isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha)) { // summer or day
+            this.batteryCriticalOrHeatNightWinter = false;
+            return false;
+        }
+
+        if (this.batteryCriticalOrHeatNightWinter) {
+            return true;
+        }
+
+        if (batterySocFromSolarman <= this.batteryCriticalNightSocWinter) {
+            this.batteryCriticalOrHeatNightWinter = true;
+            return true;
+        }
+
+        return false;
     }
 }
 
