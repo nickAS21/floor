@@ -144,7 +144,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             } else {
                 initUpdateTimeoutSheduler();
                 this.tuyaDeviceService.updateGridStateOnLineToTelegram();
-                this.tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, batterySocUsr);
+                this.tuyaDeviceService.updateOnOfSwitchRelay(batterySocNew, batterySocUsr, powerValueRealTimeData.getTotalGridPower());
             }
 
             log.info("""

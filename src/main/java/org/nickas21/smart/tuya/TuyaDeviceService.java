@@ -1075,8 +1075,8 @@ public class TuyaDeviceService {
      * -- day == from 8:00 to (23 + dop)
      *     off
      */
-    public void updateOnOfSwitchRelay(double batterySocFromSolarman, double batterySocFromUsr) {
-        this.updateSwitchReleayDachaAndThermostatFirstFloor(batterySocFromSolarman);
+    public void updateOnOfSwitchRelay(double batterySocFromSolarman, double batterySocFromUsr, double totalGridPower) {
+        this.updateSwitchReleayDachaAndThermostatFirstFloor(batterySocFromSolarman, totalGridPower);
         this.updateOnOffSwitchRelayGolego(this.getGridRelayCodeIdGolego(), batterySocFromUsr);
         this.updateOnOffSwitchRelayGolego(this.getBoilerRelayCodeIdGolego(), batterySocFromUsr);
     }
@@ -1167,7 +1167,7 @@ public class TuyaDeviceService {
     /**
      *  If the temperatureIn Kuhny <= 2  -> on Always
      */
-    public void updateSwitchReleayDachaAndThermostatFirstFloor(double batterySocFromSolarman) {
+    public void updateSwitchReleayDachaAndThermostatFirstFloor(double batterySocFromSolarman, double totalGridPower) {
         log.info("updateGridRelayDachaSwitchOffOnFirstFloor start: heaterGridOnAutoAllDayDacha [{}], devicesChangeHandleControlDacha [{}], heaterNightAutoOnDachaWinter [{}], SeasonsID [{}], batteryCriticalNightSocWinter [{}]",
                 this.heaterGridOnAutoAllDayDacha, this.devicesChangeHandleControlDacha, this.heaterNightAutoOnDachaWinter,
                 this.solarmanStationsService.getSolarmanStation().getSeasonsId(), this.batteryCriticalNightSocWinter);
@@ -1206,21 +1206,28 @@ public class TuyaDeviceService {
                             if (gridRelayDachaStateOnLine) {
                                 isUpdateSwitchThermostat = true;
                                 gridRelayDachaSwitchOffOnNew = true;
-                                thermostatSwitchOffOnNew = true;
-                                thermostatValueNew = this.getDeviceProperties().getTempSetMax();
+                                if(totalGridPower <= 0){
+                                    thermostatValueNew = this.getDeviceProperties().getTempSetMin();
+                                } else {
+                                    thermostatSwitchOffOnNew = true;
+                                    thermostatValueNew = this.getDeviceProperties().getTempSetMax();
+                                }
                             } else {
                                 isUpdateSwitchThermostat = true;
                                 thermostatValueNew = this.getDeviceProperties().getTempSetMin();
                             }
                         } else if (this.heaterNightAutoOnDachaWinter) {// auto night in winter  if grid - on
                             thermostatValueNew = this.updateHeaterFirstWinterAuto(gridRelayDachaStateOnLine, batterySocFromSolarman);
+                            isUpdateSwitchThermostat = true;
                             if (this.getDeviceProperties().getTempSetMin().equals(thermostatValueNew)) {
-                                isUpdateSwitchThermostat = true;
                                 gridRelayDachaSwitchOffOnNew = false;
                             } else {
-                                isUpdateSwitchThermostat = true;
                                 gridRelayDachaSwitchOffOnNew = true;
                                 thermostatSwitchOffOnNew = true;
+                            }
+                            if (totalGridPower <= 0){
+                                thermostatSwitchOffOnNew = false;
+                                thermostatValueNew = this.getDeviceProperties().getTempSetMin();
                             }
                         } else if (!this.devicesChangeHandleControlDacha) {
                             Integer thermostatValueForGridSwitch = this.updateHeaterFirstWinterAuto(gridRelayDachaStateOnLine, batterySocFromSolarman);
