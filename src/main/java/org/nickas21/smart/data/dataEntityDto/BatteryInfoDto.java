@@ -93,8 +93,8 @@ public class BatteryInfoDto {
                 this.errorOutput =  c1Data.getErrorOutput();
             }
             this.deltaMv = c1Data.getDeltaMv() / 1000.0;  // this.deltaMv in V Critical > 0.100 V
-            this.minCellIdx =  c1Data.getMinCellV().get(keyIdx).asInt();
-            this.maxCellIdx =  c1Data.getMaxCellV().get(keyIdx).asInt();
+            this.minCellIdx =  c1Data.getMinCellV() == null ? -1 :  c1Data.getMinCellV().get(keyIdx).asInt();
+            this.maxCellIdx =  c1Data.getMaxCellV() == null ? -1 : c1Data.getMaxCellV().get(keyIdx).asInt();
             this.connectionStatus = usrTcpWiFiService.getStatusByPort(this.port);
             this.cellVoltagesV = c1Data.getCellVoltagesV();
         }

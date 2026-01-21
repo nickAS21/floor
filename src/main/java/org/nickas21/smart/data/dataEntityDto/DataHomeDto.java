@@ -136,7 +136,7 @@ public class DataHomeDto {
                 }
 
             }
-            log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}",batteriesActiveCnt, batteriesNoActive);
+            log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
 
             this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
             this.batterySoc = batterySocMax;
@@ -155,7 +155,7 @@ public class DataHomeDto {
             } else {
                 this.batteryStatus = c0Data.getBmsStatusStr();
                 this.batteryVol = c0Data.getVoltageCurV();
-                this.batteryCurrent = batteryCurrentAll;
+                this.batteryCurrent = Math.round(batteryCurrentAll * 100.0) / 100.0;;
                  if (this.batteryCurrent == 0 && this.gridPower == 0) {
                     this.homePower = 0;
                 } else if (this.batteryCurrent < 0) {
