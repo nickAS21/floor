@@ -107,6 +107,9 @@ usr:
     monitor-inactivity-time-out: "${MONITOR_ACTIVITY_TIME_OUT:1200000}"
     margin-ms: "${MARGIN_MS:1200000}"
     check-rate: "${CHECK_RATE:60000}"
+    infos:
+      dir: "${USR_TCP_INFOS_DIR:./infos/}"
+      fileName: "${USR_TCP_FILE_NAME_DIR:usrInfo.jsonl}"
     logs:
       dir: "${USR_TCP_LOGS_DIR:./logs/}"
       error-prefix: "${USR_TCP_FILE_ERROR_PREFIX:usrTcpWiFiError}"

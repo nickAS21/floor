@@ -3,7 +3,7 @@ package org.nickas21.smart.usr.service;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.nickas21.smart.data.dataEntityDto.ErrorInfoDto;
+import org.nickas21.smart.data.dataEntityDto.DataErrorInfoDto;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.data.InvertorGolegoDecoders;
@@ -226,8 +226,8 @@ public class UsrTcpWiFiParseData {
                 if (!newValue.equals(oldValue)) {
                     this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(c1Data.getErrorUnbalanceForRecords(port));
                     lastErrorRecords.compute(key, (k, v) -> newValue);
-                    ErrorInfoDto errorInfoDto = new ErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
-                    logWriter.writeError(GOLEGO, errorInfoDto);
+                    DataErrorInfoDto dataErrorInfoDto = new DataErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
+                    logWriter.writeError(GOLEGO, dataErrorInfoDto);
                 }
             } else {
                 this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(null);
@@ -253,8 +253,8 @@ public class UsrTcpWiFiParseData {
                 if (!newValue.equals(oldValue)) {
                     this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(c1Data.getErrorOutputForRecords(port));
                     lastErrorRecords.put(key, newValue);
-                    ErrorInfoDto errorInfoDto = new ErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
-                    logWriter.writeError(GOLEGO, errorInfoDto);
+                    DataErrorInfoDto dataErrorInfoDto = new DataErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
+                    logWriter.writeError(GOLEGO, dataErrorInfoDto);
                 }
             } else {
                 this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(null);

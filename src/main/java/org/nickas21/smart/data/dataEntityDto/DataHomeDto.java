@@ -73,6 +73,7 @@ public class DataHomeDto {
                     Math.abs(powerValueRealTimeData.getBatteryCurrentValue()), // Only value
                     powerValueRealTimeData.getBmsCurrentValue()                // Only range
             );
+//            this.batteryCurrent = this.batteryStatus.equals("Discharging") ? -this.batteryCurrent : this.batteryCurrent;
             this.solarPower = powerValueRealTimeData.getTotalProductionSolarPower();
             this.homePower = powerValueRealTimeData.getTotalHomePower();
             this.gridPower = powerValueRealTimeData.getTotalGridPower();

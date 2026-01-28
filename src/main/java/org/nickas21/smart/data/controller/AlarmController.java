@@ -1,6 +1,6 @@
 package org.nickas21.smart.data.controller;
 
-import org.nickas21.smart.data.dataEntityDto.ErrorInfoDto;
+import org.nickas21.smart.data.dataEntityDto.DataErrorInfoDto;
 import org.nickas21.smart.data.service.AlarmService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,13 +21,13 @@ public class AlarmController {
     }
 
     @GetMapping("/golego")
-    public ResponseEntity<List<ErrorInfoDto>> getGolegoAlarms() {
+    public ResponseEntity<List<DataErrorInfoDto>> getGolegoAlarms() {
         // Повертає список з файлу GolegoErrors
         return ResponseEntity.ok(this.alarmService.getGolegoErrors());
     }
 
     @GetMapping("/dacha")
-    public ResponseEntity<List<ErrorInfoDto>> getDachaAlarms() {
+    public ResponseEntity<List<DataErrorInfoDto>> getDachaAlarms() {
         // Повертає список з файлу DachaErrors
         return ResponseEntity.ok(this.alarmService.getDachaErrors());
     }

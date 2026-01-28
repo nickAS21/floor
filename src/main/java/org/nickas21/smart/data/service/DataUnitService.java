@@ -4,8 +4,8 @@ package org.nickas21.smart.data.service;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.dataEntityDto.BatteryInfoDto;
 import org.nickas21.smart.data.dataEntityDto.DataUnitDto;
-import org.nickas21.smart.data.dataEntityDto.DeviceDto;
-import org.nickas21.smart.data.dataEntityDto.InverterDto;
+import org.nickas21.smart.data.dataEntityDto.DataDeviceDto;
+import org.nickas21.smart.data.dataEntityDto.DataInverterDto;
 import org.nickas21.smart.data.dataEntityDto.InverterInfo;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
@@ -38,24 +38,24 @@ public class DataUnitService {
 
     public DataUnitDto getUnitGolego() {
         List<BatteryInfoDto> batteries = this.getBatteries (GOLEGO);
-        List<DeviceDto> devices = new ArrayList<>();
+        List<DataDeviceDto> devices = new ArrayList<>();
         Integer port = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
         Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(port).orElse(0L);
         String timestamp =  formatTimestamp(lastTimestamp, datePatternGridStatus);
         String connectionStatus = usrTcpWiFiService.getStatusByPort(port);
-        InverterDto inverterDto = new InverterDto(timestamp, port, connectionStatus, InverterInfo.GOLEGO);
-        return new DataUnitDto(batteries, inverterDto, devices);
+        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, port, connectionStatus, InverterInfo.GOLEGO);
+        return new DataUnitDto(batteries, dataInverterDto, devices);
     }
 
     public DataUnitDto getUnitDacha() {
         List<BatteryInfoDto> batteries = this.getBatteries (DACHA);
-        List<DeviceDto> devices = new ArrayList<>();
+        List<DataDeviceDto> devices = new ArrayList<>();
         Integer port = usrTcpWiFiService.getTcpProps().getPortInverterDacha();
         Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(port).orElse(0L);
         String timestamp =  formatTimestamp(lastTimestamp, datePatternGridStatus);
         String connectionStatus = usrTcpWiFiService.getStatusByPort(port);
-        InverterDto inverterDto = new InverterDto(timestamp, port, connectionStatus, InverterInfo.DACHA);
-        return new DataUnitDto(batteries, inverterDto, devices);
+        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, port, connectionStatus, InverterInfo.DACHA);
+        return new DataUnitDto(batteries, dataInverterDto, devices);
     }
 
     public List<BatteryInfoDto> getBatteries (LocationType location) {

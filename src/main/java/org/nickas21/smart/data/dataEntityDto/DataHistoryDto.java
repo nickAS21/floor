@@ -12,7 +12,7 @@ import java.util.List;
 @NoArgsConstructor // Обов'язково для Jackson
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class HistoryDto {
+public class DataHistoryDto {
     private long timestamp;
     private double batterySoc;
     private String batteryStatus;
@@ -24,7 +24,7 @@ public class HistoryDto {
     private DataHomeDto dataHome;
     private List<BatteryInfoDto> batteries;
 
-    public HistoryDto(DataHomeDto dataHome, List<BatteryInfoDto> batteries, Integer inverterPort, String inverterPortConnectionStatus) {
+    public DataHistoryDto(DataHomeDto dataHome, List<BatteryInfoDto> batteries, Integer inverterPort, String inverterPortConnectionStatus) {
         this.dataHome = dataHome;
         this.batteries = batteries;
 

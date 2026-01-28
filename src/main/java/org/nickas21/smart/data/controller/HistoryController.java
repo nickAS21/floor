@@ -1,6 +1,6 @@
 package org.nickas21.smart.data.controller;
 
-import org.nickas21.smart.data.dataEntityDto.HistoryDto;
+import org.nickas21.smart.data.dataEntityDto.DataHistoryDto;
 import org.nickas21.smart.data.service.HistoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,22 +20,22 @@ public class HistoryController {
     }
 
     @GetMapping("/golego/today")
-    public ResponseEntity<List<HistoryDto>> getInfoHomeGolegoToday() {
+    public ResponseEntity<List<DataHistoryDto>> getInfoHomeGolegoToday() {
         return ResponseEntity.ok(this.historyService.getHistoryGolegoToday());
     }
 
     @GetMapping("/dacha/today")
-    public ResponseEntity<List<HistoryDto>> getInfoHomeDachaToday() {
+    public ResponseEntity<List<DataHistoryDto>> getInfoHomeDachaToday() {
         return ResponseEntity.ok(this.historyService.getHistoryDachaToday());
     }
 
     @GetMapping("/golego/yesterday")
-    public ResponseEntity<List<HistoryDto>> getInfoHomeGolegoYesterday() {
+    public ResponseEntity<List<DataHistoryDto>> getInfoHomeGolegoYesterday() {
         return ResponseEntity.ok(this.historyService.getHistoryGolegoYesterday());
     }
 
     @GetMapping("/dacha/yesterday")
-    public ResponseEntity<List<HistoryDto>> getInfoHomeDachaYesterday() {
+    public ResponseEntity<List<DataHistoryDto>> getInfoHomeDachaYesterday() {
         return ResponseEntity.ok(this.historyService.getHistoryDachaYesterday());
     }
 }

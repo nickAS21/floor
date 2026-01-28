@@ -2,8 +2,8 @@ package org.nickas21.smart.usr.io;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.data.dataEntityDto.ErrorInfoDto;
-import org.nickas21.smart.data.dataEntityDto.HistoryDto;
+import org.nickas21.smart.data.dataEntityDto.DataErrorInfoDto;
+import org.nickas21.smart.data.dataEntityDto.DataHistoryDto;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.util.LocationType;
 import org.springframework.stereotype.Component;
@@ -52,8 +52,8 @@ public class UsrTcpWiFiLogWriter implements Closeable {
         return new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8));
     }
 
-    // Запис логів Today (HistoryDto)
-    public synchronized void writeToday(LocationType locationType, HistoryDto rec) throws IOException {
+    // Запис логів Today (DataHistoryDto)
+    public synchronized void writeToday(LocationType locationType, DataHistoryDto rec) throws IOException {
         BufferedWriter writer = todayWriters.get(locationType);
         if (writer != null) {
             writer.write(objectMapper.writeValueAsString(rec));
@@ -63,7 +63,7 @@ public class UsrTcpWiFiLogWriter implements Closeable {
     }
 
     // Оптимізований запис Error - тільки APPEND
-    public synchronized void writeError(LocationType locationType, ErrorInfoDto rec) throws IOException {
+    public synchronized void writeError(LocationType locationType, DataErrorInfoDto rec) throws IOException {
         String filename = fileNameInfo(locationType, tcpLogsProps.getErrorPrefix());
         File file = Paths.get(logDir, filename).toFile();
         try (BufferedWriter errWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8))) {

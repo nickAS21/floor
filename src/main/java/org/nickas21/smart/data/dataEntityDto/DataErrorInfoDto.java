@@ -12,14 +12,14 @@ import java.nio.charset.StandardCharsets;
 @Data
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class ErrorInfoDto {
+public class DataErrorInfoDto {
     private long timestamp;
     private ErrorCode code;
     private ErrorLevel level;
     private String message;
     private String source; // Додано для ідентифікації порту/джерела
 
-    public ErrorInfoDto(ErrorCode code, String message) {
+    public DataErrorInfoDto(ErrorCode code, String message) {
         this.timestamp = System.currentTimeMillis();
         this.code = code;
         this.level = code.getLevel();
@@ -29,7 +29,7 @@ public class ErrorInfoDto {
     /**
      * Конструктор для перетворення технічної помилки пакета у формат DTO
      */
-    public ErrorInfoDto(UsrTcpWiFiPacketRecordError record) {
+    public DataErrorInfoDto(UsrTcpWiFiPacketRecordError record) {
         this.timestamp = record.timestamp();
 
         // Спроба мапінгу технічного коду String на Enum ErrorCode

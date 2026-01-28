@@ -3,8 +3,8 @@ package org.nickas21.smart.data.service;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.dataEntityDto.BatteryInfoDto;
+import org.nickas21.smart.data.dataEntityDto.DataHistoryDto;
 import org.nickas21.smart.data.dataEntityDto.DataHomeDto;
-import org.nickas21.smart.data.dataEntityDto.HistoryDto;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
@@ -53,7 +53,7 @@ public class HistoryService {
         this.unitService = unitService;
     }
 
-    private List<HistoryDto> readHistoryFromFile(LocationType location, String prefix) {
+    private List<DataHistoryDto> readHistoryFromFile(LocationType location, String prefix) {
         String logDir = usrTcpWiFiService.getLogsDir();
         String fileName = fileNameInfo(location, prefix);
         File file = Paths.get(logDir, fileName).toFile();
@@ -68,7 +68,7 @@ public class HistoryService {
                     .filter(line -> line != null && !line.isBlank()) // Ігноруємо порожні рядки
                     .map(line -> {
                         try {
-                            return fromString(line, HistoryDto.class);
+                            return fromString(line, DataHistoryDto.class);
                         } catch (Exception e) {
                             log.error("Error parsing history line in {}: {}", fileName, line);
                             return null;
@@ -82,19 +82,19 @@ public class HistoryService {
         }
     }
 
-    public List<HistoryDto> getHistoryGolegoToday() {
+    public List<DataHistoryDto> getHistoryGolegoToday() {
         return readHistoryFromFile(LocationType.GOLEGO, usrTcpLogsWiFiProperties.getTodayPrefix());
     }
 
-    public List<HistoryDto> getHistoryGolegoYesterday() {
+    public List<DataHistoryDto> getHistoryGolegoYesterday() {
         return readHistoryFromFile(LocationType.GOLEGO, usrTcpLogsWiFiProperties.getYesterdayPrefix());
     }
 
-    public List<HistoryDto> getHistoryDachaToday() {
+    public List<DataHistoryDto> getHistoryDachaToday() {
         return readHistoryFromFile(LocationType.DACHA, usrTcpLogsWiFiProperties.getTodayPrefix());
     }
 
-    public List<HistoryDto> getHistoryDachaYesterday() {
+    public List<DataHistoryDto> getHistoryDachaYesterday() {
         return readHistoryFromFile(LocationType.DACHA, usrTcpLogsWiFiProperties.getYesterdayPrefix());
     }
 
@@ -108,7 +108,7 @@ public class HistoryService {
             List<BatteryInfoDto> batteries = this.unitService.getBatteries (DACHA);
             Integer inverterPort = usrTcpWiFiService.getTcpProps().getPortInverterDacha();
             String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(inverterPort);
-            logWriter.writeToday(LocationType.DACHA, new HistoryDto(dachaData, batteries, inverterPort, inverterPortConnectionStatus));
+            logWriter.writeToday(LocationType.DACHA, new DataHistoryDto(dachaData, batteries, inverterPort, inverterPortConnectionStatus));
         } catch (Exception e) {
             log.error("Error writing Dacha logs", e);
         }
@@ -119,7 +119,7 @@ public class HistoryService {
             List<BatteryInfoDto> batteries = this.unitService.getBatteries(GOLEGO);
             Integer inverterPort = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
             String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(inverterPort);
-            logWriter.writeToday(LocationType.GOLEGO, new HistoryDto(golegoData, batteries, inverterPort, inverterPortConnectionStatus));
+            logWriter.writeToday(LocationType.GOLEGO, new DataHistoryDto(golegoData, batteries, inverterPort, inverterPortConnectionStatus));
         } catch (Exception e) {
             log.error("Error writing Golego logs", e);
         }
