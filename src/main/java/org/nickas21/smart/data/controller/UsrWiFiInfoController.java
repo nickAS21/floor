@@ -1,13 +1,10 @@
 package org.nickas21.smart.data.controller;
-
 import org.nickas21.smart.data.dataEntityDto.DataUsrWiFiInfoDto;
 import org.nickas21.smart.data.service.UsrWiFiInfoService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(value = "/api/provision")
@@ -20,26 +17,26 @@ public class UsrWiFiInfoController {
     }
 
     @GetMapping("/golego")
-    public ResponseEntity<DataUsrWiFiInfoDto> getUsrWiFiInfoGolego() {
+    public ResponseEntity<List<DataUsrWiFiInfoDto>> getUsrWiFiInfoGolego() {
+        // Повертає повний список об'єктів для локації Golego
         return ResponseEntity.ok(this.usrWiFiInfoService.getUsrWiFiInfoGolego());
     }
 
     @GetMapping("/dacha")
-    public ResponseEntity<DataUsrWiFiInfoDto> getUsrWiFiInfoDacha() {
+    public ResponseEntity<List<DataUsrWiFiInfoDto>> getUsrWiFiInfoDacha() {
+        // Повертає повний список об'єктів для локації Dacha
         return ResponseEntity.ok(this.usrWiFiInfoService.getUsrWiFiInfoDacha());
     }
 
     @PostMapping("/golego")
-    public ResponseEntity<DataUsrWiFiInfoDto> postUsrWiFiInfoGolego(@RequestBody DataUsrWiFiInfoDto usrWiFiInfoGolego) {
-        // Передаємо отримані з фронтенду налаштування в сервіс
-        return ResponseEntity.ok(this.usrWiFiInfoService.setUsrWiFiInfolego(usrWiFiInfoGolego));
+    public ResponseEntity<List<DataUsrWiFiInfoDto>> postUsrWiFiInfoGolego(@RequestBody List<DataUsrWiFiInfoDto> list) {
+        // Приймає список від фронтенда, оновлює кеш та файл
+        return ResponseEntity.ok(this.usrWiFiInfoService.setUsrWiFiInfolego(list));
     }
 
     @PostMapping("/dacha")
-    public ResponseEntity<DataUsrWiFiInfoDto> postUsrWiFiInfoDacha(@RequestBody DataUsrWiFiInfoDto usrWiFiInfoDacha) {
-        // Передаємо отримані з фронтенду налаштування в сервіс
-        return ResponseEntity.ok(this.usrWiFiInfoService.setUsrWiFiInfoDacha(usrWiFiInfoDacha));
+    public ResponseEntity<List<DataUsrWiFiInfoDto>> postUsrWiFiInfoDacha(@RequestBody List<DataUsrWiFiInfoDto> list) {
+        // Приймає список від фронтенда, оновлює кеш та файл
+        return ResponseEntity.ok(this.usrWiFiInfoService.setUsrWiFiInfoDacha(list));
     }
-
-
 }

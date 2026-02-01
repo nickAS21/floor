@@ -10,16 +10,16 @@ import org.nickas21.smart.util.LocationType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static org.nickas21.smart.util.JacksonUtil.fromString;
 
 @Slf4j
 @Service
@@ -29,11 +29,10 @@ public class UsrWiFiInfoService {
     @Getter
     private String dirUsrInfo;
 
-    @Value("${usr.tcp.infos.fileName:usrInfo.jsonl}")
+    @Value("${usr.tcp.infos.fileName:usrInfo.json}")
     @Getter
     private String fileUsrInfo;
 
-    // Кеш у пам'яті для швидкого доступу (Key: id)
     private final Map<Integer, DataUsrWiFiInfoDto> cacheGolego = new ConcurrentHashMap<>();
     private final Map<Integer, DataUsrWiFiInfoDto> cacheDacha = new ConcurrentHashMap<>();
 
@@ -42,81 +41,87 @@ public class UsrWiFiInfoService {
         loadFromFile();
     }
 
-    /**
-     * Зчитування файлу при старті поду (Kubernetes)
-     */
     private void loadFromFile() {
         Path path = Paths.get(dirUsrInfo, fileUsrInfo);
         if (!Files.exists(path)) {
-            log.info("Файл даних не знайдено, створюємо новий за шляхом: {}", path.toAbsolutePath());
+            log.info("Файл не знайдено: {}", path.toAbsolutePath());
             return;
         }
 
-        try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty()) continue;
-                DataUsrWiFiInfoDto usrWiFiInfoDto = fromString(line, DataUsrWiFiInfoDto.class);
-                updateInternalCache(usrWiFiInfoDto);
+        try {
+            String json = Files.readString(path, StandardCharsets.UTF_8);
+            if (json == null || json.isBlank()) return;
+
+            // Використовуємо новий метод для десеріалізації списку
+            List<DataUsrWiFiInfoDto> allData = JacksonUtil.fromStringToList(json, DataUsrWiFiInfoDto.class);
+
+            if (allData != null) {
+                allData.forEach(this::updateInternalCache);
+                log.info("Кеш ініціалізовано: Golego={}, Dacha={}", cacheGolego.size(), cacheDacha.size());
             }
-            log.info("Дані успішно завантажені: Golego={}, Dacha={}", cacheGolego.size(), cacheDacha.size());
         } catch (IOException e) {
-            log.error("Помилка при читанні файлу конфігурації: ", e);
+            log.error("Помилка завантаження кешу з JSON: ", e);
         }
     }
 
-    private void updateInternalCache(DataUsrWiFiInfoDto dataUsrWiFiInfoDto) {
-        if (dataUsrWiFiInfoDto != null) {
-        if (dataUsrWiFiInfoDto.getLocationType() == LocationType.GOLEGO) {
-            cacheGolego.put(dataUsrWiFiInfoDto.getId(), dataUsrWiFiInfoDto);
+    private void updateInternalCache(DataUsrWiFiInfoDto dto) {
+        if (dto == null) return;
+        if (dto.getLocationType() == LocationType.GOLEGO) {
+            cacheGolego.put(dto.getId(), dto);
         } else {
-            cacheDacha.put(dataUsrWiFiInfoDto.getId(), dataUsrWiFiInfoDto);
+            cacheDacha.put(dto.getId(), dto);
         }
+    }
+
+    public List<DataUsrWiFiInfoDto> getUsrWiFiInfoGolego() {
+        return new ArrayList<>(cacheGolego.values());
+    }
+
+    public List<DataUsrWiFiInfoDto> getUsrWiFiInfoDacha() {
+        return new ArrayList<>(cacheDacha.values());
+    }
+
+    public List<DataUsrWiFiInfoDto> setUsrWiFiInfolego(List<DataUsrWiFiInfoDto> dtoList) {
+        return processAndSaveAll(dtoList, LocationType.GOLEGO);
+    }
+
+    public List<DataUsrWiFiInfoDto> setUsrWiFiInfoDacha(List<DataUsrWiFiInfoDto> dtoList) {
+        return processAndSaveAll(dtoList, LocationType.DACHA);
+    }
+
+    private synchronized List<DataUsrWiFiInfoDto> processAndSaveAll(List<DataUsrWiFiInfoDto> dtoList, LocationType type) {
+        // Очищаємо кеш локації, бо фронт прислав ПОВНИЙ актуальний список
+        if (type == LocationType.GOLEGO) cacheGolego.clear();
+        else cacheDacha.clear();
+
+        for (DataUsrWiFiInfoDto dto : dtoList) {
+            dto.setLocationType(type);
+            dto.setOui(UsrWiFiInfoVendor.getOuiVendorName(dto.getBssidMac()));
+            updateInternalCache(dto);
         }
+
+        saveAllToFile();
+        return (type == LocationType.GOLEGO) ? getUsrWiFiInfoGolego() : getUsrWiFiInfoDacha();
     }
 
-    public DataUsrWiFiInfoDto getUsrWiFiInfoGolego() {
-        // Повертаємо останній актуальний стан для Golego (наприклад, останній доданий)
-        return cacheGolego.values().stream().reduce((first, second) -> second).orElse(new DataUsrWiFiInfoDto());
-    }
-
-    public DataUsrWiFiInfoDto getUsrWiFiInfoDacha() {
-        return cacheDacha.values().stream().reduce((first, second) -> second).orElse(new DataUsrWiFiInfoDto());
-    }
-
-    public DataUsrWiFiInfoDto setUsrWiFiInfolego(DataUsrWiFiInfoDto usrWiFiInfoDto) {
-        usrWiFiInfoDto.setLocationType(LocationType.GOLEGO);
-        return processAndSave(usrWiFiInfoDto);
-    }
-
-    public DataUsrWiFiInfoDto setUsrWiFiInfoDacha(DataUsrWiFiInfoDto usrWiFiInfoDto) {
-        usrWiFiInfoDto.setLocationType(LocationType.DACHA);
-        return processAndSave(usrWiFiInfoDto);
-    }
-
-    /**
-     * Обчислення Vendor, оновлення кешу та запис у файл
-     */
-    private synchronized DataUsrWiFiInfoDto processAndSave(DataUsrWiFiInfoDto usrWiFiInfoDto) {
-        // 1. Автоматично обчислюємо Vendor за MAC-адресою
-        usrWiFiInfoDto.setOui(UsrWiFiInfoVendor.getOuiVendorName(usrWiFiInfoDto.getBssidMac()));
-
-        // 2. Оновлюємо кеш у пам'яті
-        updateInternalCache(usrWiFiInfoDto);
-
-        // 3. Дозаписуємо в JSONL файл (Persistence)
+    private synchronized void saveAllToFile() {
         Path path = Paths.get(dirUsrInfo, fileUsrInfo);
         try {
             Files.createDirectories(path.getParent());
-            String jsonLine = JacksonUtil.toString(usrWiFiInfoDto) + System.lineSeparator();
-            Files.writeString(path, jsonLine, StandardCharsets.UTF_8,
-                    java.nio.file.StandardOpenOption.CREATE,
-                    java.nio.file.StandardOpenOption.APPEND);
-            log.info("Дані записані у файл для ID: {}", usrWiFiInfoDto.getId());
+
+            List<DataUsrWiFiInfoDto> allItems = new ArrayList<>();
+            allItems.addAll(cacheGolego.values());
+            allItems.addAll(cacheDacha.values());
+
+            String json = JacksonUtil.toString(allItems);
+
+            Files.writeString(path, json, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
+
+            log.info("Файл оновлено. Загальна кількість записів: {}", allItems.size());
         } catch (IOException e) {
             log.error("Помилка запису у файл: ", e);
         }
-
-        return usrWiFiInfoDto;
     }
 }

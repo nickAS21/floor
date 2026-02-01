@@ -225,6 +225,13 @@ public class JacksonUtil {
         }
     }
 
+    public static <T> List<T> fromStringToList(String json, Class<T> clazz) {
+        try {
+            return OBJECT_MAPPER.readValue(json, OBJECT_MAPPER.getTypeFactory().constructCollectionType(List.class, clazz));
+        } catch (IOException e) {
+            throw new IllegalArgumentException("The given string value: " + json + " cannot be transformed to List", e);
+        }
+    }
 
     public static JsonNode toJsonNode(Path file) {
         try {
