@@ -120,7 +120,7 @@ public class DataHomeDto {
             List<Integer> batteriesNoActive = new ArrayList<>();
             for (int i = 0; i < batteriesCnt; i++) {
                 int port = portStart + i;
-                if (port == usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego() ) {
+                if (port >= usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego() ) {
                     log.warn("Golego inverter port [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
                 } else  {
                     UsrTcpWiFiBattery usrTcpWiFiBatteryA = usrTcpWiFiParseData.getBattery(port);

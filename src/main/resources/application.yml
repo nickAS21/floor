@@ -100,7 +100,7 @@ logging.level:
 usr:
   tcp:
     port-start: "${USR_CLIENT_PORT_START:8891}"
-    batteries-cnt: "${USR_CLIENT_BATTERIES_CNT:10}"
+    batteries-cnt: "${USR_CLIENT_BATTERIES_CNT:14}"
     port-master: "${USR_CLIENT_PORT_MASTER:8898}"
     port-inverter-dacha: "${USR_CLIENT_PORT_INVERTER_DACHA:8899}"
     port-inverter-golego: "${USR_CLIENT_PORT_INVERTER_GOLEGO:8900}"
