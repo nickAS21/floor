@@ -67,7 +67,7 @@ public class UsrTcpWiFiService {
             if (ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego()) ||
                     ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha())){
                 usrTcpWiFiBatteryRegistry.initInverter(ports[i]);
-            } else {
+            } else if (ports[i] < usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha()) {
                 usrTcpWiFiBatteryRegistry.initBattery(ports[i]);
             }
             lastSeenMap.put(ports[i], System.currentTimeMillis()); // Ініціалізація часу
