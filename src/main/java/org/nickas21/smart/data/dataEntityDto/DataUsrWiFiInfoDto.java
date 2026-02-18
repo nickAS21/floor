@@ -14,4 +14,5 @@ public class DataUsrWiFiInfoDto {
     String netIpB;                  // Socket B: =>  IP BMS у STA mode
     int netBPort;                   // Socket B: =>  Port BMS у STA mode -> Обчислюється: 8890 + id
     String oui;                     // Chip manufacturer - > Обчислюється за bssid
+    int bitrate;                    // Bit Rate (Baud)
 }

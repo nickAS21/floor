@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.PowerValueRealTimeData;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.usr.config.PortStatus;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.entity.InverterData;
 import org.nickas21.smart.usr.entity.InvertorGolegoData90;
@@ -115,7 +116,7 @@ public class DataHomeDto {
             int portStart = tcpProps.getPortStart();
             int batteriesCnt = tcpProps.getBatteriesCnt();
             double batteryCurrentAll = 0;
-            double batterySocMax = c0Data.getSocPercent();
+            double batterySocSum = 0;
             int batteriesActiveCnt = 0;
             List<Integer> batteriesNoActive = new ArrayList<>();
             for (int i = 0; i < batteriesCnt; i++) {
@@ -126,13 +127,12 @@ public class DataHomeDto {
                     UsrTcpWiFiBattery usrTcpWiFiBatteryA = usrTcpWiFiParseData.getBattery(port);
                     if (usrTcpWiFiBatteryA != null && usrTcpWiFiBatteryA.getC0Data() != null) {
                         batteryCurrentAll += usrTcpWiFiBatteryA.getC0Data().getCurrentCurA();
-                        if (usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0) {
+                        if (usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 &&  PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
+                            batterySocSum += usrTcpWiFiBatteryA.getC0Data().getSocPercent();
                             batteriesActiveCnt++;
                         } else {
                             batteriesNoActive.add(port);
                         }
-                        // TODO - 8894 - 20% this is bad then only master
-                        batterySocMax = usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 ? Math.max(batterySocMax, usrTcpWiFiBatteryA.getC0Data().getSocPercent()) : batterySocMax;
                     }
                 }
 
@@ -140,7 +140,7 @@ public class DataHomeDto {
             log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
 
             this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
-            this.batterySoc = batterySocMax;
+            this.batterySoc = batterySocSum/batteriesActiveCnt;
 
             // from inverter
             UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
@@ -156,7 +156,7 @@ public class DataHomeDto {
             } else {
                 this.batteryStatus = c0Data.getBmsStatusStr();
                 this.batteryVol = c0Data.getVoltageCurV();
-                this.batteryCurrent = Math.round(batteryCurrentAll * 100.0) / 100.0;;
+                this.batteryCurrent = Math.round(batteryCurrentAll * 100.0) / 100.0;
                  if (this.batteryCurrent == 0 && this.gridPower == 0) {
                     this.homePower = 0;
                 } else if (this.batteryCurrent < 0) {

@@ -76,7 +76,7 @@ public class UsrTcpWiFiParseData {
     protected byte[] parseAndProcessData(byte[] buffer, int port) {
         if (buffer == null || buffer.length == 0) return buffer;
         if (port >= (usrTcpWiFiProperties.getPortInverterGolego())) {
-            log.warn("Start Golego inv decoder byteArray from port [{}]", port);
+            log.warn("Start Golegos inv decoder byteArray from ports [{}]", port);
             return parseAndProcessInverterGolego(buffer);
         } else {
 //            log.warn("Start Golego acum decoder byteArray from port [{}]", port);

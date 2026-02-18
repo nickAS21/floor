@@ -17,6 +17,7 @@ public class DataHistoryDto {
     private double batterySoc;
     private String batteryStatus;
     private double batteryVol;
+    private double batteryCurrent;
     private boolean gridStatusRealTimeOnLine;
     private boolean gridStatusRealTimeSwitch;
     private Integer inverterPort;
@@ -33,6 +34,7 @@ public class DataHistoryDto {
             this.batterySoc = dataHome.getBatterySoc();
             this.batteryStatus = dataHome.getBatteryStatus();
             this.batteryVol = dataHome.getBatteryVol();
+            this.batteryCurrent = dataHome.getBatteryCurrent();
             this.gridStatusRealTimeOnLine = dataHome.isGridStatusRealTimeOnLine();
             this.gridStatusRealTimeSwitch = dataHome.isGridStatusRealTimeSwitch();
         } else {
