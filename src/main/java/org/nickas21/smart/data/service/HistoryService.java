@@ -117,9 +117,9 @@ public class HistoryService {
             // Тепер Golego пишеться з тим самим ритмом, що і Dacha
             DataHomeDto golegoData = new DataHomeDto(deviceService, usrTcpWiFiParseData, usrTcpWiFiService);
             List<BatteryInfoDto> batteries = this.unitService.getBatteries(GOLEGO);
-            Integer inverterPort = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
-            String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(inverterPort);
-            logWriter.writeToday(LocationType.GOLEGO, new DataHistoryDto(golegoData, batteries, inverterPort, inverterPortConnectionStatus));
+            Integer portInverterGolego = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
+            String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(portInverterGolego);
+            logWriter.writeToday(LocationType.GOLEGO, new DataHistoryDto(golegoData, batteries, portInverterGolego, inverterPortConnectionStatus));
         } catch (Exception e) {
             log.error("Error writing Golego logs", e);
         }

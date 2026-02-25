@@ -10,8 +10,9 @@ public class UsrTcpWiFiProperties {
     private Integer portStart = 8891;
     private Integer batteriesCnt = 14;
     private Integer portMaster = 8898;
-    private Integer portInverterDacha = 8899;
-    private Integer portInverterGolego = 8900;
+    private Integer portInverterGolego = 8899;
+    private Integer portInverterDacha = 8900;
+
     // monitoring connect by port
     private Long monitorInactivityTimeOut = 1200000L; //20 * 60 * 1000; // 20 хвилин == 1200000
     private Long marginMs = 3660000L; //3660 * 1000L;

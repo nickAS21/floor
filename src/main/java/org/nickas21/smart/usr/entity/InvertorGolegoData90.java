@@ -46,7 +46,7 @@ public class InvertorGolegoData90 {
 
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("\n=== INVERTER DECODE 32 (Port: %d) | %s ===\n", port, timeStr));
+        sb.append(String.format("\n=== INVERTER DECODE 90 (Port: %d) | %s ===\n", port, timeStr));
 
         sb.append(formatLine(0, hexMap[0], status, "Статус (" + getStatus() + ")"));
         sb.append(formatLine(2, hexMap[1], acInputVoltage, "Ac Input Voltage"));

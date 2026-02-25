@@ -39,22 +39,22 @@ public class DataUnitService {
     public DataUnitDto getUnitGolego() {
         List<BatteryInfoDto> batteries = this.getBatteries (GOLEGO);
         List<DataDeviceDto> devices = new ArrayList<>();
-        Integer port = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
-        Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(port).orElse(0L);
+        Integer portInverterGolego = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
+        Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(portInverterGolego).orElse(0L);
         String timestamp =  formatTimestamp(lastTimestamp, datePatternGridStatus);
-        String connectionStatus = usrTcpWiFiService.getStatusByPort(port);
-        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, port, connectionStatus, InverterInfo.GOLEGO);
+        String connectionStatus = usrTcpWiFiService.getStatusByPort(portInverterGolego);
+        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterGolego, connectionStatus, InverterInfo.GOLEGO);
         return new DataUnitDto(batteries, dataInverterDto, devices);
     }
 
     public DataUnitDto getUnitDacha() {
         List<BatteryInfoDto> batteries = this.getBatteries (DACHA);
         List<DataDeviceDto> devices = new ArrayList<>();
-        Integer port = usrTcpWiFiService.getTcpProps().getPortInverterDacha();
-        Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(port).orElse(0L);
+        Integer portInverterDacha = usrTcpWiFiService.getTcpProps().getPortInverterDacha();
+        Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(portInverterDacha).orElse(0L);
         String timestamp =  formatTimestamp(lastTimestamp, datePatternGridStatus);
-        String connectionStatus = usrTcpWiFiService.getStatusByPort(port);
-        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, port, connectionStatus, InverterInfo.DACHA);
+        String connectionStatus = usrTcpWiFiService.getStatusByPort(portInverterDacha);
+        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterDacha, connectionStatus, InverterInfo.DACHA);
         return new DataUnitDto(batteries, dataInverterDto, devices);
     }
 

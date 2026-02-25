@@ -101,7 +101,6 @@ import static org.nickas21.smart.util.StringUtils.isDecimal;
 public class TuyaDeviceService {
 
     public final String gridRelayDopPrefixDacha = "gridOnlineDacha";
-    public final String boilerRelayDopPrefixDacha = "boilerOnlineDacha";
     public final String gridRelayDopPrefixGolego = "gridOnlineGolego";
     public final String boilerRelayDopPrefixGolego = "boilerOnlineGolego";
     public static final String deviceIdTempScaleVanna = "bfe02a3417a1a4774alyab";
@@ -153,24 +152,24 @@ public class TuyaDeviceService {
     @Getter
     private Devices devices;
 
+    @Getter
+    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoDacha;
+
+    @Getter
+    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoHome;
+
+    @Getter
+    private final TuyaConnectionProperties connectionConfiguration;
+    @Getter
+    private final TuyaDeviceProperties deviceProperties;
+
     private String gridRelayCodeIdDacha;
     private String boilerRelayCodeIdDacha;
     private String gridRelayCodeIdHome;
     private String boilerRelayCodeIdHome;
-
-    @Getter
-    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoDacha;
-    @Getter
-    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoHome;
-
     private Entry<Long, Double> lastUpdateTimeAlarmSocDacha;
     private Entry<Long, Double> lastUpdateTimeAlarmSocGolego;
-
     private final Lock queueLock = new ReentrantLock();
-
-    private final TuyaConnectionProperties connectionConfiguration;
-    @Getter
-    private final TuyaDeviceProperties deviceProperties;
     private final RestTemplate httpClient = new RestTemplate();
     private final WebClient authClient = WebClient.builder().build();
     private final WebClient webClient;
@@ -317,7 +316,7 @@ public class TuyaDeviceService {
                 queueLock.unlock();
             }
         } else {
-            log.error("Devices is null, Devices not Update.");
+            log.error("updateAllThermostat -> Devices is null, Devices not Update.");
         }
     }
 
@@ -325,7 +324,7 @@ public class TuyaDeviceService {
         if (this.devices != null) {
             updateThermostatBatteryDischargePreDestroy(getDeviceProperties().getCategoryForControlPowers());
         } else {
-            log.error("Devices is null, Devices not Update.");
+            log.error("updateAllDevicePreDestroy -> Devices is null, Devices not Update.");
         }
     }
 
@@ -546,10 +545,6 @@ public class TuyaDeviceService {
         return this.accessTuyaToken;
     }
 
-
-    public TuyaConnectionProperties getConnectionConfiguration() {
-        return this.connectionConfiguration;
-    }
 
     private TuyaToken createTuyaToken() throws Exception {
         Map<String, Object> queries = new HashMap<>();
@@ -980,13 +975,6 @@ public class TuyaDeviceService {
         return this.gridRelayCodeIdDacha;
     }
 
-    public String getBoilerRelayCodeIdDacha() {
-        if (this.boilerRelayCodeIdDacha == null) {
-            this.boilerRelayCodeIdDacha = this.getGridRelayCode(this.boilerRelayDopPrefixDacha);
-        }
-        return this.boilerRelayCodeIdHome;
-    }
-
     public String getGridRelayCodeIdGolego() {
         if (this.gridRelayCodeIdHome == null) {
             this.gridRelayCodeIdHome = this.getGridRelayCode(this.gridRelayDopPrefixGolego);
@@ -1264,7 +1252,6 @@ public class TuyaDeviceService {
                     }
                     queueLock.lock();
                     try {
-                        log.info("updateSwitchThermostatFirstFloor: switch: [{}] msgError: [{}]", thermostatSwitchOffOnNew, msg == null ? "empty" : msg);
                         updateThermostats(queueUpdateSwitch, false);
                     } finally {
                         queueLock.unlock();
@@ -1280,7 +1267,6 @@ public class TuyaDeviceService {
                     }
                     queueLock.lock();
                     try {
-                        log.info("updatValueThermostatFirstFloor: value: [{}]  msgError: {}", thermostatValueNew, msg == null ? "empty" : msg);
                         updateThermostats(queueUpdateValue, false);
                     } finally {
                         queueLock.unlock();

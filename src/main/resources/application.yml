@@ -87,12 +87,6 @@ telegram:
       token: "${TELEGRAM_BOT_TOKEN_ALARM:xxxx}"
       chat-id: "${TELEGRAM_CHAT_ID_ALARM:-100}"
 
-gmail:
-  username: "${GMAIL_USERNAME:nick.kulikov21@gmail.com}"
-  password: "${GMAIL_PWD:30i2139tan}"
-#  recipient: "${GMAIL_RECIPIENT:default@example.com}"
-  recipient: "${GMAIL_RECIPIENT:nick@avalr.com.ua}"
-
 logging.level:
   ch.qos.logback: OFF
   org.apache.pulsar: OFF
@@ -102,8 +96,8 @@ usr:
     port-start: "${USR_CLIENT_PORT_START:8891}"
     batteries-cnt: "${USR_CLIENT_BATTERIES_CNT:14}"
     port-master: "${USR_CLIENT_PORT_MASTER:8898}"
-    port-inverter-dacha: "${USR_CLIENT_PORT_INVERTER_DACHA:8899}"
-    port-inverter-golego: "${USR_CLIENT_PORT_INVERTER_GOLEGO:8900}"
+    port-inverter-golego: "${USR_CLIENT_PORT_INVERTER_GOLEGO:8899}"
+    port-inverter-dacha: "${USR_CLIENT_PORT_INVERTER_DACHA:8900}"
     monitor-inactivity-time-out: "${MONITOR_ACTIVITY_TIME_OUT:1200000}"
     margin-ms: "${MARGIN_MS:1200000}"
     check-rate: "${CHECK_RATE:60000}"

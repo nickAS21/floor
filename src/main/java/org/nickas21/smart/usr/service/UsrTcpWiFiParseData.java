@@ -43,7 +43,6 @@ import static org.nickas21.smart.util.LocationType.GOLEGO;
 import static org.nickas21.smart.util.StringUtils.bytesToHex;
 import static org.nickas21.smart.util.StringUtils.getCurrentTimeString;
 import static org.nickas21.smart.util.StringUtils.intToHex;
-import static org.nickas21.smart.util.StringUtils.payloadToHexString;
 
 @Slf4j
 @Service
@@ -75,13 +74,14 @@ public class UsrTcpWiFiParseData {
     // ------------------ parse & process (core) ------------------
     protected byte[] parseAndProcessData(byte[] buffer, int port) {
         if (buffer == null || buffer.length == 0) return buffer;
-        if (port >= (usrTcpWiFiProperties.getPortInverterGolego())) {
-            log.warn("Start Golegos inv decoder byteArray from ports [{}]", port);
-            return parseAndProcessInverterGolego(buffer);
-        } else {
-//            log.warn("Start Golego acum decoder byteArray from port [{}]", port);
+        if (port < (usrTcpWiFiProperties.getPortInverterGolego())) {
+            //            log.warn("Start Golego acum decoder byteArray from port [{}]", port);
             return parseAndProcessBmsGolego(buffer, port);
+        } else if (port == (usrTcpWiFiProperties.getPortInverterGolego())) {
+//            log.warn("Start Golegos inv decoder byteArray from ports [{}]", port);
+            return parseAndProcessInverterGolego(buffer);
         }
+        return new byte[0];
     }
 
     protected byte[] parseAndProcessBmsGolego(byte[] buffer, int port) {
@@ -481,19 +481,19 @@ public class UsrTcpWiFiParseData {
         int payloadLen = packet[2] & 0xFF;
         byte[] payload = Arrays.copyOfRange(packet, 3, 3 + payloadLen);
         String typeHex = String.format("%02X", packet[1]);
-        log.info("Type [{}], len [{}], payload [{}]", typeHex, payloadLen, payloadToHexString(payload));
+//        log.info("Type [{}], len [{}], payload [{}]", typeHex, payloadLen, payloadToHexString(payload));
         InverterData inverterData = usrTcpWiFiBatteryRegistry.getInverter(usrTcpWiFiProperties.getPortInverterGolego());
         if (payloadLen == 90) {
             InvertorGolegoData90 entity90 = InvertorGolegoDecoders.decodeInverterGolegoPayload90(packet, usrTcpWiFiProperties.getPortInverterGolego());
             if (entity90 != null) {
                 inverterData.inverterDataUpdate(entity90);
-                log.info(entity90.toString());
+//                log.info(entity90.toString());
             }
         } else if (payloadLen == 32) {
             InvertorGolegoData32 entity32 = InvertorGolegoDecoders.decodeInverterGolegoPayload32(packet, usrTcpWiFiProperties.getPortInverterGolego());
             if (entity32 != null) {
                 inverterData.inverterDataUpdate(entity32);
-                log.info(entity32.toString());
+//                log.info(entity32.toString());
             }
         }
     }
