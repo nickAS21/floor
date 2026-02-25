@@ -33,7 +33,7 @@ import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 public class DataHomeDto {
 
     private final double golegoPowerDefault = 42.0; // only  2 - WiFi routers
-    private final double golegoInverterPowerDefault = 10.0;
+    public static final  double golegoInverterPowerDefault = 10.0;
     public static final String datePatternGridStatus = "yyyy-MM-dd HH:mm";
 
     // Dacha -Update real time data: powerValueRealTimeData.getCollectionTime() * 1000
@@ -123,7 +123,7 @@ public class DataHomeDto {
                 int port = portStart + i;
                 if (port == usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego() ) {
                     log.warn("Golego inverter port [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
-                } else if (port > usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego()) {
+                } else if (port > usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha()) {
                     log.warn("Free Ports [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
                 } else  {
                     UsrTcpWiFiBattery usrTcpWiFiBatteryA = usrTcpWiFiParseData.getBattery(port);
@@ -168,7 +168,7 @@ public class DataHomeDto {
                 }
             }
             if (this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch) {
-                this.gridPower = this.batteryVol * this.batteryCurrent + golegoPowerDefault + golegoInverterPowerDefault;
+                this.gridPower = this.batteryVol * this.batteryCurrent + this.homePower + golegoInverterPowerDefault;
             } else {
                 this.gridPower = 0;
             }
@@ -183,4 +183,5 @@ public class DataHomeDto {
         }
         log.warn("DataHomeGolego [{}]", this);
     }
+
 }

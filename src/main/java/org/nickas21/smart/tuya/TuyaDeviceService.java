@@ -112,7 +112,12 @@ public class TuyaDeviceService {
     @Getter
     @Setter
     @Value("${dacha.settings.battery_critical_night_soc_charging:60}")
-    private double batteryCriticalNightSocWinter; //60, 50, 40;
+    private double batteryCriticalNightSocWinterDacha; //60, 50, 40;
+
+    @Getter
+    @Setter
+    @Value("${dacha.settings.battery_critical_night_soc_charging:60}")
+    private double batteryCriticalNightSocWinterGolego; //60, 50, 40;
 
     @Getter
     @Setter
@@ -1082,7 +1087,7 @@ public class TuyaDeviceService {
             boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
             if (batterySocFromUsr >= 0 && batterySocFromUsr < ALARM.getSoc()) {
                 paramOnOff = this.getGridRelayCodeIdGolego().equals(gridRelayCodeId);
-            } else if (nightTariff) {  // night: from 23:00 to 6:50
+            } else if (nightTariff && batterySocFromUsr < this.batteryCriticalNightSocWinterGolego) {  // night: from 23:00 to 6:50
                 paramOnOff = true;
             }
             if (this.heaterGridOnAutoAllDayGolego) {
@@ -1158,7 +1163,7 @@ public class TuyaDeviceService {
     public void updateSwitchReleayDachaAndThermostatFirstFloor(double batterySocFromSolarman, double totalGridPower) {
         log.info("updateGridRelayDachaSwitchOffOnFirstFloor start: heaterGridOnAutoAllDayDacha [{}], devicesChangeHandleControlDacha [{}], heaterNightAutoOnDachaWinter [{}], SeasonsID [{}], batteryCriticalNightSocWinter [{}]",
                 this.heaterGridOnAutoAllDayDacha, this.devicesChangeHandleControlDacha, this.heaterNightAutoOnDachaWinter,
-                this.solarmanStationsService.getSolarmanStation().getSeasonsId(), this.batteryCriticalNightSocWinter);
+                this.solarmanStationsService.getSolarmanStation().getSeasonsId(), this.batteryCriticalNightSocWinterDacha);
         log.info("this.devices != null [{}], this.devices.getDevIds() != mull [{}], this.devices.getDevIds().get(deviceIdTempScaleKuhny) [{}]",
                 this.devices != null, this.devices.getDevIds() != null, this.devices.getDevIds().get(deviceIdTempScaleKuhny) != null);
 
@@ -1331,7 +1336,7 @@ public class TuyaDeviceService {
             return true;
         }
 
-        if (batterySocFromSolarman <= this.batteryCriticalNightSocWinter) {
+        if (batterySocFromSolarman <= this.batteryCriticalNightSocWinterDacha) {
             this.batteryCriticalOrHeatNightWinter = true;
             return true;
         }

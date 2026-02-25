@@ -20,22 +20,26 @@ public class SettingsService {
     }
 
     public DataSettingsDto getSettingsGolego() {
-        DataSettingsDto dataSettingsDto = new DataSettingsDto();
-        dataSettingsDto.setVersionBackend( solarmanTuyaService.getVersion());
-        dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlGolego()); //
-        dataSettingsDto.setHeaterGridOnAutoAllDay(deviceService.isHeaterGridOnAutoAllDayGolego());
-        dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
+        DataSettingsDto dataSettingsDto = new DataSettingsDto(
+                solarmanTuyaService.getVersion(),
+                deviceService.isDevicesChangeHandleControlGolego(),
+                deviceService.getLogsAppLimit(),
+                deviceService.getBatteryCriticalNightSocWinterGolego(),
+                deviceService.isHeaterGridOnAutoAllDayGolego()
+                );
+
         return dataSettingsDto;
     }
 
     public DataSettingsDto getSettingsDacha() {
-        DataSettingsDto dataSettingsDto = new DataSettingsDto();
-        dataSettingsDto.setVersionBackend(solarmanTuyaService.getVersion());
-        dataSettingsDto.setDevicesChangeHandleControl(deviceService.isDevicesChangeHandleControlDacha());
-        dataSettingsDto.setLogsAppLimit(deviceService.getLogsAppLimit());
-        dataSettingsDto.setBatteryCriticalNightSocWinter(deviceService.getBatteryCriticalNightSocWinter());
+        DataSettingsDto dataSettingsDto = new DataSettingsDto(
+                solarmanTuyaService.getVersion(),
+                deviceService.isDevicesChangeHandleControlDacha(),
+                deviceService.getLogsAppLimit(),
+                deviceService.getBatteryCriticalNightSocWinterDacha(),
+                deviceService.isHeaterGridOnAutoAllDayDacha()
+        );
         dataSettingsDto.setHeaterNightAutoOnDachaWinter(deviceService.isHeaterNightAutoOnDachaWinter());
-        dataSettingsDto.setHeaterGridOnAutoAllDay(deviceService.isHeaterGridOnAutoAllDayDacha());
         if (solarmanStationsService.getSolarmanStation() != null) {
             dataSettingsDto.setSeasonsId(solarmanStationsService.getSolarmanStation().getSeasonsId());
         }
@@ -45,6 +49,9 @@ public class SettingsService {
     public DataSettingsDto setSettingsGolego(DataSettingsDto settingsGolego) {
         if (settingsGolego.getDevicesChangeHandleControl() != null) {
             deviceService.setDevicesChangeHandleControlGolego(settingsGolego.getDevicesChangeHandleControl()); //
+        }
+        if (settingsGolego.getBatteryCriticalNightSocWinter() != null) {
+            deviceService.setBatteryCriticalNightSocWinterGolego(settingsGolego.getBatteryCriticalNightSocWinter());
         }
         if (settingsGolego.getHeaterGridOnAutoAllDay() != null) {
             deviceService.setHeaterGridOnAutoAllDayGolego(settingsGolego.getHeaterGridOnAutoAllDay());
@@ -60,7 +67,7 @@ public class SettingsService {
             deviceService.setDevicesChangeHandleControlDacha(settingsDacha.getDevicesChangeHandleControl());
         }
         if (settingsDacha.getBatteryCriticalNightSocWinter() != null) {
-            deviceService.setBatteryCriticalNightSocWinter(settingsDacha.getBatteryCriticalNightSocWinter());
+            deviceService.setBatteryCriticalNightSocWinterDacha(settingsDacha.getBatteryCriticalNightSocWinter());
         }
         if (settingsDacha.getHeaterNightAutoOnDachaWinter() != null) {
             deviceService.setHeaterNightAutoOnDachaWinter(settingsDacha.getHeaterNightAutoOnDachaWinter());
