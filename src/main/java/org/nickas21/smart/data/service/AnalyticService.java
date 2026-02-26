@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
-import org.nickas21.smart.data.dataEntityDto.DataErrorInfoDto;
 import org.nickas21.smart.data.dataEntityDto.PowerType;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.entity.InverterData;
@@ -59,16 +58,18 @@ public class AnalyticService {
     private final UsrTcpWiFiParseData usrTcpWiFiParseData;
     private final TuyaDeviceService deviceService;
 
-    private DataAnalyticDto currentDayGolego;
+    private DataAnalyticDto currentDayGrigGolego;
+    private DataAnalyticDto currentDayGridDacha;
+    public static final String patternYearFile = "yyyy";
     public static final String patternMonthFile = "yyyy-MM";
     public static final String patternDayKey = "yyyy-MM-dd";
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @PostConstruct
     public void init() {
-        this.currentDayGolego = loadDtoForDate(LocalDate.now(), LocationType.GOLEGO, PowerType.GRID);
+        this.currentDayGrigGolego = loadDtoForDate(LocalDate.now(), LocationType.GOLEGO, PowerType.GRID);
+        this.currentDayGridDacha = loadDtoForDate(LocalDate.now(), LocationType.DACHA, PowerType.GRID);
     }
-
     public AnalyticService(UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService deviceService) {
         this.usrTcpWiFiParseData = usrTcpWiFiParseData;
         this.deviceService = deviceService;
@@ -76,6 +77,7 @@ public class AnalyticService {
 
     @Scheduled(fixedRateString = "${smart.analytic.golego.update-rate:300000}")
     public void updateAndSaveGolegoAnalytic() {
+        checkAndResetDay();
         double currentGridPower = 0;
         UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
         Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
@@ -91,52 +93,120 @@ public class AnalyticService {
                 double homePower = invertorGolegoData90.getLoadOutputActivePower();
                 currentGridPower = batteryVol * batteryCurrent + homePower + golegoInverterPowerDefault;
             }
-
         }
-
         // 2. Рахуємо енергію за інтервал (кВт·год)
         double deltaKwh = (currentGridPower / 1000.0) * (updateRateMs / 3600000.0);
-
         // 3. Плюсуємо в T1 або T2 залежно від isDayZone(timestamp)
         updateStorage(deltaKwh, System.currentTimeMillis(), LocationType.GOLEGO, PowerType.GRID);
     }
 
-    public List<DataErrorInfoDto> getGolegoAnalyticDayCurrent() {
-        List<DataErrorInfoDto> errorInfoDtos = new ArrayList<>();
-        // read from file GolegoErrors
-//        historyGolegoaDtos.add(new  DataHistoryDto());
-        return errorInfoDtos;
+    public DataAnalyticDto getAnalyticByDay(LocalDate date, LocationType location, PowerType type) {
+        // 1. Якщо запитують "сьогодні" для Golego — віддаємо з кешу, щоб не смикати диск
+        if (date.equals(LocalDate.now()) && location == LocationType.GOLEGO && type == PowerType.GRID) {
+            return this.currentDayGrigGolego;
+        } else if (date.equals(LocalDate.now()) && location == LocationType.DACHA && type == PowerType.GRID) {
+            return this.currentDayGridDacha;
+        }
+        // 2. Інакше вантажимо з відповідного файлу місяця
+        return loadDtoForDate(date, location, type);
     }
 
-    public List<DataErrorInfoDto> getDachaAnalyticDayCurrent() {
-        List<DataErrorInfoDto> dataErrorInfoDtos = new ArrayList<>();
-        // read from file DachaErrors
-//        historyGolegoaDtos.add(new  DataHistoryDto());
-        return dataErrorInfoDtos;
+    public DataAnalyticDto loadDtoForDate(LocalDate date, LocationType location, PowerType powerType) {
+        // 1. Формуємо шляхи та ключі
+        String monthSuffix = date.format(DateTimeFormatter.ofPattern(patternMonthFile));
+        String mapKey = date + "_" + location + "_" + powerType;
+        Path path = Paths.get(dirAnalytic, filePrefix + monthSuffix + ".json");
+
+        // 2. Якщо файлу немає — одразу новий об'єкт
+        if (!Files.exists(path)) {
+            log.info("Файл {} не знайдено, створюємо новий DTO", path.getFileName());
+            return new DataAnalyticDto(location, powerType);
+        }
+
+        try {
+            // 3. Читаємо весь файл
+            String json = Files.readString(path, StandardCharsets.UTF_8);
+            if (json == null || json.isBlank()) return new DataAnalyticDto(location, powerType);;
+
+            // 4. Десеріалізуємо в мапу (використовуємо JacksonUtil, якщо він вміє в TypeReference, або стандартний ObjectMapper)
+            Map<String, DataAnalyticDto> monthData = objectMapper.readValue(json,
+                    new TypeReference<ConcurrentHashMap<String, DataAnalyticDto>>() {});
+
+            // 5. Повертаємо потрібний день або новий, якщо в мапі його ще немає
+            DataAnalyticDto dto = monthData.get(mapKey);
+            if (dto != null) {
+                log.info("Завантажено існуючий DTO для {}", mapKey);
+                return dto;
+            }
+        } catch (IOException e) {
+            log.error("Помилка парсингу JSON аналітики: {}", e.getMessage());
+        }
+        return new DataAnalyticDto(location, powerType);
     }
 
-    public List<DataErrorInfoDto> getGolegoAnalyticPeriod() {
-        List<DataErrorInfoDto> errorInfoDtos = new ArrayList<>();
-        // read from file GolegoErrors
-//        historyGolegoaDtos.add(new  DataHistoryDto());
-        return errorInfoDtos;
+    public List<DataAnalyticDto> getAnalyticForMonth(String yearMonth, LocationType location, PowerType powerType) {
+        // Формуємо шлях: ./usrAnalytic/analytic_2026-02.json
+        Path path = Paths.get(dirAnalytic, filePrefix + yearMonth + ".json");
+
+        if (!Files.exists(path)) {
+            log.warn("Файл аналітики за місяць {} не знайдено", yearMonth);
+            return new ArrayList<>();
+        }
+
+        try {
+            String json = Files.readString(path, StandardCharsets.UTF_8);
+            Map<String, DataAnalyticDto> allData = objectMapper.readValue(json,
+                    new TypeReference<ConcurrentHashMap<String, DataAnalyticDto>>() {});
+
+            // Фільтруємо за локацією ТА типом енергії
+            return allData.values().stream()
+                    .filter(dto -> dto.getLocation() == location && dto.getPowerType() == powerType)
+                    .sorted((d1, d2) -> Long.compare(d1.getTimestamp(), d2.getTimestamp()))
+                    .toList();
+
+        } catch (IOException e) {
+            log.error("Помилка читання історії за місяць {}: {}", yearMonth, e.getMessage());
+            return new ArrayList<>();
+        }
     }
 
-    public List<DataErrorInfoDto> getDachaAnalyticPeriod() {
-        List<DataErrorInfoDto> dataErrorInfoDtos = new ArrayList<>();
-        // read from file DachaErrors
-//        historyGolegoaDtos.add(new  DataHistoryDto());
-        return dataErrorInfoDtos;
+    public List<DataAnalyticDto> getAnalyticForYear(int year, LocationType location, PowerType powerType) {
+        List<DataAnalyticDto> yearlyData = new ArrayList<>();
+
+        for (int month = 1; month <= 12; month++) {
+            // Формуємо рядок типу "2026-02"
+            String yearMonthStr = String.format("%d-%02d", year, month);
+
+            // Використовуємо вже готовий метод для отримання даних за місяць
+            List<DataAnalyticDto> monthDays = getAnalyticForMonth(yearMonthStr, location, powerType);
+
+            if (!monthDays.isEmpty()) {
+                // Агрегуємо всі дні місяця в один об'єкт для графіка "Рік по місяцях"
+                DataAnalyticDto monthSummary = new DataAnalyticDto(location, powerType);
+                monthSummary.setTimestamp(monthDays.get(0).getTimestamp()); // Мітка для сортування
+
+                double totalDay = monthDays.stream().mapToDouble(DataAnalyticDto::getPowerDay).sum();
+                double totalNight = monthDays.stream().mapToDouble(DataAnalyticDto::getPowerNight).sum();
+
+                monthSummary.setPowerDay(totalDay);
+                monthSummary.setPowerNight(totalNight);
+                monthSummary.setPowerTotal(totalDay + totalNight);
+
+                yearlyData.add(monthSummary);
+            }
+        }
+        return yearlyData;
     }
 
     public void updateStorage(double deltaKwh, long timestamp, LocationType location, PowerType type) {
-        // 1. Визначаємо, який об'єкт оновлювати
         DataAnalyticDto currentDto;
 
+        // ВИПРАВЛЕНО: Використовуємо кеш для обох локацій
         if (location == LocationType.GOLEGO) {
-            currentDto = this.currentDayGolego;
+            currentDto = this.currentDayGrigGolego;
+        } else if (location == LocationType.DACHA) {
+            currentDto = this.currentDayGridDacha;
         } else {
-            // Для Dacha логіка буде аналогічною, коли додамо currentDayDacha
             currentDto = loadDtoForDate(LocalDate.now(), location, type);
         }
 
@@ -145,18 +215,15 @@ public class AnalyticService {
             return;
         }
 
-        // 2. Розподіляємо дельту по зонах
         if (isDayZone(timestamp)) {
             currentDto.setPowerDay(currentDto.getPowerDay() + deltaKwh);
         } else {
             currentDto.setPowerNight(currentDto.getPowerNight() + deltaKwh);
         }
 
-        // 3. Оновлюємо загальні поля
         currentDto.setPowerTotal(currentDto.getPowerDay() + currentDto.getPowerNight());
         currentDto.setTimestamp(timestamp);
 
-        // 4. Синхронізуємо з диском
         saveToMonthlyFile(currentDto);
     }
 
@@ -206,37 +273,28 @@ public class AnalyticService {
             log.error("Помилка запису аналітики: ", e);
         }
     }
-    private DataAnalyticDto loadDtoForDate(LocalDate date, LocationType location, PowerType powerType) {
-        // 1. Формуємо шляхи та ключі
-        String monthSuffix = date.format(DateTimeFormatter.ofPattern("yyyy-MM"));
-        String mapKey = date.toString() + "_" + location + "_" + powerType;
-        Path path = Paths.get(dirAnalytic, filePrefix + monthSuffix + ".json");
 
-        // 2. Якщо файлу немає — одразу новий об'єкт
-        if (!Files.exists(path)) {
-            log.info("Файл {} не знайдено, створюємо новий DTO", path.getFileName());
-            return new DataAnalyticDto(location, powerType);
+    private void checkAndResetDay() {
+        LocalDate today = LocalDate.now();
+
+        // Перевіряємо Golego
+        LocalDate cacheDateGolego = Instant.ofEpochMilli(currentDayGrigGolego.getTimestamp())
+                .atZone(ZoneId.systemDefault()).toLocalDate();
+
+        if (!today.equals(cacheDateGolego)) {
+            log.info("Нова доба: скидання кешів аналітики.");
+
+            // Зберігаємо старі
+            saveToMonthlyFile(currentDayGrigGolego);
+            saveToMonthlyFile(currentDayGridDacha);
+
+            // Створюємо нові
+            this.currentDayGrigGolego = new DataAnalyticDto(LocationType.GOLEGO, PowerType.GRID);
+            this.currentDayGridDacha = new DataAnalyticDto(LocationType.DACHA, PowerType.GRID);
+
+            // Фіксуємо початок нового дня
+            saveToMonthlyFile(this.currentDayGrigGolego);
+            saveToMonthlyFile(this.currentDayGridDacha);
         }
-
-        try {
-            // 3. Читаємо весь файл
-            String json = Files.readString(path, StandardCharsets.UTF_8);
-            if (json == null || json.isBlank()) return new DataAnalyticDto(location, powerType);;
-
-            // 4. Десеріалізуємо в мапу (використовуємо JacksonUtil, якщо він вміє в TypeReference, або стандартний ObjectMapper)
-            Map<String, DataAnalyticDto> monthData = objectMapper.readValue(json,
-                    new TypeReference<ConcurrentHashMap<String, DataAnalyticDto>>() {});
-
-            // 5. Повертаємо потрібний день або новий, якщо в мапі його ще немає
-            DataAnalyticDto dto = monthData.get(mapKey);
-            if (dto != null) {
-                log.info("Завантажено існуючий DTO для {}", mapKey);
-                return dto;
-            }
-        } catch (IOException e) {
-            log.error("Помилка парсингу JSON аналітики: {}", e.getMessage());
-        }
-        return new DataAnalyticDto(location, powerType);
     }
-
 }

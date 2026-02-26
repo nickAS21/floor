@@ -14,4 +14,14 @@ public enum LocationType {
         this.nameForFile = nameForFile;
         this.description = description;
     }
+
+    public static LocationType getByName(String name) {
+        if (name == null) return null;
+        for (LocationType type : LocationType.values()) {
+            if (type.nameForFile.equalsIgnoreCase(name) || type.name().equalsIgnoreCase(name)) {
+                return type;
+            }
+        }
+        return null;
+    }
 }
