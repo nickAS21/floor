@@ -116,7 +116,7 @@ public class TuyaDeviceService {
 
     @Getter
     @Setter
-    @Value("${dacha.settings.battery_critical_night_soc_charging:60}")
+    @Value("${golego.settings.battery_critical_night_soc_charging:60}")
     private double batteryCriticalNightSocWinterGolego; //60, 50, 40;
 
     @Getter
@@ -169,7 +169,6 @@ public class TuyaDeviceService {
     private final TuyaDeviceProperties deviceProperties;
 
     private String gridRelayCodeIdDacha;
-    private String boilerRelayCodeIdDacha;
     private String gridRelayCodeIdHome;
     private String boilerRelayCodeIdHome;
     private Entry<Long, Double> lastUpdateTimeAlarmSocDacha;
@@ -179,7 +178,8 @@ public class TuyaDeviceService {
     private final WebClient authClient = WebClient.builder().build();
     private final WebClient webClient;
     private Long timeoutSecUpdateMillis;
-    private boolean batteryCriticalOrHeatNightWinter = false;
+    private boolean batteryCriticalOrHeatNightDachaWinter = false;
+    private boolean batteryCriticalOrHeatNightGolego = false;
 
     @Autowired
     SolarmanStationsService solarmanStationsService;
@@ -1080,43 +1080,56 @@ public class TuyaDeviceService {
      */
     public void updateOnOffSwitchRelayGolego(String gridRelayCodeId, double batterySocFromUsr) {
         Device device = this.devices.getDevIds().get(gridRelayCodeId);
-        if (device == null) {
+        if (device == null || device.currentStateOnLine() == null || !device.currentStateOnLine().getValue()) {
             log.error("Device Relay Golego switch is null... , is offline... and is not update");
-        } else if (device.currentStateOnLine().getValue()) {
+        }
+
+       if (device.currentStateOnLine().getValue()) {
             boolean paramOnOff = false; // isSwitchRelayAfterNightOff()
             boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
             if (batterySocFromUsr >= 0 && batterySocFromUsr < ALARM.getSoc()) {
                 paramOnOff = this.getGridRelayCodeIdGolego().equals(gridRelayCodeId);
-            } else if (nightTariff && batterySocFromUsr < this.batteryCriticalNightSocWinterGolego) {  // night: from 23:00 to 6:50
-                paramOnOff = true;
+
+            } else if (this.heaterGridOnAutoAllDayGolego) {
+                paramOnOff = this.getGridRelayCodeGolegoStateOnLine();
+            } else {
+                if (nightTariff) {  // night: from 23:00 to 6:50 => nightTariff && batterySocFromUsr < this.batteryCriticalNightSocWinterGolego)
+                    paramOnOff = batteryCriticalOrHeatNightSwitchRelayGolego(batterySocFromUsr);
+                } else {
+                    this.batteryCriticalOrHeatNightGolego = false;
+                }
             }
+
             if (this.heaterGridOnAutoAllDayGolego) {
                 paramOnOff = this.getGridRelayCodeGolegoStateOnLine();
             }
-            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-            DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
 
-//            if (!isSwitchRelayAfterNightOff() && this.devicesChangeHandleControlGolego) {   // handle and not -> 7-8 (AfterNight)
+            DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
             if (this.devicesChangeHandleControlGolego) {   // handle and not -> 7-8 (AfterNight)
                 deviceUpdate.setValueNew(deviceUpdate.getValueOld());
             }
 
-            if (deviceUpdate.isUpdate()) {
-                log.info("Relay switch [{}] updated to [{}], night tariff: [{}].", device.getName(), paramOnOff ? "on" : "off", nightTariff);
-                queueUpdate.put(device, deviceUpdate);
-            } else {
+            if (!deviceUpdate.isUpdate()) {
                 log.info("Relay switch: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
-                        device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                        device.getName(),
+                        deviceUpdate.getFieldNameValueUpdate(),
+                        deviceUpdate.getValueNew(),
+                        deviceUpdate.getValueOld());
+                return;
             }
+
+            log.info("Relay switch [{}] updated to [{}], night tariff: [{}].",
+                    device.getName(),
+                    paramOnOff ? "on" : "off",
+                    nightTariff);
+            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+            queueUpdate.put(device, deviceUpdate);
             queueLock.lock();
             try {
                 updateThermostats(queueUpdate, false);
             } finally {
                 queueLock.unlock();
             }
-
-        } else {
-            log.warn("Device relay switch [{}] cannot be updated, is offline...", device.getName());
         }
     }
 
@@ -1210,7 +1223,7 @@ public class TuyaDeviceService {
                                 thermostatValueNew = this.getDeviceProperties().getTempSetMin();
                             }
                         } else if (this.heaterNightAutoOnDachaWinter) {// auto night in winter  if grid - on
-                            thermostatValueNew = this.updateHeaterFirstWinterAuto(gridRelayDachaStateOnLine, batterySocFromSolarman);
+                            thermostatValueNew = this.updateHeaterDachaFirstWinterAuto(gridRelayDachaStateOnLine, batterySocFromSolarman);
                             isUpdateSwitchThermostat = true;
                             if (this.getDeviceProperties().getTempSetMin().equals(thermostatValueNew)) {
                                 gridRelayDachaSwitchOffOnNew = false;
@@ -1223,13 +1236,9 @@ public class TuyaDeviceService {
                                 thermostatValueNew = this.getDeviceProperties().getTempSetMin();
                             }
                         } else if (!this.devicesChangeHandleControlDacha) {
-                            Integer thermostatValueForGridSwitch = this.updateHeaterFirstWinterAuto(gridRelayDachaStateOnLine, batterySocFromSolarman);
-                            if (this.getDeviceProperties().getTempSetMin().equals(thermostatValueForGridSwitch)) {
-                                gridRelayDachaSwitchOffOnNew = false;
-                            } else {
-                                // is not handler + winter +  night + batteryCriticalNightSocWinter
-                                gridRelayDachaSwitchOffOnNew = true;
-                            }
+                            Integer thermostatValueForGridSwitch = this.updateHeaterDachaFirstWinterAuto(gridRelayDachaStateOnLine, batterySocFromSolarman);
+                            // is not handler + winter +  night + batteryCriticalNightSocWinter
+                            gridRelayDachaSwitchOffOnNew = !this.getDeviceProperties().getTempSetMin().equals(thermostatValueForGridSwitch);
                         }
                     }
                 }
@@ -1286,13 +1295,7 @@ public class TuyaDeviceService {
         }
     }
 
-    private Integer updateHeaterFirstWinterAuto(boolean switchOnLine, double batterySocCur) {
-
-//        if (isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha) &&
-//            this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId() &&
-//                switchOnLine && this.batteryCriticalNightSocWinter > batterySocCur) {
-//                    return this.getDeviceProperties().getTempSetMax();
-//        }
+    private Integer updateHeaterDachaFirstWinterAuto(boolean switchOnLine, double batterySocCur) {
         if ( batteryCriticalOrHeatNightSwitchRelayDachaOnOffWinter(batterySocCur) && switchOnLine) {
                     return this.getDeviceProperties().getTempSetMax();
         }
@@ -1319,7 +1322,6 @@ public class TuyaDeviceService {
      * працює тільки взимку + нічний тариф + тільки для dacha
      * якщо SOC батареї падає нижче критичного, фіксує стан batteryCriticalOrHeatNightWinter = true
      * після цього повертає true завжди, доки не закінчиться ніч або зима
-     *
      * paramOnOff = true/false if: is NightTariff && this.getHourChargeBattery() in NightTariff && Winter
      * -- HourChargeBattery < 7 ... =>  HourChargeBattery >= 1:30
      * --if batterySocFromSolarman <= batteryCriticalNightSocWinter → critical night mode ON = true => 60%/50%/40%
@@ -1328,19 +1330,30 @@ public class TuyaDeviceService {
         boolean isWinter = this.solarmanStationsService.getSolarmanStation().getSeasonsId() == Seasons.WINTER.getSeasonsId();
 
         if (!isWinter || !isNightTariff(hourNightTariffStartDopDacha, minutesNightTariffStartDopDacha)) { // summer or day
-            this.batteryCriticalOrHeatNightWinter = false;
+            this.batteryCriticalOrHeatNightDachaWinter = false;
             return false;
         }
 
-        if (this.batteryCriticalOrHeatNightWinter) {
+        if (this.batteryCriticalOrHeatNightDachaWinter) {
             return true;
         }
 
         if (batterySocFromSolarman <= this.batteryCriticalNightSocWinterDacha) {
-            this.batteryCriticalOrHeatNightWinter = true;
+            this.batteryCriticalOrHeatNightDachaWinter = true;
             return true;
         }
 
+        return false;
+    }
+
+    public boolean batteryCriticalOrHeatNightSwitchRelayGolego(double batterySocFromSolarman) {
+        if (this.batteryCriticalOrHeatNightGolego) {
+            return true;
+        }
+        if (batterySocFromSolarman  <= this.batteryCriticalNightSocWinterGolego) {
+            this.batteryCriticalOrHeatNightGolego = true;
+            return true;
+        }
         return false;
     }
 }

@@ -11,14 +11,15 @@ app:
 
 dacha:
   settings:
-    battery_critical_night_soc_charging: "${BATTERY_SOC_CRITICAL_NIGHT_CHARGING:60}"
     devices_change_handle_control: "${DEVICES_CHANGE_HANDLE_CONTROL_DACHA:false}"
+    battery_critical_night_soc_charging: "${BATTERY_SOC_CRITICAL_NIGHT_CHARGING:60}"
     heater_night_auto_on_winter: "${HEATER_NIGHT_AUTO_ON_DACHA_WINTER:false}"
     heater_grid_auto_all_day: "${HEATER_GRID_AUTO_ALL_DAY_DACHA:false}"
 
 golego:
   settings:
     devices_change_handle_control: "${DEVICES_CHANGE_HANDLE_CONTROL_GOLEGO:false}"
+    battery_critical_night_soc_charging: "${BATTERY_SOC_CRITICAL_NIGHT_CHARGING:60}"
     heater_grid_auto_all_day: "${HEATER_GRID_AUTO_ALL_DAY_GOLEGO:false}"
 
 springdoc:
