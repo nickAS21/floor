@@ -2,9 +2,12 @@ package org.nickas21.smart.data.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
 import org.nickas21.smart.data.dataEntityDto.PowerType;
+import org.nickas21.smart.solarman.SolarmanStationsService;
+import org.nickas21.smart.solarman.api.HistoricalOneDayTimeData;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.entity.InverterData;
 import org.nickas21.smart.usr.entity.InvertorGolegoData90;
@@ -15,7 +18,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -57,6 +59,7 @@ public class AnalyticService {
 
     private final UsrTcpWiFiParseData usrTcpWiFiParseData;
     private final TuyaDeviceService deviceService;
+    private final SolarmanStationsService solarmanStationsService;
 
     private DataAnalyticDto currentDayGrigGolego;
     private DataAnalyticDto currentDayGridDacha;
@@ -70,13 +73,15 @@ public class AnalyticService {
         this.currentDayGrigGolego = loadDtoForDate(LocalDate.now(), LocationType.GOLEGO, PowerType.GRID);
         this.currentDayGridDacha = loadDtoForDate(LocalDate.now(), LocationType.DACHA, PowerType.GRID);
     }
-    public AnalyticService(UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService deviceService) {
+    public AnalyticService(UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService deviceService, SolarmanStationsService solarmanStationsService) {
         this.usrTcpWiFiParseData = usrTcpWiFiParseData;
         this.deviceService = deviceService;
-    }
+        this.solarmanStationsService = solarmanStationsService;
+     }
 
     @Scheduled(fixedRateString = "${smart.analytic.golego.update-rate:300000}")
     public void updateAndSaveGolegoAnalytic() {
+        updateDachaGridAnalytic();
         checkAndResetDay();
         double currentGridPower = 0;
         UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
@@ -296,5 +301,23 @@ public class AnalyticService {
             saveToMonthlyFile(this.currentDayGrigGolego);
             saveToMonthlyFile(this.currentDayGridDacha);
         }
+    }
+
+    public void updateDachaGridAnalytic() {
+        HistoricalOneDayTimeData powerValueRealTimeData =solarmanStationsService.fetchHistoricalOneDayTimeData(Instant.now());
+//        double dailyGridKwh = powerValueRealTimeData.getDailyEnergyBuy();
+//        // 3. Оновлюємо кеш.
+//        // Оскільки Solarman не ділить на день/ніч, записуємо все в PowerDay
+//        this.currentDayGridDacha.setPowerDay(dailyGridKwh);
+//        this.currentDayGridDacha.setPowerNight(0.0); // Для Дачі ніч поки 0
+//        this.currentDayGridDacha.setPowerTotal(dailyGridKwh);
+//
+//        // 4. Оновлюємо мітку часу, щоб спрацьовувала логіка зміни доби
+//        this.currentDayGridDacha.setTimestamp(System.currentTimeMillis());
+//
+//        // 5. Синхронізуємо з файлом на диску
+//        saveToMonthlyFile(this.currentDayGridDacha);
+
+        log.info("Dacha Analytic Updated:  kWh");
     }
 }

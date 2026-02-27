@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.api.Communication;
+import org.nickas21.smart.solarman.api.HistoricalOneDayTimeData;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.SolarmanToken;
 import org.nickas21.smart.solarman.api.Station;
@@ -18,6 +19,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_COMMUNICATION;
 import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_CURRENT_DATA;
+import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_HISTORICAL_DATA;
 import static org.nickas21.smart.solarman.api.ApiPath.STATION_LIST;
 import static org.nickas21.smart.solarman.api.ApiPath.TOKEN;
 import static org.nickas21.smart.util.JacksonUtil.fromString;
@@ -244,6 +247,32 @@ public class SolarmanStationsService {
                 .orElseThrow(() -> new IllegalStateException("Solarman returned null response"));
     }
 
+    public HistoricalOneDayTimeData fetchHistoricalOneDayTimeData(Instant instant) {
+        // Форматуємо дату (наприклад, "2026-02-26")
+        String dateStr = instant.atZone(ZoneId.systemDefault()).toLocalDate().toString();
+
+        log.info("Запит історії Solarman за дату: {}", dateStr);
+        return webClient.post().uri(uriBuilder -> uriBuilder
+                        .path(DEVICE_HISTORICAL_DATA)
+                        .queryParam("language", "en")
+                        .build())
+                .headers(httpHeaders -> {
+                    httpHeaders.add("t", String.valueOf(System.currentTimeMillis()));
+                    httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+                })
+                .bodyValue(new HistoricalDataRequest(
+                        solarmanStation.getInverterId(),
+                        solarmanStation.getInverterSn(),
+                        dateStr, // Початок діапазону
+                        dateStr, // Кінець діапазону (той самий день)
+                        2  // Отримуємо точки кожні 10 хвилин
+                ))
+                .retrieve()
+                .bodyToMono(HistoricalOneDayTimeData.class)
+                .blockOptional()
+                .orElseThrow(() -> new IllegalStateException("Solarman returned null response history"));
+    }
+
     private boolean hasValidAccessToken() {
         return accessSolarmanToken.getExpiresIn() + 20_000 > System.currentTimeMillis();
     }
@@ -259,5 +288,7 @@ public class SolarmanStationsService {
     private record CommunicationResponse(Communication communication) { }
 
     private record RealTimeDataRequest(String deviceSn, Long deviceId) { }
+
+    private record HistoricalDataRequest(Long deviceId,String deviceSn, String startTime, String endTime, Integer timeType) { }
 }
 
