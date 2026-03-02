@@ -74,13 +74,11 @@ smart:
     seasons-id: "${SEASONS_ID:3}"
   analytic:
     zones:
-      day-start: "07:00"
-      night-start: "23:00"
-      dir: "./usrAnalytic/"       # Каталог для аналітики
-      file-prefix: "analytic_"    # Префікс файлу (напр. analytic_2026-02.json)
-    golego:
+      day-start: 7
+      night-start: 23
+    dir: "./analytic/"       # Каталог для аналітики
       # Інтервал оновлення в мілісекундах (5 хвилин)
-      update-rate: 300000
+    update-rate: 300000
 
 telegram:
   bot:
