@@ -6,10 +6,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.PowerValueRealTimeData;
-import org.nickas21.smart.data.dataEntityDto.DataAnalyticApiDto;
+import org.nickas21.smart.data.dataEntityDto.DataAnalytic;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
-import org.nickas21.smart.data.dataEntityDto.PowerType;
-import org.nickas21.smart.solarman.SolarmanStationsService;
+import org.nickas21.smart.data.dataEntityDto.DataHomeDto;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.entity.InverterData;
 import org.nickas21.smart.usr.entity.InvertorGolegoData90;
@@ -32,6 +31,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -59,16 +59,15 @@ public class AnalyticService {
 
     private final Map<String, List<DataAnalyticDto>> analyticCache = new HashMap<>();
 
+    private final DataHomeService dataHomeService;
     private final UsrTcpWiFiParseData usrTcpWiFiParseData;
     private final TuyaDeviceService deviceService;
     private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
 
-    private List<DataAnalyticDto> currentDayGridGolegos;
-    private double dailyGridGolegoNight;
-    private double dailyGridGolegoDay;
-    private List<DataAnalyticDto> currentDayGridDachas;
-    private double dailyGridDachaNight;
-    private double dailyGridDachaDay;
+    private List<DataAnalyticDto> currentDayGolegos;
+    private List<DataAnalyticDto> currentDayDachas;
+    DataAnalyticDto lastAnalyticDtoGolego;
+    DataAnalyticDto lastAnalyticDtoDacha;
     public static final String patternYearFile = "yyyy";
     public static final String patternMonthFile = "yyyy-MM";
     public static final String patternDayKey = "yyyy-MM-dd";
@@ -78,73 +77,65 @@ public class AnalyticService {
     @PostConstruct
     public void init() {
         LocalDate localDate = LocalDate.now();
-        this.currentDayGridGolegos = loadDtosForDate(localDate, LocationType.GOLEGO, PowerType.GRID);
-        this.currentDayGridDachas = loadDtosForDate(localDate, LocationType.DACHA, PowerType.GRID);
-        this.analyticCache.put(generateDateKey(localDate, LocationType.GOLEGO, PowerType.GRID), this.currentDayGridGolegos);
-        this.analyticCache.put(generateDateKey(localDate, LocationType.DACHA, PowerType.GRID), this.currentDayGridDachas);
-        // 2. Сортуємо список Dachas за часом, щоб бути впевненими, що остання точка — найсвіжіша
-        if (!this.currentDayGridDachas.isEmpty()) {
-            this.currentDayGridDachas.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
 
-            // Тепер беремо останню точку з повною впевненістю
-            DataAnalyticDto lastPointDacha = this.currentDayGridDachas.get(this.currentDayGridDachas.size() - 1);
-            this.dailyGridDachaNight = lastPointDacha.getPowerNight();
-            this.dailyGridDachaDay = lastPointDacha.getPowerDay();
-        } else {
-            this.dailyGridDachaNight = 0.0;
-            this.dailyGridDachaDay = 0.0;
-        }
-        // 3. Сортуємо список Golegos за часом, щоб бути впевненими, що остання точка — найсвіжіша
-        if (!this.currentDayGridGolegos.isEmpty()) {
-            this.currentDayGridGolegos.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
+        this.currentDayGolegos = loadDtosForDate(localDate, LocationType.GOLEGO);
+        this.currentDayDachas = loadDtosForDate(localDate, LocationType.DACHA);
 
-            // Тепер беремо останню точку з повною впевненістю
-            DataAnalyticDto lastPointGolego = this.currentDayGridGolegos.get(this.currentDayGridGolegos.size() - 1);
-            this.dailyGridGolegoNight = lastPointGolego.getPowerNight();
-            this.dailyGridGolegoDay = lastPointGolego.getPowerDay();
+        this.analyticCache.put(generateDateKey(localDate, LocationType.GOLEGO), this.currentDayGolegos);
+        this.analyticCache.put(generateDateKey(localDate, LocationType.DACHA), this.currentDayDachas);
+        processLastPoint(this.currentDayDachas, LocationType.DACHA);
+        processLastPoint(this.currentDayGolegos, LocationType.GOLEGO);
+    }
+
+    private void processLastPoint(List<DataAnalyticDto> list, LocationType type) {
+        if (!list.isEmpty()) {
+            list.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
+            if (type == LocationType.DACHA) this.lastAnalyticDtoDacha = list.get(list.size() - 1);
+            else this.lastAnalyticDtoGolego = list.get(list.size() - 1);
         } else {
-            this.dailyGridGolegoNight = 0.0;
-            this.dailyGridGolegoDay = 0.0;
+            if (type == LocationType.DACHA) this.lastAnalyticDtoDacha = new DataAnalyticDto(type);
+            else this.lastAnalyticDtoGolego = new DataAnalyticDto(type);
         }
     }
 
-    public AnalyticService(UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService deviceService, SolarmanStationsService solarmanStationsService, DefaultSmartSolarmanTuyaService solarmanTuyaService) {
+    public AnalyticService(UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService deviceService, DataHomeService dataHomeService, DefaultSmartSolarmanTuyaService solarmanTuyaService) {
         this.usrTcpWiFiParseData = usrTcpWiFiParseData;
         this.deviceService = deviceService;
+        this.dataHomeService = dataHomeService;
         this.solarmanTuyaService = solarmanTuyaService;
      }
 
     @Scheduled(fixedRateString = "${smart.analytic.golego.update-rate:300000}")
     public void updateAndSaveAnalytic() {
         checkAndResetDay();
-        updateGolegoGridAnalytic();
-        updateDachaGridAnalytic();
+        updateDachaAnalytic();
+        updateGolegoAnalytic();
         // Оновлюємо кеш для поточної дати
         LocalDate date = LocalDate.now();
-        analyticCache.put(generateDateKey(date, LocationType.GOLEGO, PowerType.GRID), currentDayGridGolegos); //
-        analyticCache.put(generateDateKey(date, LocationType.DACHA, PowerType.GRID), currentDayGridDachas); //
+        this.analyticCache.put(generateDateKey(date, LocationType.GOLEGO), this.currentDayGolegos); //
+        this.analyticCache.put(generateDateKey(date, LocationType.DACHA), this.currentDayDachas); //
     }
 
     // (pattern = AnalyticService.patternDayKey) LocalDate date => "yyyy-MM-dd"
-    public List<DataAnalyticDto> getAnalyticByDay(LocalDate date, LocationType location, PowerType type) {
+    public List<DataAnalyticDto> getAnalyticByDay(LocalDate date, LocationType location) {
         // 1. Спочатку перевіряємо дату на current
         LocalDate today = LocalDate.now();
         if (today.equals(date)) {
             if (location == LocationType.DACHA) {
-                return this.currentDayGridDachas;
+                return this.currentDayDachas;
             } else if (location == LocationType.GOLEGO) {
-                return this.currentDayGridGolegos;
+                return this.currentDayGolegos;
             }
         }
         // 2. Якщо запитують за минулу дату — використовуємо вже написаний loadDtoForDate
-        return loadDtosForDate(date, location, type);
+        return loadDtosForDate(date, location);
     }
 
-   public List<DataAnalyticDto> loadDtosForDate(LocalDate date, LocationType location, PowerType powerType) {
+   public List<DataAnalyticDto> loadDtosForDate(LocalDate date, LocationType location) {
         // 1. Формуємо шляхи та ключі
         String monthSuffix = date.format(DateTimeFormatter.ofPattern(patternMonthFile));
-        String mapKey = generateDateKey(date, location, powerType);
-        Path path = getPathFile(location, powerType, monthSuffix);
+        String mapKey = generateDateKey(date, location);
+        Path path = getPathFile(location, monthSuffix);
 
         // 2. ПЕРЕВІРКА КЕШУ: Якщо цей день вже в пам'яті — віддаємо миттєво
         if (this.analyticCache.containsKey(mapKey)) {
@@ -179,7 +170,7 @@ public class AnalyticService {
         return new ArrayList<>();
     }
 
-    public List<DataAnalyticDto> loadDtosForDates(LocalDate dateStart, LocalDate dateFinish, LocationType location, PowerType powerType) {
+    public List<DataAnalyticDto> loadDtosForDates(LocalDate dateStart, LocalDate dateFinish, LocationType location) {
         List<DataAnalyticDto> result = new ArrayList<>();
 
         // Визначаємо список унікальних місяців, які охоплює період
@@ -191,7 +182,7 @@ public class AnalyticService {
 
         while (!current.isAfter(dateFinish)) {
             String monthSuffix = current.format(DateTimeFormatter.ofPattern(patternMonthFile)); //
-            String dayKey = generateDateKey(current, location, powerType); //
+            String dayKey = generateDateKey(current, location); //
 
             // 1. Перевіряємо, чи є дані в RAM кеші (сьогоднішні або нещодавно зчитані)
             if (analyticCache.containsKey(dayKey)) {
@@ -199,7 +190,7 @@ public class AnalyticService {
             } else {
                 // 2. Якщо в RAM немає, вантажимо з диска, використовуючи локальний кеш місяців
                 Map<String, List<DataAnalyticDto>> monthlyMap = monthlyFilesCache.computeIfAbsent(monthSuffix, k -> {
-                    Path path = getPathFile(location, powerType, monthSuffix); //
+                    Path path = getPathFile(location, monthSuffix); //
                     if (Files.exists(path)) {
                         try {
                             String content = Files.readString(path, StandardCharsets.UTF_8); //
@@ -225,9 +216,9 @@ public class AnalyticService {
                 .collect(Collectors.toList());
     }
 
-    public List<DataAnalyticDto> getAnalyticForMonth(LocationType location, PowerType powerType, String monthSuffix) {
+    public List<DataAnalyticDto> getAnalyticForMonth(LocationType location, String monthSuffix) {
         // Формуємо шлях: ./analytic/dacha_grid_2026-02.json
-        Path path = getPathFile(location,  powerType, monthSuffix);
+        Path path = getPathFile(location, monthSuffix);
         if (!Files.exists(path)) return new ArrayList<>();
 
         try {
@@ -247,7 +238,7 @@ public class AnalyticService {
         }
     }
 
-    public List<DataAnalyticDto> getAnalyticForYear(int year, LocationType location, PowerType powerType) {
+    public List<DataAnalyticDto> getAnalyticForYear(int year, LocationType location) {
         List<DataAnalyticDto> yearlyData = new ArrayList<>();
 
         for (int month = 1; month <= 12; month++) {
@@ -255,19 +246,19 @@ public class AnalyticService {
             String monthSuffix = String.format("%d-%02d", year, month);
 
             // Використовуємо вже готовий метод для отримання даних за місяць
-            List<DataAnalyticDto> monthDays = getAnalyticForMonth(location, powerType, monthSuffix);
+            List<DataAnalyticDto> monthDays = getAnalyticForMonth(location, monthSuffix);
 
             if (!monthDays.isEmpty()) {
                 // Агрегуємо всі дні місяця в один об'єкт для графіка "Рік по місяцях"
-                DataAnalyticDto monthSummary = new DataAnalyticDto(location, powerType);
+                DataAnalyticDto monthSummary = new DataAnalyticDto(location);
                 monthSummary.setTimestamp(monthDays.get(0).getTimestamp()); // Мітка для сортування
 
-                double totalDay = monthDays.stream().mapToDouble(DataAnalyticDto::getPowerDay).sum();
-                double totalNight = monthDays.stream().mapToDouble(DataAnalyticDto::getPowerNight).sum();
+                double totalDay = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDayPower).sum();
+                double totalNight = monthDays.stream().mapToDouble(DataAnalyticDto::getGridNightPower).sum();
 
-                monthSummary.setPowerDay(totalDay);
-                monthSummary.setPowerNight(totalNight);
-                monthSummary.setPowerTotal(totalDay + totalNight);
+                monthSummary.setGridDayPower(totalDay);
+                monthSummary.setGridNightPower(totalNight);
+                monthSummary.setGridTotalPower(totalDay + totalNight);
 
                 yearlyData.add(monthSummary);
             }
@@ -278,7 +269,7 @@ public class AnalyticService {
     private synchronized void saveToMonthlyFile(DataAnalyticDto dto) {
         LocalDate today = LocalDate.now();
         String monthSuffix = today.format(DateTimeFormatter.ofPattern(patternMonthFile));
-        Path path = getPathFile(dto.getLocation(), dto.getPowerType(), monthSuffix);
+        Path path = getPathFile(dto.getLocation(), monthSuffix);
 
         try {
             // 1. Створюємо папки, якщо це новий місяць
@@ -297,12 +288,12 @@ public class AnalyticService {
 
             // 3. БЕЗПЕЧНЕ додавання (використовуємо наш живий список з пам'яті)
             // Ми записуємо в мапу поточний стан нашого списку за сьогодні
-            String mapKey = generateDateKey(today, dto.getLocation(), dto.getPowerType());
+            String mapKey = generateDateKey(today, dto.getLocation());
 
             // Отримуємо список для цієї локації (він уже наповнений точками в updateDachaGridAnalytic)
             List<DataAnalyticDto> currentList = (dto.getLocation() == LocationType.DACHA)
-                    ? this.currentDayGridDachas
-                    : this.currentDayGridGolegos;
+                    ? this.currentDayDachas
+                    : this.currentDayGolegos;
 
             // Оновлюємо мапу місяця актуальним списком за сьогодні
             monthData.put(mapKey, new ArrayList<>(currentList));
@@ -319,7 +310,66 @@ public class AnalyticService {
         }
     }
 
-    private synchronized void updateGolegoGridAnalytic() {
+    private void checkAndResetDay() {
+        LocalDate today = LocalDate.now();
+        String expectedDachaKey = generateDateKey(today, LocationType.DACHA);
+
+        // Перевіряємо, чи змінилася доба
+        if (!analyticCache.containsKey(expectedDachaKey)) {
+            log.info("Нова доба [{}]: очищення кешу та ініціалізація нових списків.", today);
+
+            // 1. Очищаємо кеш (видаляємо старі похвилинки з пам'яті)
+            analyticCache.clear();
+
+            // 2. Ініціалізуємо нові потокобезпечні списки (або копії)
+            this.currentDayDachas = Collections.synchronizedList(new ArrayList<>());
+            this.currentDayGolegos = Collections.synchronizedList(new ArrayList<>());
+
+            // Скидаємо останні точки до нулів поточної локації
+            this.lastAnalyticDtoDacha = new DataAnalyticDto(LocationType.DACHA);
+            this.lastAnalyticDtoGolego = new DataAnalyticDto(LocationType.GOLEGO);
+
+            // 3. Реєструємо в кеші
+            analyticCache.put(expectedDachaKey, this.currentDayDachas);
+            analyticCache.put(generateDateKey(today, LocationType.GOLEGO), this.currentDayGolegos);
+
+            log.info("Система готова до збору даних за нову добу.");
+        }
+    }
+
+    private synchronized void updateDachaAnalytic() {
+        PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
+        double dailyGridPowerCommon = powerValueRealTimeData.getDailyEnergyBuy();
+        ZonedDateTime now = ZonedDateTime.now();
+        long timestamp = now.toInstant().toEpochMilli(); // мілісекунди
+        LocalDate date = now.toLocalDate();              // дата
+        int currentHour = now.getHour();
+        double dailyGridDachaNight = this.lastAnalyticDtoDacha.getGridNightPower();
+        double dailyGridDachaDay = this.lastAnalyticDtoDacha.getGridDayPower();
+        if (currentHour < dayStart) {
+            dailyGridDachaNight = dailyGridPowerCommon;
+        } else if (currentHour >= nightStart) {
+            dailyGridDachaNight = dailyGridPowerCommon - dailyGridDachaDay;
+        } else {
+            dailyGridDachaDay = dailyGridPowerCommon - dailyGridDachaNight;
+        }
+        double bmsSoc = powerValueRealTimeData.getBatterySocValue();
+        double solarPower = powerValueRealTimeData.getDailyProductionSolarPower();
+        double homePower = powerValueRealTimeData.getDailyHomeConsumptionPower();
+        DataAnalyticDto currentDtoDacha = new DataAnalyticDto(LocationType.DACHA);
+        currentDtoDacha.setTimestamp(timestamp);
+        currentDtoDacha.setGridDayPower(dailyGridDachaDay);
+        currentDtoDacha.setGridNightPower(dailyGridDachaNight);
+        currentDtoDacha.setGridTotalPower(currentDtoDacha.getGridDayPower() + currentDtoDacha.getGridNightPower());
+        currentDtoDacha.setBmsSoc(bmsSoc);
+        currentDtoDacha.setSolarPower(solarPower);
+        currentDtoDacha.setHomePower(homePower);
+        this.currentDayDachas.add(currentDtoDacha);
+        saveToMonthlyFile(currentDtoDacha);
+        this.lastAnalyticDtoDacha = currentDtoDacha;
+    }
+
+    private synchronized void updateGolegoAnalytic() {
         double currentGridPower = 0;
         UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
         Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
@@ -343,128 +393,72 @@ public class AnalyticService {
         int currentHour = Instant.ofEpochMilli(timestamp)
                 .atZone(ZoneId.systemDefault())
                 .getHour();
+        double dailyGridGolegoNight = this.lastAnalyticDtoGolego.getGridNightPower();
+        double dailyGridGolegoDay = this.lastAnalyticDtoGolego.getGridDayPower();
+        double homePowe = this.lastAnalyticDtoGolego.getHomePower();
         if (deltaKwh > 0) {
             if (currentHour < dayStart || currentHour >= nightStart) {
-                this.dailyGridGolegoNight += deltaKwh;
-                log.info("Golego Analytic Updated Night: [{}] kWh", this.dailyGridGolegoNight);
+                dailyGridGolegoNight += deltaKwh;
+                log.info("Golego Analytic Updated Night: [{}] kWh", dailyGridGolegoNight);
             } else {
-                this.dailyGridGolegoDay += deltaKwh;
-                log.info("Golego Analytic Updated Day: [{}] kWh", this.dailyGridGolegoDay);
+                dailyGridGolegoDay += deltaKwh;
+                log.info("Golego Analytic Updated Day: [{}] kWh", dailyGridGolegoDay);
             }
         }
-        DataAnalyticDto currentDtoGolego = new DataAnalyticDto(LocationType.GOLEGO, PowerType.GRID);
-        currentDtoGolego.setPowerNight(this.dailyGridGolegoNight);
-        currentDtoGolego.setPowerDay(this.dailyGridGolegoDay);
-        currentDtoGolego.setPowerTotal(currentDtoGolego.getPowerDay() + currentDtoGolego.getPowerNight());
+        DataHomeDto dataHomeDto = dataHomeService.getDataGolego();
+        double bmsSoc = this.lastAnalyticDtoGolego.getBmsSoc();
+        double bmsSocDaily =  bmsSoc += dataHomeDto.getBatterySoc();
+        double homePower = this.lastAnalyticDtoGolego.getHomePower();
+        double homePowerDaily = homePower += dataHomeDto.getHomePower();
+        DataAnalyticDto currentDtoGolego = new DataAnalyticDto(LocationType.GOLEGO);
+        currentDtoGolego.setGridNightPower(dailyGridGolegoNight);
+        currentDtoGolego.setGridDayPower(dailyGridGolegoDay);
+        currentDtoGolego.setGridTotalPower(currentDtoGolego.getGridDayPower() + currentDtoGolego.getGridNightPower());
+        currentDtoGolego.setBmsSoc(bmsSocDaily);
+        currentDtoGolego.setHomePower(homePowerDaily);
+        currentDtoGolego.setSolarPower(0);
         currentDtoGolego.setTimestamp(timestamp);
-        this.currentDayGridGolegos.add(currentDtoGolego);
+        this.currentDayGolegos.add(currentDtoGolego);
         saveToMonthlyFile(currentDtoGolego);
+        this.lastAnalyticDtoGolego = currentDtoGolego;
     }
-
-    private synchronized void updateDachaGridAnalytic() {
-        PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
-        double dailyGridPowerCommon = powerValueRealTimeData.getDailyEnergyBuy();
-        ZonedDateTime now = ZonedDateTime.now();
-        long timestamp = now.toInstant().toEpochMilli(); // мілісекунди
-        LocalDate date = now.toLocalDate();              // дата
-        int currentHour = now.getHour();
-        if (currentHour < dayStart) {
-            this.dailyGridDachaNight = dailyGridPowerCommon;
-        } else if (currentHour >= nightStart) {
-            this.dailyGridDachaNight = dailyGridPowerCommon - this.dailyGridDachaDay;
-        } else {
-            this.dailyGridDachaDay = dailyGridPowerCommon - this.dailyGridDachaNight;
-        }
-        DataAnalyticDto currentDtoDacha = new DataAnalyticDto(LocationType.DACHA, PowerType.GRID);
-        currentDtoDacha.setTimestamp(timestamp);
-        currentDtoDacha.setPowerDay(this.dailyGridDachaDay);
-        currentDtoDacha.setPowerNight(this.dailyGridDachaNight);
-        currentDtoDacha.setPowerTotal(currentDtoDacha.getPowerDay() + currentDtoDacha.getPowerNight());
-        this.currentDayGridDachas.add(currentDtoDacha);
-        saveToMonthlyFile(currentDtoDacha);
-    }
-
-    private void checkAndResetDay() {
-        LocalDate today = LocalDate.now();
-        String expectedDachaKey = generateDateKey(today, LocationType.DACHA, PowerType.GRID);
-        // ЯКЩО КЛЮЧА ДЛЯ СЬОГОДНІ НЕМАЄ — ЗНАЧИТЬ НОВА ДОБА
-        if (!analyticCache.containsKey(expectedDachaKey)) {
-            log.info("Нова доба [{}]: скидання кешів аналітики.", expectedDachaKey);
-
-            // 1. Очищаємо кеш (видаляємо похвилинки за минулі дні з RAM)
-            analyticCache.clear();
-
-            // 2. Створюємо нові чисті списки
-            this.currentDayGridDachas = new ArrayList<>();
-            this.currentDayGridGolegos = new ArrayList<>();
-
-            // 3. Реєструємо їх у кеші під новими ключами
-            analyticCache.put(expectedDachaKey, this.currentDayGridDachas);
-
-            String expectedGolegoKey = generateDateKey(today, LocationType.GOLEGO, PowerType.GRID);;
-            analyticCache.put(expectedGolegoKey, this.currentDayGridGolegos);
-
-            // 4. Скидаємо лічильники (ВАЖЛИВО: інвертор скине свій common о 00:00, ми теж скидаємо свої)
-            this.dailyGridDachaDay = 0.0;
-            this.dailyGridDachaNight = 0.0;
-
-            log.info("Кеші та накопичувачі успішно скинуті.");
-        }
-    }
-
-    /**
-     * Збереження похвилинної точки (додавання в список)
-     */
-//    public synchronized void savePoint(DataAnalyticDto point) {
-//        String dateKey = generateDateKey(point);
-//
-//        // Отримуємо існуючий список для цього дня або створюємо новий
-//        List<DataAnalyticDto> dayPoints = analyticCache.computeIfAbsent(dateKey, k -> new ArrayList<>());
-//
-//        // Додаємо нову похвилинну точку
-//        dayPoints.add(point);
-//
-//        // Зберігаємо оновлений файл на диск
-//        saveToMonthlyFile(point.getTimestamp());
-//    }
 
     /**
      * Імпорт та Merge з XMLS (від фронта)
      */
-    public synchronized List<DataAnalyticDto> importXmlsData(List<DataAnalyticApiDto> list) {
-        List<DataAnalyticDto> incomingPoints = DataAnalyticDto.fromApiList(list);
+    public synchronized List<DataAnalytic> importXmlsData(List<DataAnalytic> incomingPoints) {
         if (incomingPoints == null || incomingPoints.isEmpty()) return new ArrayList<>();
 
         // 1. Групуємо всі вхідні точки за ключем "Рік-Місяць" (щоб не відкривати один файл сто разів)
-        Map<String, List<DataAnalyticDto>> pointsByMonth = incomingPoints.stream()
+        Map<String, List<DataAnalytic>> pointsByMonth = incomingPoints.stream()
                 .collect(Collectors.groupingBy(p ->
                         Instant.ofEpochMilli(p.getTimestamp()).atZone(ZoneId.systemDefault())
                                 .toLocalDate().format(DateTimeFormatter.ofPattern(patternMonthFile))));
 
         pointsByMonth.forEach((monthSuffix, points) -> {
             // Беремо першу точку для визначення шляху (локація/тип однакові в пачці зазвичай)
-            DataAnalyticDto first = points.get(0);
-            Path path = getPathFile(first.getLocation(), first.getPowerType(), monthSuffix);
+            DataAnalytic first = points.get(0);
+            Path path = getPathFile(first.getLocation(), monthSuffix);
 
             try {
                 // 2. Читаємо існуючий файл місяця
-                Map<String, List<DataAnalyticDto>> monthData = new LinkedHashMap<>();
+                Map<String, List<DataAnalytic>> monthData = new LinkedHashMap<>();
                 if (Files.exists(path)) {
                     String json = Files.readString(path, StandardCharsets.UTF_8);
-                    monthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
+                    monthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalytic>>>() {});
                 }
 
                 // 3. Вклеюємо нові точки в мапу місяця
-                for (DataAnalyticDto p : points) {
+                for (DataAnalytic p : points) {
                     LocalDate pointDate = Instant.ofEpochMilli(p.getTimestamp()).atZone(ZoneId.systemDefault()).toLocalDate();
-                    String key = generateDateKey(pointDate, p.getLocation(), p.getPowerType());
+                    String key = generateDateKey(pointDate, p.getLocation());
 
-                    List<DataAnalyticDto> dayList = monthData.computeIfAbsent(key, k -> new ArrayList<>());
+                    List<DataAnalytic> dayList = monthData.computeIfAbsent(key, k -> new ArrayList<>());
 
                     // Видаляємо дублікат за таймстампом і додаємо нову
                     dayList.removeIf(old -> old.getTimestamp() == p.getTimestamp());
                     dayList.add(p);
-                    dayList.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
+                    dayList.sort(Comparator.comparingLong(DataAnalytic::getTimestamp));
                 }
 
                 // 4. Пишемо ОНОВЛЕНИЙ МІСЯЦЬ на диск один раз
@@ -476,10 +470,24 @@ public class AnalyticService {
 
                 // 5. Якщо імпортували дані за СЬОГОДНІ — оновлюємо живі списки в RAM
                 LocalDate today = LocalDate.now();
-                String todayKey = generateDateKey(today, first.getLocation(), first.getPowerType());
+                String todayKey = generateDateKey(today, first.getLocation());
                 if (monthData.containsKey(todayKey)) {
-                    if (first.getLocation() == LocationType.DACHA) this.currentDayGridDachas = new ArrayList<>(monthData.get(todayKey));
-                    else this.currentDayGridGolegos = new ArrayList<>(monthData.get(todayKey));
+                    // Конвертуємо List<DataAnalytic> у List<DataAnalyticDto>
+                    List<DataAnalyticDto> dtoList = monthData.get(todayKey).stream()
+                            .map(entity -> new DataAnalyticDto(
+                                    entity.getTimestamp(),  // long
+                                    entity.getLocation(),   // LocationType (Enum)
+                                    entity.getGridDayPower(),   // double
+                                    entity.getGridNightPower(), // double
+                                    entity.getGridTotalPower()  // double
+                            ))
+                            .collect(Collectors.toList());
+
+                    if (first.getLocation() == LocationType.DACHA) {
+                        this.currentDayDachas = dtoList;
+                    } else {
+                        this.currentDayGolegos = dtoList;
+                    }
                 }
 
             } catch (IOException e) {
@@ -491,8 +499,8 @@ public class AnalyticService {
     }
 
     // "yyyy-MM-dd"_dacha_grid
-    private String generateDateKey(LocalDate date, LocationType location, PowerType powerType) {
-        return date.toString() + separatorKey + location + separatorKey + powerType;
+    private String generateDateKey(LocalDate date, LocationType location) {
+        return date.toString() + separatorKey + location;
     }
 
     private LocalDate getDateFromKey(String dateKey) {
@@ -500,7 +508,7 @@ public class AnalyticService {
         return LocalDate.parse(dateStr);
     }
     // ./analytic/dacha_grid_2026-02.json
-    private Path getPathFile(LocationType location, PowerType powerType, String monthSuffix) {
-        return Paths.get(dirAnalytic, location.name() + separatorKey + powerType.name() + separatorKey + monthSuffix + ".json");
+    private Path getPathFile(LocationType location, String monthSuffix) {
+        return Paths.get(dirAnalytic, location.name() + separatorKey + monthSuffix + ".json");
     }
 }
