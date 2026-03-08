@@ -3,6 +3,7 @@ package org.nickas21.smart.data.dataEntityDto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
+import org.nickas21.smart.util.LocationType;
 
 import java.time.LocalDate;
 
@@ -21,7 +22,8 @@ public enum InverterInfo {
             PhaseType.SINGLE_PHASE,
             true,
             "120A MPPT Charge Controller",
-            48
+            48,
+            LocationType.GOLEGO // Передаємо об'єкт локації
     ),
     DACHA(
             "Hybrid Inverter",
@@ -32,23 +34,28 @@ public enum InverterInfo {
             PhaseType.THREE_PHASE,
             true,
             "240А 2*MPPT: PV: 2+1",
-            48
+            48,
+            LocationType.DACHA // Передаємо об'єкт локації
     );
 
     private final String productName;
     private final String manufacturer;
     private final String modelName;
     private final double ratedPower;
-    private final String commissioningDate; // Long Timestamp
-    private final String phaseType;        // Текстовий опис
+    private final String commissioningDate;
+    private final String phaseType;
     @JsonProperty("isHybrid")
     private final boolean isHybrid;
     private final String mpptControllerName;
     private final int inputVoltage;
 
+    // Нові поля
+    private final LocationType location;
+    private final String zoneId;
+
     InverterInfo(String productName, String manufacturer, String modelName, double ratedPower,
                  LocalDate date, PhaseType phase,
-                 boolean isHybrid, String mppt, int voltage) {
+                 boolean isHybrid, String mppt, int voltage, LocationType location) {
         this.productName = productName;
         this.manufacturer = manufacturer;
         this.modelName = modelName;
@@ -58,6 +65,10 @@ public enum InverterInfo {
         this.isHybrid = isHybrid;
         this.mpptControllerName = mppt;
         this.inputVoltage = voltage;
+
+        // Встановлюємо локацію та автоматично беремо з неї zoneId
+        this.location = location;
+        this.zoneId = location.getZoneId().getId();
     }
 }
 

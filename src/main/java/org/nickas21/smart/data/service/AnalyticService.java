@@ -254,7 +254,8 @@ public class AnalyticService {
     private synchronized void updateDachaAnalytic() {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
         double dailyGridPowerCommon = powerValueRealTimeData.getDailyEnergyBuy();
-        long timestamp = powerValueRealTimeData.getCollectionTime(); // мілісекунди         // дата
+        long rawTs = powerValueRealTimeData.getCollectionTime();
+        long timestamp = (rawTs < 1_000_000_000_000L) ? rawTs * 1000 : rawTs;
         int currentHour = getLocalDateInverterHour(timestamp);;
         double dailyGridDachaNight = this.lastAnalyticDtoDacha.getGridNightPower();
         double dailyGridDachaDay = this.lastAnalyticDtoDacha.getGridDayPower();
@@ -318,7 +319,7 @@ public class AnalyticService {
                                 .format(DateTimeFormatter.ofPattern(patternMonthFile))
                 ));
         pointsByMonth.forEach((monthSuffix, points) -> {
-            DataAnalytic first = points.get(0);
+            DataAnalytic first = points.getFirst();
             Path path = getPathFile(first.getLocation(), monthSuffix);
             try {
                 Map<String, List<DataAnalytic>> monthData = new LinkedHashMap<>();
