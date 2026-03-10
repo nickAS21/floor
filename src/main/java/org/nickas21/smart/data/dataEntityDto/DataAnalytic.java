@@ -17,11 +17,16 @@ import org.nickas21.smart.util.LocationType;
 public class DataAnalytic {
     long timestamp;
     LocationType location;
-    double gridDayPower;
-    double gridNightPower;
-    double gridTotalPower;
+    double gridPower;
+    double gridDailyDayPower;
+    double gridDailyNightPower;
+    double gridDailyTotalPower;
     double solarPower;
+    double solarDailyPower;
     double homePower;
+    double homeDailyPower;
     double bmsSoc;
+    double bmsDailyDischarge;
+    double bmsDailyCharge;
 }
 

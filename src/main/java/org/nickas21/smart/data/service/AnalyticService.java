@@ -202,12 +202,12 @@ public class AnalyticService {
             List<DataAnalyticDto> monthDays = getAnalyticForMonth(location, monthSuffix);
             if (!monthDays.isEmpty()) {
                 DataAnalyticDto monthSummary = new DataAnalyticDto(location);
-                monthSummary.setTimestamp(monthDays.get(0).getTimestamp());
-                double totalDay = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDayPower).sum();
-                double totalNight = monthDays.stream().mapToDouble(DataAnalyticDto::getGridNightPower).sum();
-                monthSummary.setGridDayPower(totalDay);
-                monthSummary.setGridNightPower(totalNight);
-                monthSummary.setGridTotalPower(totalDay + totalNight);
+                monthSummary.setTimestamp(monthDays.getFirst().getTimestamp());
+                double totalDay = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyDayPower).sum();
+                double totalNight = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyNightPower).sum();
+                monthSummary.setGridDailyDayPower(totalDay);
+                monthSummary.setGridDailyNightPower(totalNight);
+                monthSummary.setGridDailyTotalPower(totalDay + totalNight);
                 yearlyData.add(monthSummary);
             }
         }
@@ -254,22 +254,28 @@ public class AnalyticService {
     private synchronized void updateDachaAnalytic() {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
         double dailyGridPowerCommon = powerValueRealTimeData.getDailyEnergyBuy();
-        long rawTs = powerValueRealTimeData.getCollectionTime();
-        long timestamp = (rawTs < 1_000_000_000_000L) ? rawTs * 1000 : rawTs;
-        int currentHour = getLocalDateInverterHour(timestamp);;
-        double dailyGridDachaNight = this.lastAnalyticDtoDacha.getGridNightPower();
-        double dailyGridDachaDay = this.lastAnalyticDtoDacha.getGridDayPower();
+        long timestamp = powerValueRealTimeData.getCollectionTime() * 1000;
+        int currentHour = getLocalDateInverterHour(timestamp);
+        double dailyGridDachaNight = this.lastAnalyticDtoDacha.getGridDailyNightPower();
+        double dailyGridDachaDay = this.lastAnalyticDtoDacha.getGridDailyDayPower();
         if (currentHour < dayStart) dailyGridDachaNight = dailyGridPowerCommon;
         else if (currentHour >= nightStart) dailyGridDachaNight = dailyGridPowerCommon - dailyGridDachaDay;
         else dailyGridDachaDay = dailyGridPowerCommon - dailyGridDachaNight;
         DataAnalyticDto currentDtoDacha = new DataAnalyticDto(LocationType.DACHA);
         currentDtoDacha.setTimestamp(timestamp);
-        currentDtoDacha.setGridDayPower(dailyGridDachaDay);
-        currentDtoDacha.setGridNightPower(dailyGridDachaNight);
-        currentDtoDacha.setGridTotalPower(dailyGridDachaDay + dailyGridDachaNight);
+        currentDtoDacha.setGridDailyDayPower(dailyGridDachaDay);
+        currentDtoDacha.setGridDailyNightPower(dailyGridDachaNight);
+        currentDtoDacha.setGridDailyTotalPower(dailyGridDachaDay + dailyGridDachaNight);
         currentDtoDacha.setBmsSoc(powerValueRealTimeData.getBatterySocValue());
-        currentDtoDacha.setSolarPower(powerValueRealTimeData.getDailyProductionSolarPower());
-        currentDtoDacha.setHomePower(powerValueRealTimeData.getDailyHomeConsumptionPower());
+        currentDtoDacha.setSolarDailyPower(powerValueRealTimeData.getDailyProductionSolarPower());
+        currentDtoDacha.setHomeDailyPower(powerValueRealTimeData.getDailyHomeConsumptionPower());
+
+        currentDtoDacha.setGridPower(powerValueRealTimeData.getTotalGridPower());
+        currentDtoDacha.setSolarPower(powerValueRealTimeData.getTotalProductionSolarPower());
+        currentDtoDacha.setHomePower(powerValueRealTimeData.getTotalHomePower());
+        currentDtoDacha.setBmsDailyDischarge(powerValueRealTimeData.getDailyBatteryDischarge());
+        currentDtoDacha.setBmsDailyCharge(powerValueRealTimeData.getDailyBatteryCharge());
+
         this.currentDayDachas.add(currentDtoDacha);
         saveToMonthlyFile(currentDtoDacha);
         this.lastAnalyticDtoDacha = currentDtoDacha;
@@ -282,15 +288,15 @@ public class AnalyticService {
         InverterData data = registry.getInverter(port);
         Instant timestampInstant = data.getLastTime();
         if (Boolean.TRUE.equals(deviceService.getGridRelayCodeGolegoStateSwitch()) && Boolean.TRUE.equals(deviceService.getGridRelayCodeGolegoStateOnLine())) {
-            if (data != null && data.getInvertorGolegoData90() != null) {
+            if (data.getInvertorGolegoData90() != null) {
                 InvertorGolegoData90 d90 = data.getInvertorGolegoData90();
                 currentGridPower = d90.getBatteryVoltage() * d90.getBatteryCurrent() + d90.getLoadOutputActivePower() + golegoInverterPowerDefault;
             }
         }
         double deltaKwh = (currentGridPower / 1000.0) * (updateRateMs / 3600000.0);
         int currentHour = getLocalDateInverterHour(timestampInstant.toEpochMilli());
-        double dailyGridGolegoNight = this.lastAnalyticDtoGolego.getGridNightPower();
-        double dailyGridGolegoDay = this.lastAnalyticDtoGolego.getGridDayPower();
+        double dailyGridGolegoNight = this.lastAnalyticDtoGolego.getGridDailyNightPower();
+        double dailyGridGolegoDay = this.lastAnalyticDtoGolego.getGridDailyDayPower();
         if (deltaKwh > 0) {
             if (currentHour < dayStart || currentHour >= nightStart) dailyGridGolegoNight += deltaKwh;
             else dailyGridGolegoDay += deltaKwh;
@@ -298,12 +304,12 @@ public class AnalyticService {
         DataHomeDto dataHomeDto = dataHomeService.getDataGolego();
         DataAnalyticDto currentDtoGolego = new DataAnalyticDto(LocationType.GOLEGO);
         currentDtoGolego.setTimestamp(timestampInstant.toEpochMilli());
-        currentDtoGolego.setGridDayPower(dailyGridGolegoDay);
-        currentDtoGolego.setGridNightPower(dailyGridGolegoNight);
-        currentDtoGolego.setGridTotalPower(dailyGridGolegoDay + dailyGridGolegoNight);
+        currentDtoGolego.setGridDailyDayPower(dailyGridGolegoDay);
+        currentDtoGolego.setGridDailyNightPower(dailyGridGolegoNight);
+        currentDtoGolego.setGridDailyTotalPower(dailyGridGolegoDay + dailyGridGolegoNight);
         currentDtoGolego.setBmsSoc(this.lastAnalyticDtoGolego.getBmsSoc() + dataHomeDto.getBatterySoc());
-        currentDtoGolego.setHomePower(this.lastAnalyticDtoGolego.getHomePower() + dataHomeDto.getHomePower());
-        currentDtoGolego.setSolarPower(0);
+        currentDtoGolego.setHomeDailyPower(this.lastAnalyticDtoGolego.getHomeDailyPower() + dataHomeDto.getHomePower());
+        currentDtoGolego.setSolarDailyPower(0);
         this.currentDayGolegos.add(currentDtoGolego);
         saveToMonthlyFile(currentDtoGolego);
         this.lastAnalyticDtoGolego = currentDtoGolego;
@@ -343,7 +349,7 @@ public class AnalyticService {
                 String todayKey = generateDateKey(today, first.getLocation());
                 if (monthData.containsKey(todayKey)) {
                     List<DataAnalyticDto> dtoList = monthData.get(todayKey).stream()
-                            .map(e -> new DataAnalyticDto(e.getTimestamp(), e.getLocation(), e.getGridDayPower(), e.getGridNightPower(), e.getGridTotalPower()))
+                            .map(e -> new DataAnalyticDto(e.getTimestamp(), e.getLocation(), e.getGridDailyDayPower(), e.getGridDailyNightPower(), e.getGridDailyTotalPower()))
                             .collect(Collectors.toList());
                     if (first.getLocation() == LocationType.DACHA) this.currentDayDachas = dtoList;
                     else this.currentDayGolegos = dtoList;
