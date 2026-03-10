@@ -10,6 +10,8 @@ import org.nickas21.smart.util.LocationType;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DataAnalyticDto extends DataAnalytic {
 
+    public DataAnalyticDto(){}
+
     public DataAnalyticDto(long timestamp, LocationType location,
                            double powerDay, double powerNight, double powerTotal) {
         this.timestamp = timestamp;
