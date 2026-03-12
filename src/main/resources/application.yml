@@ -76,7 +76,8 @@ smart:
     zones:
       day-start: 7
       night-start: 23
-    dir: "./analytic/"       # Каталог для аналітики
+    dir: "${ANALITIC_DIR:/analytic/}"
+      # Каталог для аналітики
       # Інтервал оновлення в мілісекундах (5 хвилин)
     update-rate: 300000
 

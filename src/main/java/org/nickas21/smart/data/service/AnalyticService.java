@@ -9,8 +9,6 @@ import org.nickas21.smart.PowerValueRealTimeData;
 import org.nickas21.smart.data.dataEntityDto.DataAnalytic;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
 import org.nickas21.smart.data.dataEntityDto.DataHomeDto;
-import org.nickas21.smart.tuya.TuyaDeviceService;
-import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.util.LocationType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -39,7 +37,7 @@ import java.util.stream.Collectors;
 @Service
 public class AnalyticService {
 
-    @Value("${smart.analytic.dir:./usrAnalytic/}")
+    @Value("${smart.analytic.dir:./analytic/}")
     private String dirAnalytic;
 
     @Value("${smart.analytic.zones.day-start}")
@@ -54,8 +52,6 @@ public class AnalyticService {
     private final Map<String, List<DataAnalyticDto>> analyticCache = new HashMap<>();
 
     private final DataHomeService dataHomeService;
-    private final UsrTcpWiFiParseData usrTcpWiFiParseData;
-    private final TuyaDeviceService deviceService;
     private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
     public static final String patternYearFile = "yyyy";
     public static final String patternMonthFile = "yyyy-MM";
@@ -93,9 +89,7 @@ public class AnalyticService {
         }
     }
 
-    public AnalyticService(UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService deviceService, DataHomeService dataHomeService, DefaultSmartSolarmanTuyaService solarmanTuyaService) {
-        this.usrTcpWiFiParseData = usrTcpWiFiParseData;
-        this.deviceService = deviceService;
+    public AnalyticService(DataHomeService dataHomeService, DefaultSmartSolarmanTuyaService solarmanTuyaService) {
         this.dataHomeService = dataHomeService;
         this.solarmanTuyaService = solarmanTuyaService;
     }
@@ -231,6 +225,7 @@ public class AnalyticService {
             log.error("Помилка запису: ", e);
         }
     }
+
     private synchronized void saveToMonthlyFile(LocalDate localDate, List<DataAnalyticDto> dtos, LocationType locationType) {
         String monthSuffix = localDate.format(DateTimeFormatter.ofPattern(patternMonthFile));
         Path path = getPathFile(locationType, monthSuffix);
@@ -255,6 +250,10 @@ public class AnalyticService {
     private synchronized void updateAnalyticDacha() {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
         long timestamp = powerValueRealTimeData.getCollectionTime() * 1000;
+        if (timestamp < 1000000000000L) { // Перевірка, що дата не з 1970-х років
+            log.warn("Invalid timestamp DACHA) [{}]", timestamp );
+            return;
+        }
         LocationType locationType = LocationType.DACHA;
         ZonedDateTime zonedDateTimeInverter = getZonedDateTimeInverter(timestamp, locationType);
         String mapDateKey = generateMapDateKey(zonedDateTimeInverter.toLocalDate(), locationType);
@@ -295,13 +294,17 @@ public class AnalyticService {
         currentDtoDacha.setBmsDailyCharge(powerValueRealTimeData.getDailyBatteryCharge());
         timeDateAnalyticDtos.add(currentDtoDacha);
         this.analyticCache.put(mapDateKey, timeDateAnalyticDtos);
+        saveToMonthlyFile(currentDtoDacha);
     }
 
     private synchronized void updateGolegoAnalytic() {
         DataHomeDto dataHomeDto = dataHomeService.getDataGolego();
         LocationType locationType = LocationType.GOLEGO;
         long timestamp = dataHomeDto.getTimestamp();
-
+        if (timestamp < 1000000000000L) { // Перевірка, що дата не з 1970-х років
+            log.warn("Invalid timestamp GOLEGO) [{}]", timestamp);
+            return;
+        }
         ZonedDateTime zonedDateTimeInverter = getZonedDateTimeInverter(timestamp, locationType);
         String mapDateKey = generateMapDateKey(zonedDateTimeInverter.toLocalDate(), locationType);
 
