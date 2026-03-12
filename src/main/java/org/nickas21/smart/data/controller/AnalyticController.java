@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.dataEntityDto.DataAnalytic;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
-import org.nickas21.smart.data.dataEntityDto.DataAnalyticResponse;
 import org.nickas21.smart.data.service.AnalyticService;
 import org.nickas21.smart.util.LocationType;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -36,62 +35,39 @@ public class AnalyticController {
     }
 
     @GetMapping("/day")
-    public ResponseEntity<DataAnalyticResponse> getGolegoAnalyticDay(
+    public ResponseEntity<List<DataAnalyticDto>> getAnalyticDay(
             @RequestParam @DateTimeFormat(pattern = AnalyticService.patternDayKey) LocalDate date,
             @RequestParam String locationType) {
-
-        LocationType location = LocationType.getByName(locationType);
-        List<DataAnalyticDto> dtos = this.analyticService.getAnalyticByDay(date, location);
-        return ResponseEntity.ok(new DataAnalyticResponse(
-                location.getZoneId().getId(),
-                dtos
-        ));
+        return ResponseEntity.ok(this.analyticService.getAnalyticByDay(date, LocationType.getByName(locationType)));
     }
 
     @GetMapping("/days")
-    public  ResponseEntity<DataAnalyticResponse> getGolegoAnalyticDays(
+    public  ResponseEntity<List<DataAnalyticDto>> getAnalyticDays(
             @RequestParam @DateTimeFormat(pattern = AnalyticService.patternDayKey) LocalDate dateStart,
             @RequestParam @DateTimeFormat(pattern = AnalyticService.patternDayKey) LocalDate dateFinish,
             @RequestParam String locationType) {
-        LocationType location = LocationType.getByName(locationType);
-        List<DataAnalyticDto> dtos = this.analyticService.loadDtosForDates(
+        return ResponseEntity.ok(this.analyticService.loadDtosForDates(
                 dateStart,
                 dateFinish,
-                LocationType.getByName(locationType)
-        );
-        return ResponseEntity.ok(new DataAnalyticResponse(
-                location.getZoneId().getId(),
-                dtos
-        ));
+                LocationType.getByName(locationType)));
     }
 
     @GetMapping("/month")
-    public ResponseEntity<DataAnalyticResponse> getDachaAnalyticMonth(
+    public ResponseEntity<List<DataAnalyticDto>> getAnalyticMonth(
             @RequestParam @DateTimeFormat(pattern = AnalyticService.patternMonthFile) YearMonth date,
             @RequestParam String locationType) {
         LocationType location = LocationType.getByName(locationType);
         String monthSuffix = date.format(DateTimeFormatter.ofPattern(AnalyticService.patternMonthFile));
-        List<DataAnalyticDto> dtos = this.analyticService.getAnalyticForMonth(location, monthSuffix);
-
-        return ResponseEntity.ok(new DataAnalyticResponse(
-                location.getZoneId().getId(),
-                dtos
-        ));
+        return ResponseEntity.ok(this.analyticService.getAnalyticForMonth(location, monthSuffix));
     }
 
     @GetMapping("/year")
-    public ResponseEntity<DataAnalyticResponse> getAnalyticDayYear(
+    public ResponseEntity< List<DataAnalyticDto>> getAnalyticDForYear(
             @RequestParam @DateTimeFormat(pattern = AnalyticService.patternYearFile) Year year,
             @RequestParam String locationType) {
-        LocationType location = LocationType.getByName(locationType);
-
-        List<DataAnalyticDto> dtos = this.analyticService.getAnalyticForYear(
+        return ResponseEntity.ok(this.analyticService.getAnalyticForYear(
                 year.getValue(),
-                location
-        );
-        return ResponseEntity.ok(new DataAnalyticResponse(
-                location.getZoneId().getId(),
-                dtos
+                LocationType.getByName(locationType)
         ));
     }
 

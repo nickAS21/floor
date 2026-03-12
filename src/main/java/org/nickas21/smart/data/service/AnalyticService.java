@@ -81,12 +81,28 @@ public class AnalyticService {
         this.analyticCache.put(generateMapDateKey(date, locationType), synchronizedList);
     }
 
-    private void removeFromCache(LocalDate localDate, LocationType locationType) {
-        String mapDateKey = generateMapDateKey(localDate, locationType);
-        List<DataAnalyticDto> cachedData = this.analyticCache.remove(mapDateKey);
-        if (cachedData != null && !cachedData.isEmpty()) {
-            saveToMonthlyFile(localDate, cachedData, locationType);
-        }
+    private void removeFromCache(LocalDate today, LocationType locationType) {
+        // Межа: вчорашній день. Все, що було ДО вчора (тобто позавчора і раніше), видаляємо.
+        LocalDate beforeYesterday = today.minusDays(2);
+        this.analyticCache.keySet().removeIf(key -> {
+            try {
+                // Витягуємо дату з ключа "2026-03-12_DACHA"
+                String datePart = key.split("_")[0];
+                LocalDate entryDate = LocalDate.parse(datePart);
+                // Якщо дата запису РАНІШЕ за вчора (це і є -2, -3 і т.д.)
+                if (entryDate.isBefore(beforeYesterday)) {
+                    List<DataAnalyticDto> oldData = this.analyticCache.get(key);
+                    if (oldData != null && !oldData.isEmpty()) {
+                        // Зберігаємо в файл перед видаленням
+                        saveToMonthlyFile(entryDate, oldData, locationType);
+                    }
+                    return true; // Видаляємо з кешу
+                }
+            } catch (Exception e) {
+                // Пропускаємо, якщо формат ключа не той
+            }
+            return false;
+        });
     }
 
     public AnalyticService(DataHomeService dataHomeService, DefaultSmartSolarmanTuyaService solarmanTuyaService) {
@@ -94,19 +110,29 @@ public class AnalyticService {
         this.solarmanTuyaService = solarmanTuyaService;
     }
 
-    @Scheduled(fixedRateString = "${smart.analytic.golego.update-rate:300000}")
+    @Scheduled(fixedRateString = "${smart.analytic.update-rate:300000}")
     public void updateAndSaveAnalytic() {
         for (LocationType locationType : LocationType.values()) {
+
             LocalDate today = getLocalDateInverter(locationType);
-            LocalDate dayBeforeYesterday = today.minusDays(2);
-            removeFromCache(dayBeforeYesterday, locationType);
-            switch (locationType) {
-                case DACHA -> updateAnalyticDacha();
-                case GOLEGO -> updateGolegoAnalytic();
+            LocalDate yesterday = today.minusDays(1);
+            String todayKey = generateMapDateKey(today, locationType);
+            String yesterdayKey = generateMapDateKey(yesterday, locationType);
+            synchronized (this.analyticCache) {
+                // ПЕРЕВІРКА ПЕРЕХОДУ:
+                // Вчорашні дані ще в кеші, а сьогоднішніх — ще не було.
+                if (this.analyticCache.containsKey(yesterdayKey) && !this.analyticCache.containsKey(todayKey)) {
+                    log.info("Зафіксовано перехід доби для {}. Очищаємо кеш від застарілих даних.", locationType);
+                    removeFromCache(today, locationType);
+                }
+                // Оновлюємо поточні дані
+                switch (locationType) {
+                    case DACHA -> updateAnalyticDacha();
+                    case GOLEGO -> updateGolegoAnalytic();
+                }
             }
         }
     }
-
     public List<DataAnalyticDto> getAnalyticByDay(LocalDate date, LocationType locationType) {
         return loadDtosForDate(date, locationType);
     }
