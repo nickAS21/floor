@@ -216,11 +216,20 @@ public class AnalyticService {
             if (!monthDays.isEmpty()) {
                 DataAnalyticDto monthSummary = new DataAnalyticDto(location);
                 monthSummary.setTimestamp(monthDays.getFirst().getTimestamp());
-                double totalDay = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyDayPower).sum();
-                double totalNight = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyNightPower).sum();
-                monthSummary.setGridDailyDayPower(totalDay);
-                monthSummary.setGridDailyNightPower(totalNight);
-                monthSummary.setGridDailyTotalPower(totalDay + totalNight);
+                double totalDailyDay = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyDayPower).sum();
+                double totalDailyNight = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyNightPower).sum();
+                double totalDailyGrid = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyTotalPower).sum();
+                double totalSolarDailyPower = monthDays.stream().mapToDouble(DataAnalyticDto::getSolarDailyPower).sum();
+                double totalHomeDailyPower = monthDays.stream().mapToDouble(DataAnalyticDto::getHomeDailyPower).sum();
+                double totalBmsDailyDischarge = monthDays.stream().mapToDouble(DataAnalyticDto::getBmsDailyDischarge).sum();
+                double totalBmsDailyCharge = monthDays.stream().mapToDouble(DataAnalyticDto::getBmsDailyCharge).sum();
+                monthSummary.setGridDailyDayPower(totalDailyDay);
+                monthSummary.setGridDailyNightPower(totalDailyNight);
+                monthSummary.setGridDailyTotalPower(totalDailyGrid );
+                monthSummary.setSolarDailyPower(totalSolarDailyPower);
+                monthSummary.setHomeDailyPower(totalHomeDailyPower);
+                monthSummary.setBmsDailyDischarge(totalBmsDailyDischarge);
+                monthSummary.setBmsDailyCharge(totalBmsDailyCharge);
                 yearlyData.add(monthSummary);
             }
         }
@@ -275,17 +284,18 @@ public class AnalyticService {
 
     private synchronized void updateAnalyticDacha() {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
-        long timestamp = powerValueRealTimeData.getCollectionTime() * 1000;
-        if (timestamp < 1000000000000L) { // Перевірка, що дата не з 1970-х років
-            log.warn("Invalid timestamp DACHA) [{}]", timestamp );
+        long timestampRaw = powerValueRealTimeData.getCollectionTime() * 1000;
+        if (timestampRaw < 1000000000000L) { // Перевірка, що дата не з 1970-х років
+            log.warn("Invalid timestamp DACHA) [{}]", timestampRaw );
             return;
         }
         LocationType locationType = LocationType.DACHA;
-        ZonedDateTime zonedDateTimeInverter = getZonedDateTimeInverter(timestamp, locationType);
+        ZonedDateTime zonedDateTimeInverter = getZonedDateTimeInverter(timestampRaw, locationType);
         String mapDateKey = generateMapDateKey(zonedDateTimeInverter.toLocalDate(), locationType);
         List<DataAnalyticDto> timeDateAnalyticDtos = this.analyticCache.computeIfAbsent(mapDateKey,
                 k -> Collections.synchronizedList(new ArrayList<>()));
         // 3. ПЕРЕВІРКА НА ДУБЛІКАТ (вбиваємо "зрень" 23:51)
+        long timestamp  = timestampRaw + (zonedDateTimeInverter.getOffset().getTotalSeconds() * 1000L);
         boolean isDuplicate = timeDateAnalyticDtos.stream().anyMatch(e -> e.getTimestamp() == timestamp);
         if (isDuplicate) return;
         timeDateAnalyticDtos.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
@@ -326,18 +336,19 @@ public class AnalyticService {
     private synchronized void updateGolegoAnalytic() {
         DataHomeDto dataHomeDto = dataHomeService.getDataGolego();
         LocationType locationType = LocationType.GOLEGO;
-        long timestamp = dataHomeDto.getTimestamp();
-        if (timestamp < 1000000000000L) { // Перевірка, що дата не з 1970-х років
-            log.warn("Invalid timestamp GOLEGO) [{}]", timestamp);
+        long timestampRaw = dataHomeDto.getTimestamp();
+        if (timestampRaw < 1000000000000L) { // Перевірка, що дата не з 1970-х років
+            log.warn("Invalid timestamp GOLEGO) [{}]", timestampRaw);
             return;
         }
-        ZonedDateTime zonedDateTimeInverter = getZonedDateTimeInverter(timestamp, locationType);
+        ZonedDateTime zonedDateTimeInverter = getZonedDateTimeInverter(timestampRaw, locationType);
         String mapDateKey = generateMapDateKey(zonedDateTimeInverter.toLocalDate(), locationType);
 
         List<DataAnalyticDto> timeDateAnalyticDtos = this.analyticCache.computeIfAbsent(mapDateKey,
                 k -> Collections.synchronizedList(new ArrayList<>()));
 
         // 1. ПЕРЕВІРКА НА ДУБЛІКАТ
+        long timestamp  = timestampRaw + (zonedDateTimeInverter.getOffset().getTotalSeconds() * 1000L);
         boolean isDuplicate = timeDateAnalyticDtos.stream().anyMatch(e -> e.getTimestamp() == timestamp);
         if (isDuplicate) return;
 
@@ -421,9 +432,13 @@ public class AnalyticService {
                     monthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalytic>>>() {});
                 }
                 for (DataAnalytic p : points) {
-                    LocalDate pointDate = Instant.ofEpochMilli(p.getTimestamp())
-                            .atZone(p.getLocation().getZoneId())
-                            .toLocalDate();
+                    ZonedDateTime zdt = Instant.ofEpochMilli(p.getTimestamp()).atZone(p.getLocation().getZoneId());
+
+                    // ТРЕБА ПЕРЕЗАПИСАТИ ЧАС ТОЧКИ ПЕРЕД ДОДАВАННЯМ
+                    long localTs = p.getTimestamp() + (zdt.getOffset().getTotalSeconds() * 1000L);
+                    p.setTimestamp(localTs);
+
+                    LocalDate pointDate = zdt.toLocalDate();
                     String mapDateKey = generateMapDateKey(pointDate, p.getLocation());
                     List<DataAnalytic> dayList = monthData.computeIfAbsent(mapDateKey, k -> new ArrayList<>());
                     dayList.removeIf(old -> old.getTimestamp() == p.getTimestamp());
