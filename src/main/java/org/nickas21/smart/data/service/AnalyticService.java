@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -356,54 +357,38 @@ public class AnalyticService {
     }
 
     private synchronized void updateAnalyticDacha() {
-        PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
-        long timestampRaw = powerValueRealTimeData.getCollectionTime() * 1000;
-        if (timestampRaw < 1000000000000L) { // Перевірка, що дата не з 1970-х років
-            log.warn("Invalid timestamp DACHA) [{}]", timestampRaw );
-            return;
-        }
-        LocationType locationType = LocationType.DACHA;
-        ZonedDateTime zonedDateTimeInverter = getZonedDateTimeInverter(timestampRaw, locationType);
-        String mapDateKey = generateMapDateKey(zonedDateTimeInverter.toLocalDate(), locationType);
-        List<DataAnalyticDto> timeDateAnalyticDtos = this.analyticCache.computeIfAbsent(mapDateKey,
+        PowerValueRealTimeData data = solarmanTuyaService.getPowerValueRealTimeData();
+        long ts = data.getCollectionTime() * 1000;
+        if (ts < 1000000000000L) return;
+
+        LocationType loc = LocationType.DACHA;
+        ZonedDateTime zdt = getZonedDateTimeInverter(ts, loc);
+        String key = generateMapDateKey(zdt.toLocalDate(), loc);
+
+        List<DataAnalyticDto> dayList = this.analyticCache.computeIfAbsent(key,
                 k -> Collections.synchronizedList(new ArrayList<>()));
-        // 3. ПЕРЕВІРКА НА ДУБЛІКАТ (вбиваємо "зрень" 23:51)
-        long timestamp  = timestampRaw + (zonedDateTimeInverter.getOffset().getTotalSeconds() * 1000L);
-        boolean isDuplicate = timeDateAnalyticDtos.stream().anyMatch(e -> e.getTimestamp() == timestamp);
-        if (isDuplicate) return;
-        timeDateAnalyticDtos.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
-        double dailyGridPowerCommon = powerValueRealTimeData.getDailyEnergyBuy();
-        double dailyGridDachaNight = 0;
-        double dailyGridDachaDay = 0;
-        if (!timeDateAnalyticDtos.isEmpty()) {
-            DataAnalyticDto last = timeDateAnalyticDtos.getLast();
-            dailyGridDachaNight = last.getGridDailyNightPower();
-            dailyGridDachaDay = last.getGridDailyDayPower();
-        }
-        int currentHour = zonedDateTimeInverter.getHour();
-        if (currentHour < dayStart) {
-            dailyGridDachaNight = dailyGridPowerCommon;
-        } else if (currentHour >= nightStart) {
-            dailyGridDachaNight = dailyGridPowerCommon - dailyGridDachaDay;
-        } else {
-            dailyGridDachaDay = dailyGridPowerCommon - dailyGridDachaNight;
-        }
-        DataAnalyticDto currentDtoDacha = new DataAnalyticDto(locationType);
-        currentDtoDacha.setTimestamp(timestamp);
-        currentDtoDacha.setGridDailyDayPower(dailyGridDachaDay);
-        currentDtoDacha.setGridDailyNightPower(dailyGridDachaNight);
-        currentDtoDacha.setGridDailyTotalPower(dailyGridPowerCommon);
-        currentDtoDacha.setBmsSoc(powerValueRealTimeData.getBatterySocValue());
-        currentDtoDacha.setSolarDailyPower(powerValueRealTimeData.getDailyProductionSolarPower());
-        currentDtoDacha.setHomeDailyPower(powerValueRealTimeData.getDailyHomeConsumptionPower());
-        currentDtoDacha.setGridPower(powerValueRealTimeData.getTotalGridPower());
-        currentDtoDacha.setSolarPower(powerValueRealTimeData.getTotalProductionSolarPower());
-        currentDtoDacha.setHomePower(powerValueRealTimeData.getTotalHomePower());
-        currentDtoDacha.setBmsDailyDischarge(powerValueRealTimeData.getDailyBatteryDischarge());
-        currentDtoDacha.setBmsDailyCharge(powerValueRealTimeData.getDailyBatteryCharge());
-        timeDateAnalyticDtos.add(currentDtoDacha);
-        this.analyticCache.put(mapDateKey, timeDateAnalyticDtos);
-        saveToMonthlyFile(currentDtoDacha);
+
+        if (dayList.stream().anyMatch(e -> e.getTimestamp() == ts)) return;
+
+        DataAnalyticDto dto = new DataAnalyticDto(loc);
+        dto.setTimestamp(ts); // ЧИСТИЙ ЧАС
+        dto.setGridDailyTotalPower(data.getDailyEnergyBuy());
+        dto.setBmsSoc(data.getBatterySocValue());
+        dto.setSolarDailyPower(data.getDailyProductionSolarPower());
+        dto.setHomeDailyPower(data.getDailyHomeConsumptionPower());
+        dto.setGridPower(data.getTotalGridPower());
+        dto.setSolarPower(data.getTotalProductionSolarPower());
+        dto.setHomePower(data.getTotalHomePower());
+        dto.setBmsDailyDischarge(data.getDailyBatteryDischarge());
+        dto.setBmsDailyCharge(data.getDailyBatteryCharge());
+
+        // ВИКЛИК СПІЛЬНОЇ ЛОГІКИ
+        DataAnalyticDto last = dayList.isEmpty() ? null : dayList.getLast();
+        calculateGridTariffs(dto, last);
+
+        dayList.add(dto);
+        dayList.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
+        saveToMonthlyFile(dto);
     }
 
     private synchronized void updateGolegoAnalytic() {
@@ -486,34 +471,41 @@ public class AnalyticService {
         this.analyticCache.put(mapDateKey, timeDateAnalyticDtos);
     }
 
-    public synchronized List<DataAnalytic> importXmlsData(List<DataAnalytic> incomingPoints) {
-        if (incomingPoints == null || incomingPoints.isEmpty()) return new ArrayList<>();
-        Map<String, List<DataAnalytic>> pointsByMonth = incomingPoints.stream()
+    public synchronized List<DataAnalyticDto> importXmlsData(List<DataAnalyticDto> incomingLocalPoints) {
+        if (incomingLocalPoints == null || incomingLocalPoints.isEmpty()) return new ArrayList<>();
+        List<DataAnalyticDto> incomingPoints =  updateTimeStampToUtc(incomingLocalPoints);
+        Map<String, List<DataAnalyticDto>> pointsByMonth = incomingPoints.stream()
                 .collect(Collectors.groupingBy(p ->
                         Instant.ofEpochMilli(p.getTimestamp())
-                                .atZone(p.getLocation().getZoneId())
+                                .atZone(ZoneOffset.UTC)
                                 .toLocalDate()
                                 .format(DateTimeFormatter.ofPattern(patternMonthFile))
                 ));
         pointsByMonth.forEach((monthSuffix, points) -> {
-            DataAnalytic first = points.getFirst();
+            DataAnalyticDto first = points.getFirst();
             Path path = getPathFile(first.getLocation(), monthSuffix);
             try {
-                Map<String, List<DataAnalytic>> monthData = new LinkedHashMap<>();
+                Map<String, List<DataAnalyticDto>> monthData = new LinkedHashMap<>();
                 if (Files.exists(path)) {
                     String json = Files.readString(path, StandardCharsets.UTF_8);
-                    monthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalytic>>>() {});
+                    monthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
                 }
-                for (DataAnalytic p : points) {
-                    ZonedDateTime zdt = Instant.ofEpochMilli(p.getTimestamp()).atZone(p.getLocation().getZoneId());
+                for (DataAnalyticDto p : points) {
+//                    ZonedDateTime zdt = Instant.ofEpochMilli(p.getTimestamp()).atZone(p.getLocation().getZoneId());
+                    Instant.ofEpochMilli(p.getTimestamp()).atOffset(ZoneOffset.UTC);
+                    ZonedDateTime zdt = Instant.ofEpochMilli(p.getTimestamp()).atZone(ZoneOffset.UTC);
+                    String mapDateKey = generateMapDateKey(zdt.toLocalDate(), p.getLocation());
 
-                    // ТРЕБА ПЕРЕЗАПИСАТИ ЧАС ТОЧКИ ПЕРЕД ДОДАВАННЯМ
-                    long localTs = p.getTimestamp() + (zdt.getOffset().getTotalSeconds() * 1000L);
-                    p.setTimestamp(localTs);
+                    // Витягуємо список точок за цей день з вашого monthData
+                    List<DataAnalyticDto> dayList = monthData.computeIfAbsent(mapDateKey, k -> new ArrayList<>());
 
-                    LocalDate pointDate = zdt.toLocalDate();
-                    String mapDateKey = generateMapDateKey(pointDate, p.getLocation());
-                    List<DataAnalytic> dayList = monthData.computeIfAbsent(mapDateKey, k -> new ArrayList<>());
+                    // Оскільки calculateGridTariffs працює з DTO, можна або зробити такий же для Entity,
+                    // або просто вставити логіку прямо сюди.
+                    DataAnalyticDto last = dayList.isEmpty() ? null : dayList.getLast();
+
+                    // Розрахунок тарифів для імпортованої точки
+                    calculateGridTariffs(p, last);
+
                     dayList.removeIf(old -> old.getTimestamp() == p.getTimestamp());
                     dayList.add(p);
                     dayList.sort(Comparator.comparingLong(DataAnalytic::getTimestamp));
@@ -524,7 +516,12 @@ public class AnalyticService {
                 String todayMapDateKey = generateMapDateKey(today, first.getLocation());
                 if (monthData.containsKey(todayMapDateKey)) {
                     List<DataAnalyticDto> dtoList = monthData.get(todayMapDateKey).stream()
-                            .map(e -> new DataAnalyticDto(e.getTimestamp(), e.getLocation(), e.getGridDailyDayPower(), e.getGridDailyNightPower(), e.getGridDailyTotalPower()))
+                            .map(e -> new DataAnalyticDto(
+                                    e.getTimestamp(),
+                                    e.getLocation(),
+                                    e.getGridDailyDayPower(),
+                                    e.getGridDailyNightPower(),
+                                    e.getGridDailyTotalPower()))
                             .collect(Collectors.toList());
 //                    if (first.getLocation() == LocationType.DACHA) this.currentDayDachas = dtoList;
 //                    else this.currentDayGolegos = dtoList;
@@ -552,5 +549,51 @@ public class AnalyticService {
     ZonedDateTime getZonedDateTimeInverter(long timestamp, LocationType locationType) {
         return Instant.ofEpochMilli(timestamp)
                 .atZone(locationType.getZoneId());
+    }
+
+    private void calculateGridTariffs(DataAnalyticDto current, DataAnalyticDto last) {
+        double totalGrid = current.getGridDailyTotalPower();
+
+        // Якщо це перша точка за добу
+        if (last == null) {
+            ZonedDateTime zdt = Instant.ofEpochMilli(current.getTimestamp()).atZone(current.getLocation().getZoneId());
+            int hour = zdt.getHour();
+            if (hour < dayStart || hour >= nightStart) {
+                current.setGridDailyNightPower(totalGrid);
+                current.setGridDailyDayPower(0.0);
+            } else {
+                current.setGridDailyDayPower(totalGrid);
+                current.setGridDailyNightPower(0.0);
+            }
+            return;
+        }
+
+        // Якщо є попередня точка - рахуємо дельту
+        double delta = totalGrid - last.getGridDailyTotalPower();
+        if (delta < 0) delta = 0; // Захист від скидання лічильника
+
+        ZonedDateTime zdt = Instant.ofEpochMilli(current.getTimestamp()).atZone(current.getLocation().getZoneId());
+        int hour = zdt.getHour();
+
+        if (hour < dayStart || hour >= nightStart) {
+            current.setGridDailyNightPower(last.getGridDailyNightPower() + delta);
+            current.setGridDailyDayPower(last.getGridDailyDayPower());
+        } else {
+            current.setGridDailyDayPower(last.getGridDailyDayPower() + delta);
+            current.setGridDailyNightPower(last.getGridDailyNightPower());
+        }
+    }
+
+    public synchronized List<DataAnalyticDto> updateTimeStampToUtc(List<DataAnalyticDto> incomingLocalPoints) {
+        if (incomingLocalPoints == null) return new ArrayList<>();
+        for (DataAnalyticDto p : incomingLocalPoints) {
+            if (p.getTimestamp() != 0) {
+                Instant instant = Instant.ofEpochMilli(p.getTimestamp());
+                ZonedDateTime zdt = instant.atZone(p.getLocation().getZoneId());
+                long offsetMs = zdt.getOffset().getTotalSeconds() * 1000L;
+                p.setTimestamp(p.getTimestamp() + offsetMs);
+            }
+        }
+        return incomingLocalPoints;
     }
 }

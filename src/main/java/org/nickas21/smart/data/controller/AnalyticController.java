@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.data.dataEntityDto.DataAnalytic;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
 import org.nickas21.smart.data.service.AnalyticService;
 import org.nickas21.smart.util.LocationType;
@@ -81,7 +80,7 @@ public class AnalyticController {
             // Це дозволить Jackson ігнорувати регістр Енумів автоматично
             mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
 
-            List<DataAnalytic> list = mapper.readValue(rawJson, new TypeReference<List<DataAnalytic>>(){});
+            List<DataAnalyticDto> list = mapper.readValue(rawJson, new TypeReference<List<DataAnalyticDto>>(){});
             return ResponseEntity.ok(this.analyticService.importXmlsData(list));
         } catch (Exception e) {
             // 2. Логуємо конкретну причину 400 помилки
