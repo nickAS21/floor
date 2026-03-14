@@ -200,40 +200,113 @@ public class AnalyticService {
         if (!Files.exists(path)) return new ArrayList<>();
         try {
             String json = Files.readString(path, StandardCharsets.UTF_8);
-            Map<String, List<DataAnalyticDto>> allMonthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
-            return allMonthData.values().stream().flatMap(List::stream).sorted(Comparator.comparingLong(DataAnalyticDto::getTimestamp)).toList();
+            Map<String, List<DataAnalyticDto>> allMonthData = objectMapper.readValue(json,
+                    new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
+
+            return allMonthData.values().stream()
+                    .filter(dayList -> !dayList.isEmpty())
+                    // БЕРЕМО ОСТАННЮ ТОЧКУ ДНЯ (це і є Daily за день)
+                    .map(dayList -> dayList.get(dayList.size() - 1))
+                    .sorted(Comparator.comparingLong(DataAnalyticDto::getTimestamp))
+                    .toList();
         } catch (IOException e) {
-            log.error("Помилка історії за місяць: {}", e.getMessage());
+            log.error("Помилка: {}", e.getMessage());
             return new ArrayList<>();
         }
     }
+//
+//    public List<DataAnalyticDto> getAnalyticForMonth(LocationType location, String monthSuffix) {
+//        Path path = getPathFile(location, monthSuffix);
+//        if (!Files.exists(path)) return new ArrayList<>();
+//        try {
+//            String json = Files.readString(path, StandardCharsets.UTF_8);
+//            Map<String, List<DataAnalyticDto>> allMonthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
+//            return allMonthData.values().stream().flatMap(List::stream).sorted(Comparator.comparingLong(DataAnalyticDto::getTimestamp)).toList();
+//        } catch (IOException e) {
+//            log.error("Помилка історії за місяць: {}", e.getMessage());
+//            return new ArrayList<>();
+//        }
+//    }
 
     public List<DataAnalyticDto> getAnalyticForYear(int year, LocationType location) {
-        List<DataAnalyticDto> yearlyData = new ArrayList<>();
+        List<DataAnalyticDto> yearData = new ArrayList<>();
+
+        // Проходимо по всіх 12 місяцях (01, 02 ... 12)
         for (int month = 1; month <= 12; month++) {
             String monthSuffix = String.format("%d-%02d", year, month);
-            List<DataAnalyticDto> monthDays = getAnalyticForMonth(location, monthSuffix);
-            if (!monthDays.isEmpty()) {
-                DataAnalyticDto monthSummary = new DataAnalyticDto(location);
-                monthSummary.setTimestamp(monthDays.getFirst().getTimestamp());
-                double totalDailyDay = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyDayPower).sum();
-                double totalDailyNight = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyNightPower).sum();
-                double totalDailyGrid = monthDays.stream().mapToDouble(DataAnalyticDto::getGridDailyTotalPower).sum();
-                double totalSolarDailyPower = monthDays.stream().mapToDouble(DataAnalyticDto::getSolarDailyPower).sum();
-                double totalHomeDailyPower = monthDays.stream().mapToDouble(DataAnalyticDto::getHomeDailyPower).sum();
-                double totalBmsDailyDischarge = monthDays.stream().mapToDouble(DataAnalyticDto::getBmsDailyDischarge).sum();
-                double totalBmsDailyCharge = monthDays.stream().mapToDouble(DataAnalyticDto::getBmsDailyCharge).sum();
-                monthSummary.setGridDailyDayPower(totalDailyDay);
-                monthSummary.setGridDailyNightPower(totalDailyNight);
-                monthSummary.setGridDailyTotalPower(totalDailyGrid );
-                monthSummary.setSolarDailyPower(totalSolarDailyPower);
-                monthSummary.setHomeDailyPower(totalHomeDailyPower);
-                monthSummary.setBmsDailyDischarge(totalBmsDailyDischarge);
-                monthSummary.setBmsDailyCharge(totalBmsDailyCharge);
-                yearlyData.add(monthSummary);
+            Path path = getPathFile(location, monthSuffix);
+
+            if (Files.exists(path)) {
+                try {
+                    String json = Files.readString(path, StandardCharsets.UTF_8);
+                    Map<String, List<DataAnalyticDto>> allMonthData = objectMapper.readValue(json,
+                            new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
+
+                    // Агрегуємо всі дні цього місяця в одну "точку місяця"
+                    DataAnalyticDto monthSummary = aggregateMonth(allMonthData, monthSuffix);
+                    yearData.add(monthSummary);
+
+                } catch (IOException e) {
+                    log.error("Помилка парсингу за місяць {}: {}", monthSuffix, e.getMessage());
+                }
             }
         }
-        return yearlyData;
+        return yearData;
+    }
+
+    private DataAnalyticDto aggregateMonth(Map<String, List<DataAnalyticDto>> allMonthData, String monthSuffix) {
+        DataAnalyticDto summary = new DataAnalyticDto();
+        // Встановлюємо таймстамп на початок місяця для сортування на фронті
+        summary.setTimestamp(parseMonthToTimestamp(monthSuffix));
+
+        double yearSolarDailyPower = 0;
+        double yearHomeDailyPower = 0;
+        double yearGridDailyDayPower = 0;
+        double yearDailyNightPower = 0;
+        double yearGridDailyTotalPower = 0;
+        double yearDailyDischarge = 0;
+        double yearDailyCharge = 0;
+
+        for (List<DataAnalyticDto> dayPoints : allMonthData.values()) {
+            if (!dayPoints.isEmpty()) {
+                // Беремо останню точку дня (фінальне накопичене значення)
+                DataAnalyticDto lastPointOfDay = dayPoints.get(dayPoints.size() - 1);
+
+                yearSolarDailyPower += lastPointOfDay.getSolarDailyPower();
+                yearHomeDailyPower += lastPointOfDay.getHomeDailyPower();
+                yearGridDailyDayPower += lastPointOfDay.getGridDailyDayPower();
+                yearDailyNightPower += lastPointOfDay.getGridDailyNightPower();
+                yearGridDailyTotalPower += lastPointOfDay.getGridDailyTotalPower();
+                yearDailyDischarge += lastPointOfDay.getBmsDailyDischarge();
+                yearDailyCharge += lastPointOfDay.getBmsDailyCharge();
+            }
+        }
+
+        // Записуємо суми в поля Daily (фронт їх підхопить як значення стовпчиків)
+        summary.setSolarDailyPower(yearSolarDailyPower);
+        summary.setHomeDailyPower(yearHomeDailyPower);
+        summary.setGridDailyDayPower(yearGridDailyDayPower);
+        summary.setGridDailyNightPower(yearDailyNightPower);
+        summary.setGridDailyTotalPower(yearGridDailyTotalPower);
+        summary.setBmsDailyDischarge(yearDailyDischarge);
+        summary.setBmsDailyCharge(yearDailyCharge);
+        return summary;
+    }
+
+    private long parseMonthToTimestamp(String monthSuffix) {
+        try {
+            // monthSuffix приходить як "2026-03"
+            java.time.YearMonth yearMonth = java.time.YearMonth.parse(monthSuffix);
+
+            // Перетворюємо в 1-ше число місяця, 00:00:00 UTC
+            return yearMonth.atDay(1)
+                    .atStartOfDay(java.time.ZoneOffset.UTC)
+                    .toInstant()
+                    .toEpochMilli();
+        } catch (Exception e) {
+            log.error("Помилка парсингу суфікса місяця {}: {}", monthSuffix, e.getMessage());
+            return 0L;
+        }
     }
 
     private synchronized void saveToMonthlyFile(DataAnalyticDto dto) {
