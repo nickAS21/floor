@@ -17,7 +17,11 @@ import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
+import org.nickas21.smart.util.LocationType;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -66,27 +70,29 @@ public class DataHomeDto {
     public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService, UsrTcpWiFiService usrTcpWiFiService) {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
         if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
-            this.timestamp = powerValueRealTimeData.getCollectionTime() * 1000;
-            this.batterySoc = powerValueRealTimeData.getBatterySocValue();
-            this.batteryStatus = powerValueRealTimeData.getBatteryStatusValue();
-            this.batteryVol = powerValueRealTimeData.getBatteryVoltageValue();
-            this.batteryCurrent = Math.copySign(
+           long ts = powerValueRealTimeData.getCollectionTime() * 1000L;
+           long offsetMs = updateTimeStampToUtc(ts, LocationType.DACHA.getZoneId());
+           this.timestamp = ts + offsetMs;
+           this.batterySoc = powerValueRealTimeData.getBatterySocValue();
+           this.batteryStatus = powerValueRealTimeData.getBatteryStatusValue();
+           this.batteryVol = powerValueRealTimeData.getBatteryVoltageValue();
+           this.batteryCurrent = Math.copySign(
                     Math.abs(powerValueRealTimeData.getBatteryCurrentValue()), // Only value
                     powerValueRealTimeData.getBmsCurrentValue()                // Only range
-            );
+           );
 //            this.batteryCurrent = this.batteryStatus.equals("Discharging") ? -this.batteryCurrent : this.batteryCurrent;
-            this.solarPower = powerValueRealTimeData.getTotalProductionSolarPower();
-            this.homePower = powerValueRealTimeData.getTotalHomePower();
-            this.gridPower = powerValueRealTimeData.getTotalGridPower();
+           this.solarPower = powerValueRealTimeData.getTotalProductionSolarPower();
+           this.homePower = powerValueRealTimeData.getTotalHomePower();
+           this.gridPower = powerValueRealTimeData.getTotalGridPower();
 
-            this.dailyConsumptionPower = powerValueRealTimeData.getDailyHomeConsumptionPower();
-            this.dailyGridPower = powerValueRealTimeData.getDailyEnergyBuy();
-            this.dailyBatteryCharge = powerValueRealTimeData.getDailyBatteryCharge();
-            this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
-            this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
-            this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
-            this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
-            this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());
+           this.dailyConsumptionPower = powerValueRealTimeData.getDailyHomeConsumptionPower();
+           this.dailyGridPower = powerValueRealTimeData.getDailyEnergyBuy();
+           this.dailyBatteryCharge = powerValueRealTimeData.getDailyBatteryCharge();
+           this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
+           this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
+           this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
+           this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
+           this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());
         }
         Boolean gridRelayCodeDachaStateOnLine = deviceService.getGridRelayCodeDachaStateOnLine();
         if (gridRelayCodeDachaStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeDachaStateOnLine;
@@ -141,7 +147,11 @@ public class DataHomeDto {
             }
             log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
 
-            this.timestamp = c0Data.getTimestamp() != null ? c0Data.getTimestamp().toEpochMilli() : 0;
+            if (c0Data.getTimestamp() != null) {
+                long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli()/1000L, LocationType.GOLEGO.getZoneId());
+                this.timestamp =c0Data.getTimestamp().toEpochMilli() + offsetMs;
+                this.timestamp = c0Data.getTimestamp().toEpochMilli();
+            }
             this.batterySoc = batterySocSum/batteriesActiveCnt;
 
             // from inverter
@@ -184,4 +194,21 @@ public class DataHomeDto {
         log.warn("DataHomeGolego [{}]", this);
     }
 
+
+    public static synchronized List<DataAnalyticDto> updateTimeStampToUtc(List<DataAnalyticDto> incomingLocalPoints) {
+        if (incomingLocalPoints == null) return new ArrayList<>();
+        for (DataAnalyticDto p : incomingLocalPoints) {
+            if (p.getTimestamp() != 0) {
+                long offsetMs = updateTimeStampToUtc(p.getTimestamp(), p.getLocation().getZoneId());
+                p.setTimestamp(p.getTimestamp() + offsetMs);
+            }
+        }
+        return incomingLocalPoints;
+    }
+
+    public static synchronized long updateTimeStampToUtc(long timestamp, ZoneId zoneId) {
+        Instant instant = Instant.ofEpochMilli(timestamp);
+        ZonedDateTime zdt = instant.atZone(zoneId);
+        return zdt.getOffset().getTotalSeconds() * 1000L;
+    }
 }

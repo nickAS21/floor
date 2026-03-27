@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.updateTimeStampToUtc;
+
 @Slf4j
 @Service
 public class AnalyticService {
@@ -367,11 +369,12 @@ public class AnalyticService {
 
         List<DataAnalyticDto> dayList = this.analyticCache.computeIfAbsent(key,
                 k -> Collections.synchronizedList(new ArrayList<>()));
-
-        if (dayList.stream().anyMatch(e -> e.getTimestamp() == ts)) return;
+        long offsetMs = updateTimeStampToUtc(ts, LocationType.DACHA.getZoneId());
+        long finalTs = ts + offsetMs;
+        if (dayList.stream().anyMatch(e -> e.getTimestamp() == finalTs)) return;
 
         DataAnalyticDto dto = new DataAnalyticDto(loc);
-        dto.setTimestamp(ts); // ЧИСТИЙ ЧАС
+        dto.setTimestamp(finalTs); // ЧИСТИЙ ЧАС
         dto.setGridDailyTotalPower(data.getDailyEnergyBuy());
         dto.setBmsSoc(data.getBatterySocValue());
         dto.setSolarDailyPower(data.getDailyProductionSolarPower());
@@ -582,18 +585,5 @@ public class AnalyticService {
             current.setGridDailyDayPower(last.getGridDailyDayPower() + delta);
             current.setGridDailyNightPower(last.getGridDailyNightPower());
         }
-    }
-
-    public synchronized List<DataAnalyticDto> updateTimeStampToUtc(List<DataAnalyticDto> incomingLocalPoints) {
-        if (incomingLocalPoints == null) return new ArrayList<>();
-        for (DataAnalyticDto p : incomingLocalPoints) {
-            if (p.getTimestamp() != 0) {
-                Instant instant = Instant.ofEpochMilli(p.getTimestamp());
-                ZonedDateTime zdt = instant.atZone(p.getLocation().getZoneId());
-                long offsetMs = zdt.getOffset().getTotalSeconds() * 1000L;
-                p.setTimestamp(p.getTimestamp() + offsetMs);
-            }
-        }
-        return incomingLocalPoints;
     }
 }
