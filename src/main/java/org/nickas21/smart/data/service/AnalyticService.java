@@ -4,6 +4,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.PowerValueRealTimeData;
 import org.nickas21.smart.data.dataEntityDto.DataAnalytic;
@@ -15,8 +21,10 @@ import org.nickas21.smart.util.LocationType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -547,6 +556,70 @@ public class AnalyticService {
             } catch (IOException e) { log.error("Error import: ", e); }
         });
         return incomingPoints;
+    }
+
+    public void processAndSaveExcel(MultipartFile file, String locationStr) throws Exception {
+        // 1. Парсимо Excel в список DTO (Миттєво)
+        List<DataAnalyticDto> entities = new ArrayList<>();
+        LocationType location = LocationType.valueOf(locationStr.toUpperCase());
+
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = new XSSFWorkbook(is)) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> rows = sheet.iterator();
+
+            if (rows.hasNext()) rows.next(); // Пропуск заголовка
+
+            while (rows.hasNext()) {
+                Row row = rows.next();
+                Cell timeCell = row.getCell(0);
+                if (timeCell == null || timeCell.getCellType() == CellType.BLANK) break;
+
+                DataAnalyticDto dto = new DataAnalyticDto();
+                dto.setTimestamp((long) timeCell.getNumericCellValue());
+                dto.setLocation(location);
+
+                // Заповнюємо дані з колонок (вкажи свої індекси)
+                dto.setGridPower(getNumeric(row, 1));
+                dto.setGridDailyTotalPower(getNumeric(row, 2));
+                dto.setSolarPower(getNumeric(row, 3));
+                dto.setSolarDailyPower(getNumeric(row, 4));
+                dto.setHomePower(getNumeric(row, 5));
+                dto.setHomeDailyPower(getNumeric(row, 6));
+                dto.setBmsSoc(getNumeric(row, 7));
+                dto.setBmsDailyDischarge(getNumeric(row, 8));
+                dto.setBmsDailyCharge(getNumeric(row, 9));
+
+                // Обнуляємо інші поля (як у твоєму конструкторі)
+                initEmptyFields(dto);
+
+                entities.add(dto);
+            }
+        }
+
+        // 2. ВИКЛИКАЄМО ТВОЄ ЗБЕРЕЖЕННЯ В ФАЙЛИ
+        // Передаємо розпарсений список у твій метод importXmlsData
+        if (!entities.isEmpty()) {
+            this.importXmlsData(entities);
+            log.info("Успішно імпортовано {} точок для {}", entities.size(), locationStr);
+        }
+    }
+
+    private void initEmptyFields(DataAnalyticDto dto) {
+        dto.setGridDailyDayPower(0.0);
+        dto.setGridDailyNightPower(0.0);
+        dto.setTemperatureOut(0.0);
+        dto.setHumidityOut(0.0);
+        dto.setLuminanceOut(0.0);
+        dto.setTemperatureIn(0.0);
+        dto.setHumidityIn(0.0);
+        dto.setLuminanceIn(0.0);
+    }
+
+    private double getNumeric(Row row, int idx) {
+        Cell c = row.getCell(idx);
+        return (c != null && c.getCellType() == CellType.NUMERIC) ? c.getNumericCellValue() : 0.0;
     }
 
     private String generateMapDateKey(LocalDate date, LocationType location) {

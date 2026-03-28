@@ -8,6 +8,7 @@ import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
 import org.nickas21.smart.data.service.AnalyticService;
 import org.nickas21.smart.util.LocationType;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.Year;
@@ -69,6 +71,26 @@ public class AnalyticController {
                 LocationType.getByName(locationType)
         ));
     }
+
+    @PostMapping(value = "/import/file/xmls", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> importFromFileXmlsData(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("location") String location) {
+
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body("Файл порожній");
+        }
+
+        try {
+            // Викликаємо сервіс, який розпарсить Excel/XML за мілісекунди
+            this.analyticService.processAndSaveExcel(file, location);
+
+            return ResponseEntity.ok("Імпорт успішно завершено");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Помилка обробки: " + e.getMessage());
+        }
+    }
+
 
     @PostMapping("/import/xmls")
     public ResponseEntity<?> importXmlsData(@RequestBody String rawJson) {
