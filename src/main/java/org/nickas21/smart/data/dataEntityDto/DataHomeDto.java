@@ -37,7 +37,7 @@ import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 public class DataHomeDto {
 
     private final double golegoPowerDefault = 42.0; // only  2 - WiFi routers
-    public static final  double golegoInverterPowerDefault = 10.0;
+    public static final double golegoInverterPowerDefault = 10.0;
     public static final String datePatternGridStatus = "yyyy-MM-dd HH:mm";
 
     // Dacha -Update real time data: powerValueRealTimeData.getCollectionTime() * 1000
@@ -65,9 +65,16 @@ public class DataHomeDto {
 
     String timestampLastUpdateGridStatus;
 
+    double temperatureOut;
+    double humidityOut;
+    double luminanceOut;
+    double temperatureIn;
+    double humidityIn;
+    double luminanceIn;
+
 
     // Dacha
-    public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService deviceService, UsrTcpWiFiService usrTcpWiFiService) {
+    public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
         if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
            long ts = powerValueRealTimeData.getCollectionTime() * 1000L;
@@ -93,12 +100,24 @@ public class DataHomeDto {
            this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
            this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
            this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());
+            DataTemperatureDto temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutDacha);
+           if (temperatureDto != null) {
+               this.temperatureOut = temperatureDto.getTemperature();
+               this.humidityOut = temperatureDto.getHumidity();
+               this.luminanceOut = temperatureDto.getLuminance();
+           }
+           temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureInDacha);
+           if (temperatureDto != null) {
+               this.temperatureIn = temperatureDto.getTemperature();
+               this.humidityIn = temperatureDto.getHumidity();
+               this.luminanceIn = temperatureDto.getLuminance();
+           }
         }
-        Boolean gridRelayCodeDachaStateOnLine = deviceService.getGridRelayCodeDachaStateOnLine();
+        Boolean gridRelayCodeDachaStateOnLine = tuyaDeviceService.getGridRelayCodeDachaStateOnLine();
         if (gridRelayCodeDachaStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeDachaStateOnLine;
-        Boolean gridRelayCodeDachaStateSwitch =  deviceService.getGridRelayCodeDachaStateSwitch();
+        Boolean gridRelayCodeDachaStateSwitch =  tuyaDeviceService.getGridRelayCodeDachaStateSwitch();
         if (gridRelayCodeDachaStateSwitch!= null) this.gridStatusRealTimeSwitch = gridRelayCodeDachaStateSwitch;
-        Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryDacha =  deviceService.getLastUpdateTimeGridStatusInfoDacha();
+        Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryDacha =  tuyaDeviceService.getLastUpdateTimeGridStatusInfoDacha();
         this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryDacha != null ? formatTimestamp(lastUpdateTimeGridStatusEntryDacha.getKey(), datePatternGridStatus) : "null";
         if (solarmanTuyaService.getPowerValueRealTimeData() != null) {
             String connectionBatteryStatus = usrTcpWiFiService.calculateStatus(solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() * 1000, solarmanTuyaService.getTimeoutSecUpdate());
@@ -152,7 +171,7 @@ public class DataHomeDto {
                 this.timestamp =c0Data.getTimestamp().toEpochMilli() + offsetMs;
                 this.timestamp = c0Data.getTimestamp().toEpochMilli();
             }
-            this.batterySoc = batterySocSum/batteriesActiveCnt;
+            this.batterySoc = batteriesActiveCnt == 0 ? 0 : batterySocSum/batteriesActiveCnt;
 
             // from inverter
             UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();

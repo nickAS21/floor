@@ -28,5 +28,11 @@ public class DataAnalytic {
     double bmsSoc;
     double bmsDailyDischarge;
     double bmsDailyCharge;
+    double temperatureOut;
+    double humidityOut;
+    double luminanceOut;
+    double temperatureIn;
+    double humidityIn;
+    double luminanceIn;
 }
 

@@ -34,7 +34,7 @@ import static org.nickas21.smart.util.LocationType.GOLEGO;
 public class HistoryService {
 
     private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
-    private final TuyaDeviceService deviceService;
+    private final TuyaDeviceService tuyaDeviceService;
     private final UsrTcpWiFiParseData usrTcpWiFiParseData;
     private final UsrTcpWiFiService usrTcpWiFiService;
     public final UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties;
@@ -45,7 +45,7 @@ public class HistoryService {
                           UsrTcpWiFiParseData usrTcpWiFiParseData, UsrTcpWiFiService usrTcpWiFiService,
                           UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties, UsrTcpWiFiLogWriter logWriter, DataUnitService unitService) {
         this.solarmanTuyaService = solarmanTuyaService;
-        this.deviceService = deviceService;
+        this.tuyaDeviceService = deviceService;
         this.usrTcpWiFiParseData = usrTcpWiFiParseData;
         this.usrTcpWiFiService = usrTcpWiFiService;
         this.usrTcpLogsWiFiProperties = usrTcpLogsWiFiProperties;
@@ -100,11 +100,15 @@ public class HistoryService {
 
     @Scheduled(fixedRateString = "${usr.tcp.logs.writeInterval:480000}") // Кожні 8 хв
     public void processLogs() {
+        if (!this.tuyaDeviceService.isDevicesRady) {
+            log.info("Waiting for installation devices to finish...");
+            return;
+        }
         log.info("Starting scheduled log processing for Golego and Dacha...");
 
         // 1. Запис для DACHA (8 хв)
         try {
-            DataHomeDto dachaData = new DataHomeDto(solarmanTuyaService, deviceService, usrTcpWiFiService);
+            DataHomeDto dachaData = new DataHomeDto(solarmanTuyaService, tuyaDeviceService, usrTcpWiFiService);
             List<BatteryInfoDto> batteries = this.unitService.getBatteries (DACHA);
             Integer inverterPort = usrTcpWiFiService.getTcpProps().getPortInverterDacha();
             String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(inverterPort);
@@ -115,7 +119,7 @@ public class HistoryService {
 
         try {
             // Тепер Golego пишеться з тим самим ритмом, що і Dacha
-            DataHomeDto golegoData = new DataHomeDto(deviceService, usrTcpWiFiParseData, usrTcpWiFiService);
+            DataHomeDto golegoData = new DataHomeDto(tuyaDeviceService, usrTcpWiFiParseData, usrTcpWiFiService);
             List<BatteryInfoDto> batteries = this.unitService.getBatteries(GOLEGO);
             Integer portInverterGolego = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
             String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(portInverterGolego);

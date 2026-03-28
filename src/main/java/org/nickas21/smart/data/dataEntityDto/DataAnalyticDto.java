@@ -27,6 +27,12 @@ public class DataAnalyticDto extends DataAnalytic {
         this.bmsSoc = 0.0;
         this.bmsDailyDischarge = 0.0;
         this.bmsDailyCharge = 0.0;
+        this.temperatureOut = 0.0;
+        this.humidityOut = 0.0;
+        this.luminanceOut = 0.0;
+        this.temperatureIn = 0.0;
+        this.humidityIn = 0.0;
+        this.luminanceIn = 0.0;
     }
 
     public DataAnalyticDto (LocationType location) {
@@ -44,6 +50,12 @@ public class DataAnalyticDto extends DataAnalytic {
         this.bmsSoc = 0.0;
         this.bmsDailyDischarge = 0.0;
         this.bmsDailyCharge = 0.0;
+        this.temperatureOut = 0.0;
+        this.humidityOut = 0.0;
+        this.luminanceOut = 0.0;
+        this.temperatureIn = 0.0;
+        this.humidityIn = 0.0;
+        this.luminanceIn = 0.0;
     }
 }
 

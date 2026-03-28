@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.data.dataEntityDto.DataTemperatureDto;
 import org.nickas21.smart.data.service.TelegramService;
 import org.nickas21.smart.data.telegram.TelegramBot;
 import org.nickas21.smart.solarman.Seasons;
@@ -101,6 +102,8 @@ import static org.nickas21.smart.util.StringUtils.isDecimal;
 public class TuyaDeviceService {
 
     public final String gridRelayDopPrefixDacha = "gridOnlineDacha";
+    public final String deviceIdTemperatureOutDacha = "bf328d7e1327e7c600ncnf";
+    public final String deviceIdTemperatureInDacha = "bf8ba5a92ae00cb510nat5";
     public final String gridRelayDopPrefixGolego = "gridOnlineGolego";
     public final String boilerRelayDopPrefixGolego = "boilerOnlineGolego";
     public static final String deviceIdTempScaleVanna = "bfe02a3417a1a4774alyab";
@@ -169,6 +172,8 @@ public class TuyaDeviceService {
     private final TuyaDeviceProperties deviceProperties;
 
     private String gridRelayCodeIdDacha;
+    private String temperatureOutCodeIdDacha;
+    private String temperatureInCodeIdDacha;
     private String gridRelayCodeIdHome;
     private String boilerRelayCodeIdHome;
     private Entry<Long, Double> lastUpdateTimeAlarmSocDacha;
@@ -180,6 +185,8 @@ public class TuyaDeviceService {
     private Long timeoutSecUpdateMillis;
     private boolean batteryCriticalOrHeatNightDachaWinter = false;
     private boolean batteryCriticalOrHeatNightGolego = false;
+
+    public boolean isDevicesRady = false;
 
     @Autowired
     SolarmanStationsService solarmanStationsService;
@@ -738,6 +745,7 @@ public class TuyaDeviceService {
             for (Entry e : devices.getDevIds().entrySet()) {
                 log.info("name: [{}] id: [{}] ", ((Device) e.getValue()).getName(), e.getKey());
             }
+            this.isDevicesRady = true;
             try {
                 this.updateAllThermostatToMin("start");
             } catch (Exception e) {
@@ -978,6 +986,20 @@ public class TuyaDeviceService {
             this.gridRelayCodeIdDacha = this.getGridRelayCode(this.gridRelayDopPrefixDacha);
         }
         return this.gridRelayCodeIdDacha;
+    }
+
+    public DataTemperatureDto getTemperatureValueById(String deviceIdTemperature) {
+            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
+                Object key = entry.getKey();
+                try {
+                    if (deviceIdTemperature.equals(key)) {
+                           return new DataTemperatureDto(entry.getValue().getStatus());
+                    }
+                } catch (Exception innerException) {
+                    log.error("getDevicesTempSort: Error processing entry: key [{}]", key, innerException);
+                }
+            }
+            return null;
     }
 
     public String getGridRelayCodeIdGolego() {
@@ -1355,6 +1377,10 @@ public class TuyaDeviceService {
             return true;
         }
         return false;
+    }
+
+    public void getTemperatureValue(String temperatureCodeId) {
+        Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(temperatureCodeId).currentStateOnLine();
     }
 }
 

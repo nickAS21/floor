@@ -9,6 +9,8 @@ import org.nickas21.smart.PowerValueRealTimeData;
 import org.nickas21.smart.data.dataEntityDto.DataAnalytic;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
 import org.nickas21.smart.data.dataEntityDto.DataHomeDto;
+import org.nickas21.smart.data.dataEntityDto.DataTemperatureDto;
+import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.util.LocationType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -56,6 +58,7 @@ public class AnalyticService {
 
     private final DataHomeService dataHomeService;
     private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
+    private final TuyaDeviceService tuyaDeviceService;
     public static final String patternYearFile = "yyyy";
     public static final String patternMonthFile = "yyyy-MM";
     public static final String patternDayKey = "yyyy-MM-dd";
@@ -108,9 +111,10 @@ public class AnalyticService {
         });
     }
 
-    public AnalyticService(DataHomeService dataHomeService, DefaultSmartSolarmanTuyaService solarmanTuyaService) {
+    public AnalyticService(DataHomeService dataHomeService, DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService tuyaDeviceService) {
         this.dataHomeService = dataHomeService;
         this.solarmanTuyaService = solarmanTuyaService;
+        this.tuyaDeviceService = tuyaDeviceService;
     }
 
     @Scheduled(fixedRateString = "${smart.analytic.update-rate:300000}")
@@ -384,7 +388,18 @@ public class AnalyticService {
         dto.setHomePower(data.getTotalHomePower());
         dto.setBmsDailyDischarge(data.getDailyBatteryDischarge());
         dto.setBmsDailyCharge(data.getDailyBatteryCharge());
-
+        DataTemperatureDto temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutDacha);
+        if (temperatureDto != null) {
+            dto.setTemperatureOut(temperatureDto.getTemperature());
+            dto.setHumidityOut(temperatureDto.getHumidity());
+            dto.setLuminanceOut(temperatureDto.getLuminance());
+        }
+        temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureInDacha);
+        if (temperatureDto != null) {
+            dto.setTemperatureIn(temperatureDto.getTemperature());
+            dto.setHumidityIn(temperatureDto.getHumidity());
+            dto.setLuminanceIn(temperatureDto.getLuminance());
+        }
         // ВИКЛИК СПІЛЬНОЇ ЛОГІКИ
         DataAnalyticDto last = dayList.isEmpty() ? null : dayList.getLast();
         calculateGridTariffs(dto, last);
