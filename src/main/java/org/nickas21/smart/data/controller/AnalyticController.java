@@ -99,13 +99,11 @@ public class AnalyticController {
 
         try {
             ObjectMapper mapper = new ObjectMapper();
-            // Це дозволить Jackson ігнорувати регістр Енумів автоматично
             mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
 
             List<DataAnalyticDto> list = mapper.readValue(rawJson, new TypeReference<List<DataAnalyticDto>>(){});
             return ResponseEntity.ok(this.analyticService.importXmlsData(list));
         } catch (Exception e) {
-            // 2. Логуємо конкретну причину 400 помилки
             log.error("JSON Mapping Error: {}", e.getMessage());
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }

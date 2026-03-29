@@ -346,7 +346,8 @@ public class AnalyticService {
             String resultJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(monthData);
             Files.writeString(path, resultJson, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException e) {
-            log.error("Помилка запису: ", e);
+            log.error("Failed to save file for {}: ", monthSuffix, e);
+            throw new RuntimeException("FileSystem error during import for " + monthSuffix + ": " + e.getMessage());
         }
     }
 
@@ -500,7 +501,9 @@ public class AnalyticService {
 
     public synchronized List<DataAnalyticDto> importXmlsData(List<DataAnalyticDto> incomingLocalPoints) {
         if (incomingLocalPoints == null || incomingLocalPoints.isEmpty()) return new ArrayList<>();
-        List<DataAnalyticDto> incomingPoints =  updateTimeStampToUtc(incomingLocalPoints);
+
+        List<DataAnalyticDto> incomingPoints = updateTimeStampToUtc(incomingLocalPoints);
+
         Map<String, List<DataAnalyticDto>> pointsByMonth = incomingPoints.stream()
                 .collect(Collectors.groupingBy(p ->
                         Instant.ofEpochMilli(p.getTimestamp())
@@ -508,53 +511,50 @@ public class AnalyticService {
                                 .toLocalDate()
                                 .format(DateTimeFormatter.ofPattern(patternMonthFile))
                 ));
+
         pointsByMonth.forEach((monthSuffix, points) -> {
             DataAnalyticDto first = points.getFirst();
             Path path = getPathFile(first.getLocation(), monthSuffix);
+
             try {
                 Map<String, List<DataAnalyticDto>> monthData = new LinkedHashMap<>();
                 if (Files.exists(path)) {
                     String json = Files.readString(path, StandardCharsets.UTF_8);
                     monthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
                 }
+
                 for (DataAnalyticDto p : points) {
-//                    ZonedDateTime zdt = Instant.ofEpochMilli(p.getTimestamp()).atZone(p.getLocation().getZoneId());
-                    Instant.ofEpochMilli(p.getTimestamp()).atOffset(ZoneOffset.UTC);
                     ZonedDateTime zdt = Instant.ofEpochMilli(p.getTimestamp()).atZone(ZoneOffset.UTC);
                     String mapDateKey = generateMapDateKey(zdt.toLocalDate(), p.getLocation());
 
-                    // Витягуємо список точок за цей день з вашого monthData
                     List<DataAnalyticDto> dayList = monthData.computeIfAbsent(mapDateKey, k -> new ArrayList<>());
-
-                    // Оскільки calculateGridTariffs працює з DTO, можна або зробити такий же для Entity,
-                    // або просто вставити логіку прямо сюди.
                     DataAnalyticDto last = dayList.isEmpty() ? null : dayList.getLast();
 
-                    // Розрахунок тарифів для імпортованої точки
                     calculateGridTariffs(p, last);
 
                     dayList.removeIf(old -> old.getTimestamp() == p.getTimestamp());
                     dayList.add(p);
                     dayList.sort(Comparator.comparingLong(DataAnalytic::getTimestamp));
                 }
+
+                // КРИТИЧНИЙ БЛОК ЗАПИСУ
                 Files.createDirectories(path.getParent());
-                Files.writeString(path, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(monthData), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-                LocalDate today = this.getLocalDateInverter(first.getLocation());
-                String todayMapDateKey = generateMapDateKey(today, first.getLocation());
-                if (monthData.containsKey(todayMapDateKey)) {
-                    List<DataAnalyticDto> dtoList = monthData.get(todayMapDateKey).stream()
-                            .map(e -> new DataAnalyticDto(
-                                    e.getTimestamp(),
-                                    e.getLocation(),
-                                    e.getGridDailyDayPower(),
-                                    e.getGridDailyNightPower(),
-                                    e.getGridDailyTotalPower()))
-                            .collect(Collectors.toList());
-//                    if (first.getLocation() == LocationType.DACHA) this.currentDayDachas = dtoList;
-//                    else this.currentDayGolegos = dtoList;
-                }
-            } catch (IOException e) { log.error("Error import: ", e); }
+                String jsonToSave = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(monthData);
+
+                // Використовуємо Files.writeString для гарантованого запису
+                Files.writeString(path, jsonToSave, StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING);
+
+                log.info("FILE SAVED SUCCESSFULLY: {}", path.toAbsolutePath());
+
+            } catch (IOException e) {
+                log.error("DISK WRITE ERROR for month {}: ", monthSuffix, e);
+                // Викидаємо RuntimeException, щоб контролер побачив біду
+                throw new RuntimeException("FileSystem error on K8s for " + monthSuffix + ": " + e.getMessage());
+            }
         });
+
         return incomingPoints;
     }
 
