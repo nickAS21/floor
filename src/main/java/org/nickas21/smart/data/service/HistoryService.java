@@ -100,10 +100,6 @@ public class HistoryService {
 
     @Scheduled(fixedRateString = "${usr.tcp.logs.writeInterval:480000}") // Кожні 8 хв
     public void processLogs() {
-        if (!this.tuyaDeviceService.isDevicesRady) {
-            log.info("Waiting for installation devices to finish...");
-            return;
-        }
         log.info("Starting scheduled log processing for Golego and Dacha...");
 
         // 1. Запис для DACHA (8 хв)

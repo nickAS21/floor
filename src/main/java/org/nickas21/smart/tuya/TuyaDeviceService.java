@@ -55,7 +55,9 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -172,8 +174,6 @@ public class TuyaDeviceService {
     private final TuyaDeviceProperties deviceProperties;
 
     private String gridRelayCodeIdDacha;
-    private String temperatureOutCodeIdDacha;
-    private String temperatureInCodeIdDacha;
     private String gridRelayCodeIdHome;
     private String boilerRelayCodeIdHome;
     private Entry<Long, Double> lastUpdateTimeAlarmSocDacha;
@@ -185,8 +185,6 @@ public class TuyaDeviceService {
     private Long timeoutSecUpdateMillis;
     private boolean batteryCriticalOrHeatNightDachaWinter = false;
     private boolean batteryCriticalOrHeatNightGolego = false;
-
-    public boolean isDevicesRady = false;
 
     @Autowired
     SolarmanStationsService solarmanStationsService;
@@ -745,7 +743,6 @@ public class TuyaDeviceService {
             for (Entry e : devices.getDevIds().entrySet()) {
                 log.info("name: [{}] id: [{}] ", ((Device) e.getValue()).getName(), e.getKey());
             }
-            this.isDevicesRady = true;
             try {
                 this.updateAllThermostatToMin("start");
             } catch (Exception e) {
@@ -989,17 +986,27 @@ public class TuyaDeviceService {
     }
 
     public DataTemperatureDto getTemperatureValueById(String deviceIdTemperature) {
-            for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-                Object key = entry.getKey();
-                try {
-                    if (deviceIdTemperature.equals(key)) {
-                           return new DataTemperatureDto(entry.getValue().getStatus());
-                    }
-                } catch (Exception innerException) {
-                    log.error("getDevicesTempSort: Error processing entry: key [{}]", key, innerException);
+        // 1. Спроба взяти відразу (якщо id != null)
+        Device device = this.devices.getDevIds().get(deviceIdTemperature);
+        if (device != null) {
+            return new DataTemperatureDto(device.getStatus());
+        }
+
+        // 2. Якщо null — чекаємо до 4 хвилин, поки хтось інший покладе дані в мапу
+        try {
+            return CompletableFuture.supplyAsync(() -> {
+                // Крутимося, поки не з'явиться девайс
+                Device d = null;
+                while (d == null) {
+                    d = this.devices.getDevIds().get(deviceIdTemperature);
                 }
-            }
+                return new DataTemperatureDto(d.getStatus());
+            }).get(4, TimeUnit.MINUTES); // Ось тут магія очікування без ручного sleep
+
+        } catch (Exception e) {
+            log.error("Не дочекалися девайса {} за 4 хвилини", deviceIdTemperature);
             return null;
+        }
     }
 
     public String getGridRelayCodeIdGolego() {
