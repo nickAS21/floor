@@ -1,8 +1,5 @@
 package org.nickas21.smart.data.controller;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
 import org.nickas21.smart.data.service.AnalyticService;
@@ -16,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.Year;
@@ -72,37 +68,11 @@ public class AnalyticController {
         ));
     }
 
-    @PostMapping(value = "/import/file/xmls", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> importFromFileXmlsData(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("location") String location) {
-
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("Файл порожній");
-        }
-
-        try {
-            // Викликаємо сервіс, який розпарсить Excel/XML за мілісекунди
-            this.analyticService.processAndSaveExcel(file, location);
-
-            return ResponseEntity.ok("Імпорт успішно завершено");
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Помилка обробки: " + e.getMessage());
-        }
-    }
-
-
-    @PostMapping("/import/xmls")
+    @PostMapping(value = "/import/xmls", consumes = MediaType.ALL_VALUE)
     public ResponseEntity<?> importXmlsData(@RequestBody String rawJson) {
-        // 1. Логуємо вхідний JSON, щоб бачити регістр
-        log.debug("Recieved JSON for import: {}", rawJson);
-
+        log.debug("Recieved JSON for import...");
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
-
-            List<DataAnalyticDto> list = mapper.readValue(rawJson, new TypeReference<List<DataAnalyticDto>>(){});
-            return ResponseEntity.ok(this.analyticService.importXmlsData(list));
+            return ResponseEntity.ok(this.analyticService.importXmlsData(rawJson));
         } catch (Exception e) {
             log.error("JSON Mapping Error: {}", e.getMessage());
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
