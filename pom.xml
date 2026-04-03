@@ -12,7 +12,7 @@
 
     <groupId>org.nickas21.solar.pulsar.tuya</groupId>
     <artifactId>floor</artifactId>
-    <version>5.88-SNAPSHOT</version>
+    <version>5.89-SNAPSHOT</version>
     <description>Smart home, underfloor heating control from solar panels</description>
     <packaging>jar</packaging>
 
@@ -158,6 +158,16 @@
             <artifactId>client-java</artifactId>
             <version>25.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -219,6 +229,11 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-site-plugin</artifactId>
                 <version>3.12.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
             </plugin>
         </plugins>
     </build>

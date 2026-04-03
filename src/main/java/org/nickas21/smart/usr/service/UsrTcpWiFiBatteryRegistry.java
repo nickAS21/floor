@@ -2,7 +2,7 @@ package org.nickas21.smart.usr.service;
 
 import lombok.Getter;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
-import org.nickas21.smart.usr.entity.InverterData;
+import org.nickas21.smart.usr.entity.InverterDataGolego;
 import org.nickas21.smart.usr.entity.InvertorGolegoData32;
 import org.nickas21.smart.usr.entity.InvertorGolegoData90;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
@@ -20,7 +20,7 @@ public class UsrTcpWiFiBatteryRegistry {
     public final UsrTcpWiFiProperties usrTcpWiFiProperties;
 
     private final Map<Integer, UsrTcpWiFiBattery> batteries = new ConcurrentHashMap<>();
-    private final Map<Integer, InverterData> inverters = new ConcurrentHashMap<>();
+    private final Map<Integer, InverterDataGolego> inverters = new ConcurrentHashMap<>();
 
     public UsrTcpWiFiBatteryRegistry(UsrTcpWiFiProperties usrTcpWiFiProperties) {
         this.usrTcpWiFiProperties = usrTcpWiFiProperties;
@@ -31,7 +31,7 @@ public class UsrTcpWiFiBatteryRegistry {
     }
     public void initInverter(Integer port) {
         if (port.equals(this.usrTcpWiFiProperties.getPortInverterGolego())) {
-            inverters.putIfAbsent(port, new InverterData(port, new InvertorGolegoData32(), new InvertorGolegoData90()));
+            inverters.putIfAbsent(port, new InverterDataGolego(port, new InvertorGolegoData32(), new InvertorGolegoData90()));
         }
     }
 
@@ -39,7 +39,7 @@ public class UsrTcpWiFiBatteryRegistry {
         return batteries.get(port);
     }
 
-    public InverterData getInverter(Integer port) {
+    public InverterDataGolego getInverter(Integer port) {
         return inverters.get(port);
     }
 
@@ -47,7 +47,7 @@ public class UsrTcpWiFiBatteryRegistry {
         return Collections.unmodifiableMap(batteries);
     }
 
-    public Map<Integer, InverterData> getInvertersAll() {
+    public Map<Integer, InverterDataGolego> getInvertersAll() {
         return Collections.unmodifiableMap(inverters);
     }
 }

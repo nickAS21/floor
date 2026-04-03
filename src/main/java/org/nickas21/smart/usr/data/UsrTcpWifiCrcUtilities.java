@@ -110,4 +110,36 @@ public class UsrTcpWifiCrcUtilities {
 
         return calculated == expected;
     }
+
+    public static int calculateCrc16ModbusDeye(byte[] bytes, int offset, int length) {
+        int crc = 0xFFFF;
+
+        for (int i = offset; i < offset + length; i++) {
+            crc ^= (bytes[i] & 0xFF);
+
+            for (int j = 0; j < 8; j++) {
+                if ((crc & 1) != 0) {
+                    crc = (crc >> 1) ^ 0xA001;
+                } else {
+                    crc >>= 1;
+                }
+            }
+        }
+        return crc & 0xFFFF;
+    }
+//
+//    public static int calculateCrc16ModbusDeye(byte[] data, int offset, int length) {
+//        int crc = 0xFFFF;
+//        for (int i = offset; i < offset + length; i++) {
+//            crc ^= (data[i] & 0xFF);
+//            for (int j = 0; j < 8; j++) {
+//                if ((crc & 0x0001) != 0) {
+//                    crc = (crc >>> 1) ^ 0xA001;
+//                } else {
+//                    crc = (crc >>> 1);
+//                }
+//            }
+//        }
+//        return crc;
+//    }
 }

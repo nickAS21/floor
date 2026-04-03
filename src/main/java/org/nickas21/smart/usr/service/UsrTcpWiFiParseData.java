@@ -10,7 +10,7 @@ import org.nickas21.smart.usr.data.InvertorGolegoDecoders;
 import org.nickas21.smart.usr.data.UsrTcpWiFiDecoders;
 import org.nickas21.smart.usr.data.UsrTcpWiFiMessageType;
 import org.nickas21.smart.usr.data.UsrTcpWifiCrcUtilities;
-import org.nickas21.smart.usr.entity.InverterData;
+import org.nickas21.smart.usr.entity.InverterDataGolego;
 import org.nickas21.smart.usr.entity.InvertorGolegoData32;
 import org.nickas21.smart.usr.entity.InvertorGolegoData90;
 import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
@@ -22,6 +22,9 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,7 +32,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_BMS_END;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.MIN_PACKET_LENGTH;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.MIN_PACKET_BMS_USR_LENGTH;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.PACKET_DEYE_SERVICE_LENGTH;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_01_03;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_5E;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_AA;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.T_C0;
@@ -62,6 +67,11 @@ public class UsrTcpWiFiParseData {
     private final Map<List<String>, String> lastErrorRecords = new ConcurrentHashMap<>();
     private long lastWriteTime = 0;
 
+    public static final String datePattern = "yyyy-MM-dd HH:mm:ss";
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern(datePattern)
+            .withZone(ZoneOffset.UTC); // або ZoneOffset.UTC, залежно від вашого parseDeyeRtcToMillis
+//            .withZone(ZoneId.systemDefault()); // або ZoneOffset.UTC, залежно від вашого parseDeyeRtcToMillis
+
     public UsrTcpWiFiParseData(UsrTcpWiFiLogWriter logWriter, UsrTcpWiFiProperties usrTcpWiFiProperties,
                                UsrTcpLogsWiFiProperties usrTcpLogsWiFiProperties,
                                UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry) {
@@ -81,6 +91,10 @@ public class UsrTcpWiFiParseData {
 //            log.warn("Start Golegos inv decoder byteArray from ports [{}]", port);
             return parseAndProcessInverterGolego(buffer);
         }
+//        else if (port == (usrTcpWiFiProperties.getPortInverterDacha())) {
+
+//            return parseAndProcessInverterDyey(buffer);
+//        }
         return new byte[0];
     }
 
@@ -114,7 +128,7 @@ public class UsrTcpWiFiParseData {
 
             if (foundEnd == -1) {
                 // Пакет неповний, зберігаємо залишок для наступного читання
-                if (buffer.length - startIndex >= MIN_PACKET_LENGTH) {
+                if (buffer.length - startIndex >= MIN_PACKET_BMS_USR_LENGTH) {
                     packets.add(Arrays.copyOfRange(buffer, startIndex, buffer.length));
                     currentIndex = buffer.length;
                 }
@@ -122,7 +136,7 @@ public class UsrTcpWiFiParseData {
             } else {
                 // Знайдено повний пакет
                 byte[] pkt = Arrays.copyOfRange(buffer, startIndex, foundEnd);
-                if (pkt.length >= MIN_PACKET_LENGTH) {
+                if (pkt.length >= MIN_PACKET_BMS_USR_LENGTH) {
                     packets.add(pkt);
                 }
                 currentIndex = foundEnd;
@@ -275,7 +289,7 @@ public class UsrTcpWiFiParseData {
         if (msgType.getGroupBms() == 1){    // not parse
             return false;
         }
-        if (packet.length < MIN_PACKET_LENGTH) {
+        if (packet.length < MIN_PACKET_BMS_USR_LENGTH) {
             log.warn("DECODER ERROR: Packet too short ({} bytes)", packet.length);
             return false;
         }
@@ -479,22 +493,331 @@ public class UsrTcpWiFiParseData {
      */
     private void processInverterGolego(byte[] packet) {
         int payloadLen = packet[2] & 0xFF;
-        byte[] payload = Arrays.copyOfRange(packet, 3, 3 + payloadLen);
-        String typeHex = String.format("%02X", packet[1]);
-//        log.info("Type [{}], len [{}], payload [{}]", typeHex, payloadLen, payloadToHexString(payload));
-        InverterData inverterData = usrTcpWiFiBatteryRegistry.getInverter(usrTcpWiFiProperties.getPortInverterGolego());
+        InverterDataGolego inverterData = usrTcpWiFiBatteryRegistry.getInverter(usrTcpWiFiProperties.getPortInverterGolego());
         if (payloadLen == 90) {
             InvertorGolegoData90 entity90 = InvertorGolegoDecoders.decodeInverterGolegoPayload90(packet, usrTcpWiFiProperties.getPortInverterGolego());
             if (entity90 != null) {
                 inverterData.inverterDataUpdate(entity90);
-//                log.info(entity90.toString());
             }
         } else if (payloadLen == 32) {
             InvertorGolegoData32 entity32 = InvertorGolegoDecoders.decodeInverterGolegoPayload32(packet, usrTcpWiFiProperties.getPortInverterGolego());
             if (entity32 != null) {
                 inverterData.inverterDataUpdate(entity32);
-//                log.info(entity32.toString());
             }
+        }
+    }
+
+    /**
+     * BitRate - 9600
+     * Логіка для Deye (Modbus RTU):
+     * 1. Шукаємо заголовок 01 03.
+     * 2. Читаємо третій байт (dataLength).
+     * 3. Вираховуємо повну довжину пакета: 3 (header) + dataLength + 2 (CRC).
+     * 4. Перевіряємо цілісність через CRC16 Modbus.
+     */
+    public byte[] parseAndProcessInverterDyey(byte[] buffer) {
+        int currentIndex = 0;
+        int lastProcessedIndex = 0; // Краще використовувати цей індекс для залишку
+
+        while (true) {
+            int startIndex = indexOf(buffer, START_SIGN_01_03, currentIndex);
+
+            // Якщо маркер не знайдено або недостатньо байтів для читання довжини
+            if (startIndex == -1 || startIndex + 2 >= buffer.length) break;
+
+            int dataLength = buffer[startIndex + 2] & 0xFF;
+
+            // САНИТАРНА ПЕРЕВІРКА: щоб не чекати "нескінченний" пакет
+            if (dataLength > 200) {
+                currentIndex = startIndex + 1;
+                continue;
+            }
+
+            int expectedFullLength = dataLength + PACKET_DEYE_SERVICE_LENGTH;
+
+            // ПЕРЕВІРКА: Чи весь пакет вже в буфері?
+            if (startIndex + expectedFullLength <= buffer.length) {
+                try {
+                    byte[] payload = new byte[dataLength];
+                    System.arraycopy(buffer, startIndex + 3, payload, 0, dataLength);
+                    processInverterDeye(payload);
+                    // Зсуваємось за межі обробленого пакета
+                    currentIndex = startIndex + expectedFullLength;
+                    lastProcessedIndex = currentIndex;
+
+                } catch (Exception e) {
+                    log.error("Error processing Deye payload: " + e.getMessage());
+                    // Якщо всередині process сталася біда — пробуємо шукати далі з наступного байта
+                    currentIndex = startIndex + 1;
+                }
+            } else {
+                // Пакет знайдено, але він ще не повний. Виходимо, щоб дочекатися решти.
+                break;
+            }
+        }
+
+        // Якщо нічого не обробили, повертаємо весь буфер
+        if (lastProcessedIndex == 0 && currentIndex == 0) return buffer;
+
+        // Якщо обробили все під нуль
+        if (lastProcessedIndex >= buffer.length) return new byte[0];
+
+        // Повертаємо залишок (хвіст останнього незавершеного пакета)
+        return Arrays.copyOfRange(buffer, lastProcessedIndex, buffer.length);
+    }
+//    public static boolean isFrameDyeyCrcValid(byte[] buffer, int startIndex, int fullLength) {
+//        // Довжина даних для розрахунку (весь пакет мінус 2 останні байти CRC)
+//        int dataLengthForCrc = fullLength - 2;
+//
+//        // Зчитуємо те, що прийшло в пакеті (Little-endian: спочатку Low, потім High)
+//        int low = buffer[startIndex + dataLengthForCrc] & 0xFF;
+//        int high = buffer[startIndex + dataLengthForCrc + 1] & 0xFF;
+//        int expectedCrc = (high << 8) | low;
+//
+//        // Рахуємо актуальний CRC від першого байта пакета
+//        int actualCrc = calculateCrc16Modbus(buffer, startIndex, dataLengthForCrc);
+//
+//        if (actualCrc != expectedCrc) {
+//            throw new RuntimeException(
+//                    "CRC mismatch: expected " + String.format("%04X", expectedCrc) +
+//                            " but got " + String.format("%04X", actualCrc)
+//            );
+//        }
+//        return true;
+//    }
+
+    public static boolean isFrameDyeyCrcValid(byte[] buffer, int startIndex, int fullLength) {
+        int dataLengthForCrc = fullLength - 2;
+
+        // Створюємо чистий масив тільки з тих байтів, що мають йти в розрахунок
+        byte[] dataToCalculate = new byte[dataLengthForCrc];
+        System.arraycopy(buffer, startIndex, dataToCalculate, 0, dataLengthForCrc);
+
+        // Рахуємо від 0 до кінця цього нового масиву
+        int actualCrc = calculateCrc16Modbus(dataToCalculate, 0, dataLengthForCrc, dataLengthForCrc);
+
+        // Зчитуємо CRC з ОРИГІНАЛЬНОГО буфера
+        int low = buffer[startIndex + dataLengthForCrc] & 0xFF;
+        int high = buffer[startIndex + dataLengthForCrc + 1] & 0xFF;
+        int expectedCrc = (high << 8) | low;
+
+        if (actualCrc != expectedCrc) {
+            // Виводимо в HEX, що ми реально намагалися порахувати
+            String hexParsed = org.nickas21.smart.util.StringUtils.bytesToHex(dataToCalculate);
+            throw new RuntimeException(String.format(
+                    "CRC mismatch! Expected: %04X, Got: %04X. Data used: %s",
+                    expectedCrc, actualCrc, hexParsed));
+        }
+        return true;
+    }
+
+//    public static int calculateCrc16Modbus(byte[] buffer, int offset, int length) {
+//        int crc = 0xFFFF;
+//
+//        for (int i = offset; i < offset + length; i++) {
+//            // КРИТИЧНО: & 0xFF перетворює знаковий byte на беззнаковий int
+//            crc ^= (buffer[i] & 0xFF);
+//
+//            for (int j = 0; j < 8; j++) {
+//                if ((crc & 0x0001) != 0) {
+//                    // Використовуємо >>> (логічний зсув)
+//                    crc = (crc >>> 1) ^ 0xA001;
+//                } else {
+//                    crc >>>= 1;
+//                }
+//            }
+//        }
+//        return crc & 0xFFFF;
+//    }
+
+    public static int calculateCrc16Modbus(byte[] buffer, int offset, int length, int expectedFinalCrc) {
+        int crc = 0xFFFF;
+
+        for (int i = offset; i < offset + length; i++) {
+            int currentByte = buffer[i] & 0xFF;
+            crc ^= currentByte;
+
+            for (int j = 0; j < 8; j++) {
+                if ((crc & 0x0001) != 0) {
+                    crc = (crc >>> 1) ^ 0xA001;
+                } else {
+                    crc >>>= 1;
+                }
+                crc &= 0xFFFF; // Тримаємо в межах 16 біт
+            }
+
+            // ПЕРЕВІРКА: чи не став наш проміжний CRC рівним очікуваному?
+            // (Хоча очікуваний зазвичай збігається лише в кінці, цей лог покаже динаміку)
+            if (i > offset + length - 5) { // Дивимось останні 5 кроків
+                System.out.printf("Step %d | Byte: %02X | Current CRC: %04X%n", i, currentByte, crc);
+            }
+        }
+        return crc;
+    }
+
+    private void processInverterDeye(byte[] packet) {
+        // 1. Пропускаємо пакети, заповнені однаковими 00 або FF
+        int payloadLen = packet.length;
+        if (payloadLen <=2 || isGarbagePacket(packet) || payloadLen == 48) {
+            return;
+        }
+        InverterDataGolego inverterData = this.usrTcpWiFiBatteryRegistry.getInverter(this.usrTcpWiFiProperties.getPortInverterDacha());
+        if (payloadLen == 6) {
+            long timeMillis = parseDeyeRtcToMillis(packet);
+            String formattedTime = DATE_FORMATTER.format(Instant.ofEpochMilli(timeMillis));
+            log.info("Deye RTC time: [{}] hex: [{}]", formattedTime, bytesToHex(packet));
+        } else if (payloadLen == 80) {
+            parseDeyeBlockNet80(packet, inverterData);
+        } else if (payloadLen == 106) {
+            parseDeyeBlock106(packet, inverterData);
+        }
+        else {
+            log.info("Deye: len: [{}] hex: [{}]", payloadLen, bytesToHex(packet));
+        }
+    }
+//        if (payloadLen == 90) {
+//            InvertorGolegoData90 entity90 = InvertorGolegoDecoders.decodeInverterGolegoPayload90(packet, this.usrTcpWiFiProperties.getPortInverterDacha());
+//            if (entity90 != null) {
+//                inverterData.inverterDataUpdate(entity90);
+//            }
+//        } else if (payloadLen == 32) {
+//            InvertorGolegoData32 entity32 = InvertorGolegoDecoders.decodeInverterGolegoPayload32(packet, this.usrTcpWiFiProperties.getPortInverterDacha());
+//            if (entity32 != null) {
+//                inverterData.inverterDataUpdate(entity32);
+//            }
+//        }
+//    }
+
+    private long parseDeyeRtcToMillis(byte[] packet) {
+        try {
+            // Отримуємо значення з байтів
+            int year   = (packet[0] & 0xFF) + 2000;
+            int month  = (packet[1] & 0xFF);
+            int day    = (packet[2] & 0xFF);
+            int hour   = (packet[3] & 0xFF);
+            int minute = (packet[4] & 0xFF);
+            int second = (packet[5] & 0xFF);
+
+            // Валідація базових меж (щоб не отримати помилку при створенні дати)
+            if (month < 1 || month > 12 || day < 1 || day > 31) {
+                return 0L;
+            }
+
+            // Створюємо об'єкт дати та часу
+            LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minute, second);
+
+            // Перетворюємо в мілісекунди (UTC або системний часовий пояс)
+            return dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+
+        } catch (Exception e) {
+            log.error("Failed to parse RTC bytes to millis: " + e.getMessage());
+            return 0L;
+        }
+    }
+
+    private boolean isGarbagePacket(byte[] packet) {
+        for (byte b : packet) {
+            // Якщо знайшли хоча б один байт, який НЕ 0x00 і НЕ 0xFF
+            if (b != 0x00 && b != (byte) 0xFF) {
+                return false; // Пакет містить корисні дані
+            }
+        }
+        // Якщо цикл пройшов до кінця, значить у пакеті лише 00 та FF
+        return true;
+    }
+
+    private void parseDeyeBlockNet80(byte[] data, InverterDataGolego inverterData) {
+        // Мережа (Grid) - множник 0.1
+        double gridV1 = getUint16(data, 0) * 0.1;
+        double gridV2 = getUint16(data, 2) * 0.1;
+        double gridV3 = getUint16(data, 4) * 0.1;
+
+        double gridA1 = getUint16(data, 6) * 0.1;
+        double gridA2 = getUint16(data, 8) * 0.1;
+        double gridA3 = getUint16(data, 10) * 0.1;
+
+        // PV (Сонячні панелі)
+        double pv1A = getUint16(data, 12) * 0.1; // DC Current PV1
+        double pv1V = getUint16(data, 16) * 0.1; // DC Voltage PV1
+
+        // Енергія - множник 0.1
+        double dailyLoad = getUint16(data, 18) * 0.1;
+        double totalLoad = getUint16(data, 20) * 0.1;
+
+        // Частота - множник 0.01
+        double gridFreq = getUint16(data, 26) * 0.01;
+
+        // Статус та помилки
+        int workMode = getUint16(data, 40);
+        int faultCode = getUint16(data, 42); // Можна об'єднати 42 та 44 якщо потрібно 32-біт
+
+        // Температури - множник 0.1 (offset 1000 для негативних температур у деяких моделях,
+        // але згідно твого CSV просто 0.1)
+        double tempInverter = getUint16(data, 60) * 0.1;
+        double tempInternal = getUint16(data, 62) * 0.1;
+
+        // Батарея
+        double batV = getUint16(data, 68) * 0.1;
+        double batA = getUint16(data, 70) * 0.1;
+        double batTemp = getUint16(data, 72) * 0.1;
+        int batSoc = getUint16(data, 74);
+
+        log.info("Deye NET80: Grid: {}V/{}V/{}V, Bat: {}V, SOC: {}%, Temp: {}°C",
+                String.format("%.1f", gridV1), String.format("%.1f", gridV2), String.format("%.1f", gridV3),
+                String.format("%.1f", batV), batSoc, String.format("%.1f", tempInverter));
+
+        // Тут можна заповнювати inverterData
+        // inverterData.setGridVoltage(gridV1); ...
+    }
+
+    private int getUint16(byte[] data, int offset) {
+        return ((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF);
+    }
+
+    /**
+     * Парсинг великого блоку даних (106 байт)
+     * Включає внутрішні сенсори, параметри мережі та батареї
+     */
+    private void parseDeyeBlock106(byte[] data, InverterDataGolego inverterData) {
+        // --- ПАРАМЕТРИ БАТАРЕЇ (Знайдені за дампом) ---
+        // На основі вашого: 0491 (Power) 14F8 (Voltage) 0044 (SOC)
+        int batPowerRaw = getUint16(data, 0);   // 0491 hex = 1169
+        double batVoltage = getUint16(data, 2) * 0.01; // 14F8 hex = 5368 -> 53.68 V
+        int batSoc = getUint16(data, 4);        // 0044 hex = 68 -> 68%
+
+        // Струм батареї (знайдено за офсетом 68-69 у вашому прикладі)
+        double batCurrent = getUint16(data, 68) * 0.1; // 001F hex = 31 -> 3.1 A
+
+        // --- ПАРАМЕТРИ ІНВЕРТОРА (Згідно з вашою таблицею офсетів) ---
+        // Напруги по фазах (Offset 66-71)
+        double invV1 = getUint16(data, 66) * 0.1; // 0898 hex = 2200 -> 220.0 V
+        double invV2 = getUint16(data, 68) * 0.1; // 0898 hex = 2200 -> 220.0 V
+        double invV3 = getUint16(data, 70) * 0.1; // 0895 hex = 2197 -> 219.7 V
+
+        // Струми по фазах (Offset 74-77)
+        double invA2 = getUint16(data, 74) * 0.1; // 0028 hex = 40 -> 4.0 A
+        double invA3 = getUint16(data, 76) * 0.1; // 005A hex = 90 -> 9.0 A
+
+        // Потужність PV та Частота (Offset 82-89)
+        int pv1Power = getUint16(data, 82);       // 00E1 hex = 225 -> 225 W
+        double acFreq = getUint16(data, 88) * 0.01; // 1388 hex = 5000 -> 50.00 Hz
+
+        // Логування основних показників
+        log.info("Deye BLOCK106: Bat: {}V, SOC: {}%, Curr: {}A | AC: {}V/{}V/{}V | PV: {}W, Freq: {}Hz",
+                String.format("%.2f", batVoltage),
+                batSoc,
+                String.format("%.1f", batCurrent),
+                String.format("%.1f", invV1),
+                String.format("%.1f", invV2),
+                String.format("%.1f", invV3),
+                pv1Power,
+                String.format("%.2f", acFreq));
+
+        // Приклад збереження в об'єкт
+        if (inverterData != null) {
+            // inverterData.setBatteryVoltage(batVoltage);
+            // inverterData.setBatterySoc(batSoc);
+            // inverterData.setGridFrequency(acFreq);
         }
     }
 }

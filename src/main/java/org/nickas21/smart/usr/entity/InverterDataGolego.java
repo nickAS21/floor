@@ -5,15 +5,15 @@ import lombok.Data;
 import java.time.Instant;
 
 @Data
-public class InverterData {
-    private final int port;                     // Порт, до якого підключено акумулятор (8900)
+public class InverterDataGolego {
+    private final int port;                     // Порт, до якого підключено акумулятор (8899)
 
     private Instant startTime;            // Час першого отримання пакета (старт сесії)
     private Instant lastTime;
     private InvertorGolegoData90 invertorGolegoData90;
     private InvertorGolegoData32 invertorGolegoData32;
 
-    public InverterData(int port, InvertorGolegoData32 invertorGolegoData32, InvertorGolegoData90 invertorGolegoData90) {
+    public InverterDataGolego(int port, InvertorGolegoData32 invertorGolegoData32, InvertorGolegoData90 invertorGolegoData90) {
         this.port = port;
         this.startTime = Instant.now();
         this.lastTime = startTime;
