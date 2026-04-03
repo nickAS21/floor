@@ -91,10 +91,10 @@ public class UsrTcpWiFiParseData {
 //            log.warn("Start Golegos inv decoder byteArray from ports [{}]", port);
             return parseAndProcessInverterGolego(buffer);
         }
-//        else if (port == (usrTcpWiFiProperties.getPortInverterDacha())) {
+        else if (port == (usrTcpWiFiProperties.getPortInverterDacha())) {
 
-//            return parseAndProcessInverterDyey(buffer);
-//        }
+            return parseAndProcessInverterDyey(buffer);
+        }
         return new byte[0];
     }
 
@@ -662,17 +662,13 @@ public class UsrTcpWiFiParseData {
             return;
         }
         InverterDataGolego inverterData = this.usrTcpWiFiBatteryRegistry.getInverter(this.usrTcpWiFiProperties.getPortInverterDacha());
+        log.info("Deye: len: [{}] hex: [{}]", payloadLen, bytesToHex(packet));
         if (payloadLen == 6) {
             long timeMillis = parseDeyeRtcToMillis(packet);
             String formattedTime = DATE_FORMATTER.format(Instant.ofEpochMilli(timeMillis));
             log.info("Deye RTC time: [{}] hex: [{}]", formattedTime, bytesToHex(packet));
-        } else if (payloadLen == 80) {
-            parseDeyeBlockNet80(packet, inverterData);
-        } else if (payloadLen == 106) {
-            parseDeyeBlock106(packet, inverterData);
-        }
-        else {
-            log.info("Deye: len: [{}] hex: [{}]", payloadLen, bytesToHex(packet));
+        } else  {
+            parseDeyeBlock_NN(packet, inverterData);
         }
     }
 //        if (payloadLen == 90) {
@@ -819,5 +815,29 @@ public class UsrTcpWiFiParseData {
             // inverterData.setBatterySoc(batSoc);
             // inverterData.setGridFrequency(acFreq);
         }
+    }
+
+    private void parseDeyeBlock_NN(byte[] packet, InverterDataGolego inverterData) {
+        int payloadLen = packet.length;
+        StringBuilder sb = new StringBuilder();
+
+        // 2. Проходимо по всьому пакету з кроком 2 (Modbus-регістри)
+        for (int i = 0; i < payloadLen; i += 2) {
+            if (i + 1 < payloadLen) {
+                // Читаємо чисте 16-бітне значення (Big-Endian)
+                int regValue = ((packet[i] & 0xFF) << 8) | (packet[i + 1] & 0xFF);
+
+                // Форматуємо: [Індекс_байта]:Значення
+                sb.append(String.format("[%03d]:%-5d | ", i, regValue));
+
+                // Новий рядок кожні 8 регістрів для читабельності
+                if ((i + 2) % 16 == 0) {
+                    sb.append("\n    ");
+                }
+            }
+        }
+
+        // 3. Виводимо результат
+        log.info("Deye RAW BLOCK_{}:\n    {}", payloadLen, sb.toString());
     }
 }
