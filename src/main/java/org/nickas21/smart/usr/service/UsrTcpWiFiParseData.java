@@ -668,18 +668,16 @@ public class UsrTcpWiFiParseData {
             String formattedTime = DATE_FORMATTER.format(Instant.ofEpochMilli(timeMillis));
             log.info("Deye RTC time: [{}] hex: [{}]", formattedTime, bytesToHex(packet));
         } else if (payloadLen == 8) {
-            parseDeyeHomeBlock8(packet, inverterData);
+            parseDeyeInverterOutBlock8(packet, inverterData);
         } else if (payloadLen == 16) {
             parseDeyeBmsBlock16(packet, inverterData);
         } else if (payloadLen == 80) {
             parseDeyeInverterOutDcBlock80(packet, inverterData);
         } else if (payloadLen == 106) {
             parseDeyBatteryBlock106(packet, inverterData);
-        }
-//        else if (payloadLen == 118) {
-//            parseDeyeTilyBlock118(packet, inverterData);
-//        }
-        else  {
+        } else if (payloadLen == 118) {
+            parseDeyeDailyInverterBlock118(packet, inverterData);
+        } else  {
             parseDeyeBlock_NN(packet, inverterData);
         }
     }
@@ -746,19 +744,19 @@ public class UsrTcpWiFiParseData {
      * Парсинг великого блоку даних (106 байт)
      * BMS
      */
-    private void parseDeyeHomeBlock8(byte[] data, InverterDataGolego inverterData) {
+    private void parseDeyeInverterOutBlock8(byte[] data, InverterDataGolego inverterData) {
         StringBuilder sb = new StringBuilder();
 
         // Масив назв відповідно до офсетів 0, 2, 4, 6, 8, 10, 12, 14
         String[] labels = {
-                "Load  Power L1(W)",            // 000
-                "Load  Power L2(W)",            // 002
-                "Load  Power L3(W)",            // 004
-                "Total Consumption Power(W)",   // 006
+                "Inverter Output Power L1(W)",            // 000
+                "Inverter Output Power L2(W)",            // 002
+                "Inverter Output Power L3(W)",            // 004
+                "Total Inverter Output Power(W)",   // 006
         };
 
         for (int i = 0; i < data.length; i += 2) {
-            short val = getSignedShort(data, i);
+            int val = getUint16(data, i);
             String hex = String.format("0x%02X%02X", data[i], data[i+1]);
             String label = labels[i / 2]; // Отримуємо назву за індексом регістру
 
@@ -771,7 +769,7 @@ public class UsrTcpWiFiParseData {
             if ((i + 2) % 4 == 0) sb.append("\n    ");
         }
 
-        log.info("\nDeye Home BLOCK_8:\n    {}", sb.toString());
+        log.info("\nDeye BLOCK_InverterOut_8:\n    {}", sb.toString());
 
         // Оновлення об'єкта
         if (inverterData != null) {
@@ -789,23 +787,27 @@ public class UsrTcpWiFiParseData {
 
         // Масив назв відповідно до офсетів 0, 2, 4, 6, 8, 10, 12, 14
         String[] labels = {
-                "ChargeVoltage(V)",      // 000
-                "BMS Discharge Voltage(V)",       // 002
-                "ChargeCurrent Limit(A)",// 004
-                "DischargeCurrent Limit(A)", // 006
-                "SOC(%)",                // 008
-                "Voltage(V)",            // 010
-                "Current(A)",            // 012
-                "Temperature"            // 014
+                "ChargeVoltage(V BMS)",      // 000
+                "BMS Discharge Voltage(V) BMS",       // 002
+                "ChargeCurrent Limit(A) BMS",// 004
+                "DischargeCurrent Limit(A) BMS", // 006
+                "SOC(%) BMS",                // 008
+                "Voltage(V) BMS",            // 010
+                "Current(A) BMS",            // 012
+                "Temperature BMS"            // 014
         };
 
         for (int i = 0; i < data.length; i += 2) {
-            short val = getSignedShort(data, i);
+            int val = getUint16(data, i);
+
             String hex = String.format("0x%02X%02X", data[i], data[i+1]);
             String label = labels[i / 2]; // Отримуємо назву за індексом регістру
 
             String dec;
-            if (i == 12)      dec = String.valueOf(val); // Струм як є
+            if (i == 12)      {
+                short valShort = getSignedShort(data, i);
+                dec = String.valueOf(valShort );
+            } // Струм як є
             else if (i == 14) dec = String.format("%.1f", (val - 1000) * 0.1); // Температура
             else if (i == 0 || i == 2 || i == 10) dec = String.format("%.2f", val * 0.01); // Напруги
             else              dec = String.valueOf(val); // SOC та ліміти
@@ -855,7 +857,7 @@ public class UsrTcpWiFiParseData {
         labels[31] = "DC Power PV4(W)";        // 062
 
         for (int i = 0; i < data.length; i += 2) {
-            short val = getSignedShort(data, i);
+            int val = getUint16(data, i);
             String hex = String.format("0x%02X%02X", data[i], data[i+1]);
             String label = labels[i / 2];
 
@@ -881,7 +883,7 @@ public class UsrTcpWiFiParseData {
             }
         }
 
-        sb.append(String.format("\n    [Total DC Power Sum PV][---]:SUM:%-7d | ", totalDcPower));
+        sb.append(String.format("    [Total DC Power Sum PV][---]:SUM:%-7d | \n", totalDcPower));
 
         log.info("\nDeye RAW BLOCK_InverterOutDc_80:\n    {}", sb.toString());
     }
@@ -902,11 +904,23 @@ public class UsrTcpWiFiParseData {
         labels[4] = "Battery Power(W)";
         labels[5] = "Battery current 1(A)";
         // ... (інші лейбли без змін)
-        labels[52] = "AC Output Frequency R(Hz)";
+
+        labels[41] = "AC Voltage R/U/A(V)";   // 82
+        labels[42] = "AC Voltage S/V/B(V)";   // 84
+        labels[43] = "AC Voltage T/W/C(V)";   // 86
+        labels[44] = "AC Current R/U/A(V)";   // 88
+        labels[45] = "AC Current S/V/B(V)";   // 90
+        labels[46] = "AC Current T/W/C(V)";   // 92
+        labels[47] = "Load  Power L1(W)";     // 94
+        labels[48] = "Load  Power L2(W)";     // 96
+        labels[49] = "Load  Power L3(W)";     // 98
+        labels[50] = "Total Consumption Power(W)";   // 100
+        labels[51] = "Total Consumption Apparent Power(VA)";   // 102
+        labels[52] = "AC Output Frequency R(Hz)";   // 104
 
         // 3. Цикл
         for (int i = 0; i < data.length; i += 2) {
-            short val = getSignedShort(data, i);
+            int val = getUint16(data, i);
             String hex = String.format("0x%02X%02X", data[i], data[i+1]);
             String label = labels[i / 2];
 
@@ -919,9 +933,13 @@ public class UsrTcpWiFiParseData {
             } else if (i == 82 || i == 84 || i == 86) {
                 // Крок 0.1 (Напруги AC)
                 dec = String.format("%.1f", val * 0.1);
-            } else if (i == 2 || i == 10 || (i >= 88 && i <= 92) || i == 104) {
-                // Крок 0.01 (Напруга батареї, струми AC, частота)
+            } else if (i == 2 || i == 104) {
+                // Крок 0.01 (Напруга батареї, частота)
                 dec = String.format("%.2f", val * 0.01);
+            } else if (i == 10 || (i >= 88 && i <= 92) ) {
+                // Крок 0.01 (струми AC)
+                short valShort = getSignedShort(data, i);
+                dec = String.format("%.2f", valShort * 0.01);
             } else {
                 // Цілі числа (SoC, Power)
                 dec = String.valueOf(val);
@@ -932,6 +950,53 @@ public class UsrTcpWiFiParseData {
         }
 
         log.info("\nDeye RAW BLOCK_106:\n    {}", sb.toString());
+    }
+
+    private void parseDeyeDailyInverterBlock118(byte[] data, InverterDataGolego inverterData) {
+        StringBuilder sb = new StringBuilder();
+
+        // 1. Універсальний масив (можна зробити 60, як обговорювали)
+        String[] labels = new String[60];
+        for (int j = 0; j < labels.length; j++) {
+            labels[j] = String.format("Nothing_%03d", j * 2);
+        }
+
+        // 2. Заповнення імен
+        labels[14] = "Daily Charging Energy(kWh)";      //28
+        labels[15] = "Daily Discharging Energy(kWh)";   //30
+        labels[18] = "Total Discharging Energy(kWh)";   //36
+        labels[24] = "Total Energy Sell(kWh)";          //48
+        labels[41] = "Temperature - Inverter(℃)";       // 82
+
+        // 3. Цикл
+        for (int i = 0; i < data.length; i += 2) {
+
+            int val = getUint16(data, i);
+            String hex = String.format("0x%02X%02X", data[i], data[i+1]);
+            String label = labels[i / 2];
+
+            String dec;
+
+            // ГРУПУЄМО ЛОГІКУ ОБРОБКИ
+            if (i == 82) {
+                // Специфічний розрахунок для температури
+                dec = String.format("%.1f", (val - 1000) * 0.1);
+            } else if (i == 28 || i == 30 || i == 36 || i == 48) {
+                // Крок 0.1
+                dec = String.format("%.1f", val * 0.1);
+//            } else if (i == 2 || i == 10 || (i >= 88 && i <= 92) || i == 104) {
+//                // Крок 0.01 (Напруга батареї, струми AC, частота)
+//                dec = String.format("%.2f", val * 0.01);
+            } else {
+                // Цілі числа (SoC, Power)
+                dec = String.valueOf(val);
+            }
+
+            sb.append(String.format("[%-35s][%03d]:%s:%-7s | ", label, i, hex, dec));
+            if ((i + 2) % 4 == 0) sb.append("\n    ");
+        }
+
+        log.info("\nDeye RAW BLOCK_DailyInverter_118:\n    {}", sb.toString());
     }
 
     private void parseDeyeBlock_NN(byte[] packet, InverterDataGolego inverterData) {

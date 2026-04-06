@@ -169,7 +169,6 @@ public class DataHomeDto {
             if (c0Data.getTimestamp() != null) {
                 long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli()/1000L, LocationType.GOLEGO.getZoneId());
                 this.timestamp =c0Data.getTimestamp().toEpochMilli() + offsetMs;
-                this.timestamp = c0Data.getTimestamp().toEpochMilli();
             }
             this.batterySoc = batteriesActiveCnt == 0 ? 0 : batterySocSum/batteriesActiveCnt;
 
