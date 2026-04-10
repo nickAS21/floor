@@ -3,6 +3,7 @@ package org.nickas21.smart.usr.entity.dacha;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.nickas21.smart.usr.entity.InverterDataBase;
+import org.nickas21.smart.util.LocationType;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -15,7 +16,7 @@ public class InverterDataDacha extends InverterDataBase {
     private InverterDataDachaDailyTotalBlock118 inverterDataDachaDailyTotalBlock118;
 
     public InverterDataDacha(int port) {
-        super(port);
+        super(port, LocationType.DACHA.getZoneId());
     }
 
 }

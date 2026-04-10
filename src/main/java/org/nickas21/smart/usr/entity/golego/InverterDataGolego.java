@@ -3,6 +3,7 @@ package org.nickas21.smart.usr.entity.golego;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.nickas21.smart.usr.entity.InverterDataBase;
+import org.nickas21.smart.util.LocationType;
 
 import java.util.Objects;
 
@@ -14,7 +15,7 @@ public class InverterDataGolego  extends InverterDataBase {
     private InverterGolegoData32 inverterGolegoData32;
 
     public InverterDataGolego(int port, InverterGolegoData32 inverterGolegoData32, InverterGolegoData90 inverterGolegoData90) {
-        super(port);
+        super(port, LocationType.GOLEGO.getZoneId());
         this.inverterGolegoData32 = Objects.requireNonNull(inverterGolegoData32, "Data32 cannot be null");
         this.inverterGolegoData90 = Objects.requireNonNull(inverterGolegoData90, "Data90 cannot be null");
     }

@@ -4,6 +4,9 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.time.Instant;
+import java.time.ZoneId;
+
+import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.updateTimeStampToUtc;
 
 @Data
 @EqualsAndHashCode(of = "port")
@@ -14,9 +17,11 @@ public abstract class InverterDataBase {
     protected Instant startTime;
     protected Instant lastTime;
 
-    public InverterDataBase(int port) {
+    public InverterDataBase(int port, ZoneId zoneId) {
         this.port = port;
-        this.startTime = Instant.now();
+        Instant now = Instant.now();
+        long offsetMs = updateTimeStampToUtc(now.toEpochMilli()/1000L, zoneId);
+        this.startTime = now.plusMillis(offsetMs);;
         this.lastTime = this.startTime;
     }
 
