@@ -1,18 +1,18 @@
 package org.nickas21.smart.usr.data;
 
-import org.nickas21.smart.usr.entity.InvertorGolegoData32;
-import org.nickas21.smart.usr.entity.InvertorGolegoData90;
+import org.nickas21.smart.usr.entity.golego.InverterGolegoData32;
+import org.nickas21.smart.usr.entity.golego.InverterGolegoData90;
 
 import java.util.Arrays;
 
 public class InvertorGolegoDecoders {
 
-    public static InvertorGolegoData90 decodeInverterGolegoPayload90(byte[] payload, int port) {
+    public static InverterGolegoData90 decodeInverterGolegoPayload90(byte[] payload, int port) {
         // Відрізаємо 3 байти заголовку, беремо 90 байт даних
         if (payload.length < 93) return null;
         byte[] data = Arrays.copyOfRange(payload, 3, 93);
 
-        InvertorGolegoData90 entity = new InvertorGolegoData90();
+        InverterGolegoData90 entity = new InverterGolegoData90();
         entity.setPort(port);
 
         // 1. ЗАПОВНЮЄМО hexMap ПРАВИЛЬНО
@@ -73,12 +73,12 @@ public class InvertorGolegoDecoders {
         return entity;
     }
 
-    public static InvertorGolegoData32 decodeInverterGolegoPayload32(byte[] payload, int port) {
+    public static InverterGolegoData32 decodeInverterGolegoPayload32(byte[] payload, int port) {
         // Відрізаємо 3 байти заголовку
         if (payload.length < 3) return null;
         byte[] data = Arrays.copyOfRange(payload, 3, payload.length);
 
-        InvertorGolegoData32 entity = new InvertorGolegoData32();
+        InverterGolegoData32 entity = new InverterGolegoData32();
         entity.setPort(port);
 
         // 1. Заповнюємо hexMap (16 елементів для 32 байт)

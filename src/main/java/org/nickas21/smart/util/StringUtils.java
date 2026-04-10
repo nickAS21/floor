@@ -128,5 +128,12 @@ public class StringUtils {
         }
         return sb.toString();
     }
+
+    public static int getUint16(byte[] data, int offset) {
+        return ((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF);
+    }
+    public static int getSignedInt(byte[] data, int offset) {
+        return (short) (((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF));
+    }
 }
 

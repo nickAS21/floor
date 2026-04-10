@@ -1,4 +1,4 @@
-package org.nickas21.smart.usr.entity;
+package org.nickas21.smart.usr.entity.golego;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

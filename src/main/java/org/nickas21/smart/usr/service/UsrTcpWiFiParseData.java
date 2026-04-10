@@ -10,13 +10,19 @@ import org.nickas21.smart.usr.data.InvertorGolegoDecoders;
 import org.nickas21.smart.usr.data.UsrTcpWiFiDecoders;
 import org.nickas21.smart.usr.data.UsrTcpWiFiMessageType;
 import org.nickas21.smart.usr.data.UsrTcpWifiCrcUtilities;
-import org.nickas21.smart.usr.entity.InverterDataGolego;
-import org.nickas21.smart.usr.entity.InvertorGolegoData32;
-import org.nickas21.smart.usr.entity.InvertorGolegoData90;
-import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
-import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
-import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
-import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
+import org.nickas21.smart.usr.entity.dacha.InverterDataDacha;
+import org.nickas21.smart.usr.entity.dacha.InverterDataDachaAcBatteryBlock106;
+import org.nickas21.smart.usr.entity.dacha.InverterDataDachaBmsBlock16;
+import org.nickas21.smart.usr.entity.dacha.InverterDataDachaDailyTotalBlock118;
+import org.nickas21.smart.usr.entity.dacha.InverterDataDachaOutToHomeBlock8;
+import org.nickas21.smart.usr.entity.dacha.InverterDataLoadDcBlock80;
+import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
+import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
+import org.nickas21.smart.usr.entity.golego.InverterGolegoData32;
+import org.nickas21.smart.usr.entity.golego.InverterGolegoData90;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWiFiBmsSummary;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC1Data;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
 import org.springframework.stereotype.Service;
 
@@ -215,10 +221,10 @@ public class UsrTcpWiFiParseData {
 
         // Extra BMS info for C0 and update C0/C1
         if (T_C0.equals(msgType)) {
-            UsrTcpWifiC0Data c0Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC0Data();
+            UsrTcpWifiC0Data c0Data = this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).getC0Data();
             UsrTcpWiFiDecoders.decodeC0Payload(payloadBytes, c0Data, nowInstant, port);
 
-            this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c0Data.getTimestamp());
+            this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).setLastTime(c0Data.getTimestamp());
 //                        if (testFront) {
 //                            String infoC0BmsMsg = c0Data.decodeC0BmsInfoPayload(output);
 //                            if (!infoC0BmsMsg.isBlank()) {
@@ -228,9 +234,9 @@ public class UsrTcpWiFiParseData {
 //                            }
 //                        }
         } else {
-            UsrTcpWifiC1Data c1Data = this.usrTcpWiFiBatteryRegistry.getBattery(port).getC1Data();
+            UsrTcpWifiC1Data c1Data = this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).getC1Data();
             UsrTcpWiFiDecoders.decodeC1Payload(payloadBytes, c1Data, nowInstant);
-            this.usrTcpWiFiBatteryRegistry.getBattery(port).setLastTime(c1Data.getTimestamp());
+            this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).setLastTime(c1Data.getTimestamp());
             // write to file error history C1 - unBalance = delta + min/max + level_code
             // 764862063274;8897;C1;len;c1Data.balanceS
             List<String> key = List.of(String.valueOf(port), B1.name());
@@ -239,13 +245,13 @@ public class UsrTcpWiFiParseData {
                 String newValue = c1Data.getBalanceS().name() + ": " + intToHex(c1Data.getErrorInfoData());
                 String oldValue = lastErrorRecords.get(key);
                 if (!newValue.equals(oldValue)) {
-                    this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(c1Data.getErrorUnbalanceForRecords(port));
+                    this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).setErrRecordB1(c1Data.getErrorUnbalanceForRecords(port));
                     lastErrorRecords.compute(key, (k, v) -> newValue);
-                    DataErrorInfoDto dataErrorInfoDto = new DataErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordB1());
+                    DataErrorInfoDto dataErrorInfoDto = new DataErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).getErrRecordB1());
                     logWriter.writeError(GOLEGO, dataErrorInfoDto);
                 }
             } else {
-                this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordB1(null);
+                this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).setErrRecordB1(null);
                 lastErrorRecords.compute(key, (k, v) -> null);
             }
 //                        if (testFront) {
@@ -266,13 +272,13 @@ public class UsrTcpWiFiParseData {
                 String newValue = intToHex(errorInfoData);
                 String oldValue = lastErrorRecords.get(key);
                 if (!newValue.equals(oldValue)) {
-                    this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(c1Data.getErrorOutputForRecords(port));
+                    this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).setErrRecordE1(c1Data.getErrorOutputForRecords(port));
                     lastErrorRecords.put(key, newValue);
-                    DataErrorInfoDto dataErrorInfoDto = new DataErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port).getErrRecordE1());
+                    DataErrorInfoDto dataErrorInfoDto = new DataErrorInfoDto(this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).getErrRecordE1());
                     logWriter.writeError(GOLEGO, dataErrorInfoDto);
                 }
             } else {
-                this.usrTcpWiFiBatteryRegistry.getBattery(port).setErrRecordE1(null);
+                this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class).setErrRecordE1(null);
                 lastErrorRecords.compute(key, (k, v) -> null);
             }
         }
@@ -308,10 +314,10 @@ public class UsrTcpWiFiParseData {
     }
 
     public UsrTcpWiFiBmsSummary getBmsSummary(int portMaster){
-        UsrTcpWiFiBattery usrTcpWiFiBattery = this.getBattery(portMaster);
-        if (usrTcpWiFiBattery != null) {
-            UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
-            UsrTcpWifiC1Data c1Data = usrTcpWiFiBattery.getC1Data();
+        BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFi = this.getBattery(portMaster);
+        if (batteryDataUsrTcpWiFi != null) {
+            UsrTcpWifiC0Data c0Data = batteryDataUsrTcpWiFi.getC0Data();
+            UsrTcpWifiC1Data c1Data = batteryDataUsrTcpWiFi.getC1Data();
             String bmsErrors = null;
             if (c0Data.getTimestamp() == null || c1Data.getTimestamp() == null) return null;
             try {
@@ -319,12 +325,12 @@ public class UsrTcpWiFiParseData {
                 double batterySocMax = c0Data.getSocPercent();
                 for (int i = 0; i < this.usrTcpWiFiProperties.getBatteriesCnt(); i++) {
                     int portOut = this.usrTcpWiFiProperties.getPortStart() + i;
-                    UsrTcpWiFiBattery usrTcpWiFiBatteryA = this.getBattery(portOut);
-                    if (usrTcpWiFiBatteryA != null && usrTcpWiFiBatteryA.getC0Data() != null) {
-                        log.warn("port [{}] batteryCurrent [{}] soc [{}]", portOut, usrTcpWiFiBatteryA.getC0Data().getCurrentCurA(), usrTcpWiFiBatteryA.getC0Data().getSocPercent());
-                        batteryCurrentAll += usrTcpWiFiBatteryA.getC0Data().getCurrentCurA();
+                    BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFiA = this.getBattery(portOut);
+                    if (batteryDataUsrTcpWiFiA != null && batteryDataUsrTcpWiFiA.getC0Data() != null) {
+                        log.warn("port [{}] batteryCurrent [{}] soc [{}]", portOut, batteryDataUsrTcpWiFiA.getC0Data().getCurrentCurA(), batteryDataUsrTcpWiFiA.getC0Data().getSocPercent());
+                        batteryCurrentAll += batteryDataUsrTcpWiFiA.getC0Data().getCurrentCurA();
                         // TODO - 8894 - 20% this is bad then only master
-                        batterySocMax = usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 ? Math.max(batterySocMax, usrTcpWiFiBatteryA.getC0Data().getSocPercent()) : batterySocMax;
+                        batterySocMax = batteryDataUsrTcpWiFiA.getC0Data().getSocPercent() != 0 ? Math.max(batterySocMax, batteryDataUsrTcpWiFiA.getC0Data().getSocPercent()) : batterySocMax;
                     }
                 }
 
@@ -343,23 +349,23 @@ public class UsrTcpWiFiParseData {
                 return null;
             }
         } else {
-            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", portMaster, this.usrTcpWiFiBatteryRegistry.getBatteriesAll().size());
+            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", portMaster, this.usrTcpWiFiBatteryRegistry.getBatteriesAll(BatteryDataUsrTcpWiFi.class).size());
             return null;
         }
     }
 
-    public UsrTcpWiFiBattery getBattery(int port){
-        return this.usrTcpWiFiBatteryRegistry.getBattery(port);
+    public BatteryDataUsrTcpWiFi getBattery(int port){
+        return this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class);
     }
-    public UsrTcpWiFiBattery getInverter(int port){
-        return this.usrTcpWiFiBatteryRegistry.getBattery(port);
+    public BatteryDataUsrTcpWiFi getInverter(int port){
+        return this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class);
     }
 
 
     @NotNull
     private StringBuilder getStringBuilderError() {
         StringBuilder errorBuilder = new StringBuilder();
-        for (Map.Entry<Integer, UsrTcpWiFiBattery> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getBatteriesAll().entrySet()) {
+        for (Map.Entry<Integer, BatteryDataUsrTcpWiFi> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getBatteriesAll(BatteryDataUsrTcpWiFi.class).entrySet()) {
             if (batteryEntry.getValue().getErrRecordE1() != null){
                 errorBuilder.append(batteryEntry.getValue().getErrRecordE1().toMsgForBot());
             }
@@ -493,14 +499,14 @@ public class UsrTcpWiFiParseData {
      */
     private void processInverterGolego(byte[] packet) {
         int payloadLen = packet[2] & 0xFF;
-        InverterDataGolego inverterData = usrTcpWiFiBatteryRegistry.getInverter(usrTcpWiFiProperties.getPortInverterGolego());
+        InverterDataGolego inverterData = usrTcpWiFiBatteryRegistry.getInverter(usrTcpWiFiProperties.getPortInverterGolego(), InverterDataGolego.class);
         if (payloadLen == 90) {
-            InvertorGolegoData90 entity90 = InvertorGolegoDecoders.decodeInverterGolegoPayload90(packet, usrTcpWiFiProperties.getPortInverterGolego());
+            InverterGolegoData90 entity90 = InvertorGolegoDecoders.decodeInverterGolegoPayload90(packet, usrTcpWiFiProperties.getPortInverterGolego());
             if (entity90 != null) {
                 inverterData.inverterDataUpdate(entity90);
             }
         } else if (payloadLen == 32) {
-            InvertorGolegoData32 entity32 = InvertorGolegoDecoders.decodeInverterGolegoPayload32(packet, usrTcpWiFiProperties.getPortInverterGolego());
+            InverterGolegoData32 entity32 = InvertorGolegoDecoders.decodeInverterGolegoPayload32(packet, usrTcpWiFiProperties.getPortInverterGolego());
             if (entity32 != null) {
                 inverterData.inverterDataUpdate(entity32);
             }
@@ -661,25 +667,29 @@ public class UsrTcpWiFiParseData {
         if (payloadLen <=2 || isGarbagePacket(packet) || payloadLen == 48) {
             return;
         }
-        InverterDataGolego inverterData = this.usrTcpWiFiBatteryRegistry.getInverter(this.usrTcpWiFiProperties.getPortInverterDacha());
+        InverterDataDacha inverterData = this.usrTcpWiFiBatteryRegistry.getInverter(this.usrTcpWiFiProperties.getPortInverterDacha(), InverterDataDacha.class);
+
         log.info("Deye: len: [{}] hex: [{}]", payloadLen, bytesToHex(packet));
         if (payloadLen == 6) {
             long timeMillis = parseDeyeRtcToMillis(packet);
-            String formattedTime = DATE_FORMATTER.format(Instant.ofEpochMilli(timeMillis));
-            log.info("Deye RTC time: [{}] hex: [{}]", formattedTime, bytesToHex(packet));
+            Instant lastTime = Instant.ofEpochMilli(timeMillis);
+            inverterData.setLastTime(lastTime);
+            String formattedTime = DATE_FORMATTER.format(lastTime);
+            log.info("Deye RTC last time: [{}] hex: [{}]", formattedTime, bytesToHex(packet));
         } else if (payloadLen == 8) {
-            parseDeyeInverterOutBlock8(packet, inverterData);
+            parseDeyeInverterOutToHomeBlock8(packet, inverterData);
         } else if (payloadLen == 16) {
             parseDeyeBmsBlock16(packet, inverterData);
         } else if (payloadLen == 80) {
-            parseDeyeInverterOutDcBlock80(packet, inverterData);
+            parseDeyeLoadDcBlock80(packet, inverterData);
         } else if (payloadLen == 106) {
-            parseDeyBatteryBlock106(packet, inverterData);
+            parseDeyAcBatteryBlock106(packet, inverterData);
         } else if (payloadLen == 118) {
-            parseDeyeDailyInverterBlock118(packet, inverterData);
+            parseDeyeDailyInverterDailyTotalBlock118(packet, inverterData);
         } else  {
             parseDeyeBlock_NN(packet, inverterData);
         }
+
     }
 
     private long parseDeyeRtcToMillis(byte[] packet) {
@@ -720,286 +730,60 @@ public class UsrTcpWiFiParseData {
         return true;
     }
 
-    private int getUint16(byte[] data, int offset) {
-        return ((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF);
+//    private int getUint16(byte[] data, int offset) {
+//        return ((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF);
+//    }
+
+//    private short getSignedShort(byte[] data, int offset) {
+//        return (short) (((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF));
+//    }
+
+    private void parseDeyeInverterOutToHomeBlock8(byte[] data, InverterDataDacha inverterData) {
+        InverterDataDachaOutToHomeBlock8.of(data).ifPresent(outBlock -> {
+            inverterData.setInverterDataDachaOutToHomeBlock8(outBlock);
+            log.info("\neye OutToHome BLOCK_8:\nLast time: [{}]\nData:\n    {}",
+                    DATE_FORMATTER.format(inverterData.getLastTime()),
+                    outBlock);
+        });
     }
 
-    private short getSignedShort(byte[] data, int offset) {
-        return (short) (((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF));
+    private void parseDeyeBmsBlock16(byte[] data, InverterDataDacha inverterData) {
+        InverterDataDachaBmsBlock16.of(data).ifPresent(bmsBlock -> {
+            inverterData.setInverterDataDachaBmsBlock16(bmsBlock);
+            log.info("\nDeye BMS BLOCK_16:\nLast time: [{}]\nData:\n    {}",
+                    DATE_FORMATTER.format(inverterData.getLastTime()),
+                    bmsBlock);
+        });
     }
 
-    /**
-     * 2026-04-04T02:18:40.795+03:00  INFO 1 --- [p-listener-8900] o.n.s.usr.service.UsrTcpWiFiParseData    : Deye: len: [16] hex: [16440000019A019A003A147DFFFB048F]
-     * 2026-04-04T02:18:40.795+03:00  INFO 1 --- [p-listener-8900] o.n.s.usr.service.UsrTcpWiFiParseData    : Deye RAW BLOCK_16:
-     *           1644          0000          019A          019A          003A          147D          FFFB          048F
-     *     [000]:5700  | [002]:0     | [004]:410   | [006]:410   | [008]:58    | [010]:5245  | [012]:65531 | [014]:1167  |
-     *    BMS Charge			Charge		Discharge) SOC %	 BMS     	BMS
-     *      Voltage(V)		        Current Limit(A) Current Limit(A	 Voltage(V) 	Current(A) - *1
-     *      									*0.01
-     * @param data
-     * @param inverterData
-     */
-
-    /**
-     * Парсинг великого блоку даних (106 байт)
-     * BMS
-     */
-    private void parseDeyeInverterOutBlock8(byte[] data, InverterDataGolego inverterData) {
-        StringBuilder sb = new StringBuilder();
-
-        // Масив назв відповідно до офсетів 0, 2, 4, 6, 8, 10, 12, 14
-        String[] labels = {
-                "Inverter Output Power L1(W)",            // 000
-                "Inverter Output Power L2(W)",            // 002
-                "Inverter Output Power L3(W)",            // 004
-                "Total Inverter Output Power(W)",   // 006
-        };
-
-        for (int i = 0; i < data.length; i += 2) {
-            int val = getUint16(data, i);
-            String hex = String.format("0x%02X%02X", data[i], data[i+1]);
-            String label = labels[i / 2]; // Отримуємо назву за індексом регістру
-
-            String dec = String.valueOf(val); // SOC та ліміти
-
-            // Формат: [Назва][Індекс]:HEX:DEC
-            sb.append(String.format("[%s][%03d]:%s:%-7s | ", label, i, hex, dec));
-
-            // Перенос кожні 2 регістри (так краще влізе в лог з довгими назвами)
-            if ((i + 2) % 4 == 0) sb.append("\n    ");
-        }
-
-        log.info("\nDeye BLOCK_InverterOut_8:\n    {}", sb.toString());
-
-        // Оновлення об'єкта
-        if (inverterData != null) {
-
-        }
+    private void parseDeyeLoadDcBlock80(byte[] data, InverterDataDacha inverterData) {
+        InverterDataLoadDcBlock80.of(data).ifPresent(loadDcBlock -> {
+            inverterData.setInverterDataLoadDcBlock80(loadDcBlock);
+            log.info("\nDeye Load & Dc BLOCK_80:\nLast time: [{}]\nData:\n    {}",
+                    DATE_FORMATTER.format(inverterData.getLastTime()),
+                    loadDcBlock);
+        });
     }
 
-
-    /**
-     * Парсинг великого блоку даних (106 байт)
-     * BMS
-     */
-    private void parseDeyeBmsBlock16(byte[] data, InverterDataGolego inverterData) {
-        StringBuilder sb = new StringBuilder();
-
-        // Масив назв відповідно до офсетів 0, 2, 4, 6, 8, 10, 12, 14
-        String[] labels = {
-                "ChargeVoltage(V BMS)",      // 000
-                "BMS Discharge Voltage(V) BMS",       // 002
-                "ChargeCurrent Limit(A) BMS",// 004
-                "DischargeCurrent Limit(A) BMS", // 006
-                "SOC(%) BMS",                // 008
-                "Voltage(V) BMS",            // 010
-                "Current(A) BMS",            // 012
-                "Temperature BMS"            // 014
-        };
-
-        for (int i = 0; i < data.length; i += 2) {
-            int val = getUint16(data, i);
-
-            String hex = String.format("0x%02X%02X", data[i], data[i+1]);
-            String label = labels[i / 2]; // Отримуємо назву за індексом регістру
-
-            String dec;
-            if (i == 12)      {
-                short valShort = getSignedShort(data, i);
-                dec = String.valueOf(valShort );
-            } // Струм як є
-            else if (i == 14) dec = String.format("%.1f", (val - 1000) * 0.1); // Температура
-            else if (i == 0 || i == 2 || i == 10) dec = String.format("%.2f", val * 0.01); // Напруги
-            else              dec = String.valueOf(val); // SOC та ліміти
-
-            // Формат: [Назва][Індекс]:HEX:DEC
-            sb.append(String.format("[%s][%03d]:%s:%-7s | ", label, i, hex, dec));
-
-            // Перенос кожні 2 регістри (так краще влізе в лог з довгими назвами)
-            if ((i + 2) % 4 == 0) sb.append("\n    ");
-        }
-
-        log.info("\nDeye BMS BLOCK_16:\n    {}", sb.toString());
-
-        // Оновлення об'єкта
-        if (inverterData != null) {
-
-        }
+    private void parseDeyAcBatteryBlock106(byte[] data, InverterDataDacha inverterData) {
+        InverterDataDachaAcBatteryBlock106.of(data).ifPresent(acBatteryBlock -> {
+            inverterData.setInverterDataDachaAcBatteryBlock106(acBatteryBlock);
+            log.info("\nDeye Ac & Battery BLOCK_106:\nLast time: [{}]\nData:\n    {}",
+                    DATE_FORMATTER.format(inverterData.getLastTime()),
+                    acBatteryBlock);
+        });
     }
 
-    private void parseDeyeInverterOutDcBlock80(byte[] data, InverterDataGolego inverterData) {
-        StringBuilder sb = new StringBuilder();
-        int totalDcPower = 0;
-
-        // Ініціалізуємо масив на 40 елементів (80 байт / 2)
-        String[] labels = new String[40];
-        for (int j = 0; j < labels.length; j++) {
-            labels[j] = String.format("Nothing_%03d", j * 2);
-        }
-
-        // Заповнюємо розпізнані назви
-        labels[0] = "Load Voltage L1(V)";      // 000
-        labels[1] = "Load Voltage L2(V)";      // 002
-        labels[2] = "Load Voltage L3(V)";      // 004
-        // labels[3-5] - Nothing_006...Nothing_010
-        labels[6] = "Load Power L1(W)";        // 012
-        labels[7] = "Load Power L2(W)";        // 014
-        labels[8] = "Load Power L3(W)";        // 016
-        labels[9] = "Total Consumption Power(W)"; // 018
-        labels[10] = "Total Consumption Apparent Power(VA)"; // 020
-        labels[11] = "Load Frequency(Hz)";     // 022
-
-        // ... проміжні Nothing ...
-
-        labels[28] = "DC Power PV1(W)";        // 056
-        labels[29] = "DC Power PV2(W)";        // 058
-        labels[30] = "DC Power PV3(W)";        // 060
-        labels[31] = "DC Power PV4(W)";        // 062
-
-        for (int i = 0; i < data.length; i += 2) {
-            int val = getUint16(data, i);
-            String hex = String.format("0x%02X%02X", data[i], data[i+1]);
-            String label = labels[i / 2];
-
-            String dec;
-            // Специфічна логіка множників по офсету
-            if (i <= 4) {
-                dec = String.format("%.1f", val * 0.1); // Напруги L1-L3
-            } else if (i == 22) {
-                dec = String.format("%.2f", val * 0.01); // Частота Hz
-            } else if (i >= 56 && i <= 62) {
-                dec = String.valueOf(val);
-                totalDcPower += val; // Рахуємо суму PV
-            } else {
-                dec = String.valueOf(val); // Потужності та інше
-            }
-
-            // Додаємо в StringBuilder
-            sb.append(String.format("[%s][%03d]:%s:%-7s | ", label, i, hex, dec));
-
-            // Перенос рядка кожні 2 елемента (після 0, 4, 8 і т.д. байт)
-            if ((i + 2) % 4 == 0) {
-                sb.append("\n    ");
-            }
-        }
-
-        sb.append(String.format("    [Total DC Power Sum PV][---]:SUM:%-7d | \n", totalDcPower));
-
-        log.info("\nDeye RAW BLOCK_InverterOutDc_80:\n    {}", sb.toString());
+    private void parseDeyeDailyInverterDailyTotalBlock118(byte[] data, InverterDataDacha inverterData) {
+        InverterDataDachaDailyTotalBlock118.of(data).ifPresent(inverterDailyTotalBlock -> {
+            inverterData.setInverterDataDachaDailyTotalBlock118(inverterDailyTotalBlock);
+            log.info("\nDeye Daily & Total & Temp_Inv BLOCK_118:\nLast time: [{}]\nData:\n    {}",
+                    DATE_FORMATTER.format(inverterData.getLastTime()),
+                    inverterDailyTotalBlock);
+        });
     }
 
-    private void parseDeyBatteryBlock106(byte[] data, InverterDataGolego inverterData) {
-        StringBuilder sb = new StringBuilder();
-
-        // 1. Універсальний масив (можна зробити 60, як обговорювали)
-        String[] labels = new String[60];
-        for (int j = 0; j < labels.length; j++) {
-            labels[j] = String.format("Nothing_%03d", j * 2);
-        }
-
-        // 2. Заповнення імен
-        labels[0] = "Temperature- Battery(℃)";
-        labels[1] = "Battery Voltage(V)";
-        labels[2] = "SoC(%)";
-        labels[4] = "Battery Power(W)";
-        labels[5] = "Battery current 1(A)";
-        // ... (інші лейбли без змін)
-
-        labels[41] = "AC Voltage R/U/A(V)";   // 82
-        labels[42] = "AC Voltage S/V/B(V)";   // 84
-        labels[43] = "AC Voltage T/W/C(V)";   // 86
-        labels[44] = "AC Current R/U/A(V)";   // 88
-        labels[45] = "AC Current S/V/B(V)";   // 90
-        labels[46] = "AC Current T/W/C(V)";   // 92
-        labels[47] = "Load  Power L1(W)";     // 94
-        labels[48] = "Load  Power L2(W)";     // 96
-        labels[49] = "Load  Power L3(W)";     // 98
-        labels[50] = "Total Consumption Power(W)";   // 100
-        labels[51] = "Total Consumption Apparent Power(VA)";   // 102
-        labels[52] = "AC Output Frequency R(Hz)";   // 104
-
-        // 3. Цикл
-        for (int i = 0; i < data.length; i += 2) {
-            int val = getUint16(data, i);
-            String hex = String.format("0x%02X%02X", data[i], data[i+1]);
-            String label = labels[i / 2];
-
-            String dec;
-
-            // ГРУПУЄМО ЛОГІКУ ОБРОБКИ
-            if (i == 0) {
-                // Специфічний розрахунок для температури
-                dec = String.format("%.1f", (val - 1000) * 0.1);
-            } else if (i == 82 || i == 84 || i == 86) {
-                // Крок 0.1 (Напруги AC)
-                dec = String.format("%.1f", val * 0.1);
-            } else if (i == 2 || i == 104) {
-                // Крок 0.01 (Напруга батареї, частота)
-                dec = String.format("%.2f", val * 0.01);
-            } else if (i == 10 || (i >= 88 && i <= 92) ) {
-                // Крок 0.01 (струми AC)
-                short valShort = getSignedShort(data, i);
-                dec = String.format("%.2f", valShort * 0.01);
-            } else {
-                // Цілі числа (SoC, Power)
-                dec = String.valueOf(val);
-            }
-
-            sb.append(String.format("[%-35s][%03d]:%s:%-7s | ", label, i, hex, dec));
-            if ((i + 2) % 4 == 0) sb.append("\n    ");
-        }
-
-        log.info("\nDeye RAW BLOCK_106:\n    {}", sb.toString());
-    }
-
-    private void parseDeyeDailyInverterBlock118(byte[] data, InverterDataGolego inverterData) {
-        StringBuilder sb = new StringBuilder();
-
-        // 1. Універсальний масив (можна зробити 60, як обговорювали)
-        String[] labels = new String[60];
-        for (int j = 0; j < labels.length; j++) {
-            labels[j] = String.format("Nothing_%03d", j * 2);
-        }
-
-        // 2. Заповнення імен
-        labels[14] = "Daily Charging Energy(kWh)";      //28
-        labels[15] = "Daily Discharging Energy(kWh)";   //30
-        labels[18] = "Total Discharging Energy(kWh)";   //36
-        labels[24] = "Total Energy Sell(kWh)";          //48
-        labels[41] = "Temperature - Inverter(℃)";       // 82
-
-        // 3. Цикл
-        for (int i = 0; i < data.length; i += 2) {
-
-            int val = getUint16(data, i);
-            String hex = String.format("0x%02X%02X", data[i], data[i+1]);
-            String label = labels[i / 2];
-
-            String dec;
-
-            // ГРУПУЄМО ЛОГІКУ ОБРОБКИ
-            if (i == 82) {
-                // Специфічний розрахунок для температури
-                dec = String.format("%.1f", (val - 1000) * 0.1);
-            } else if (i == 28 || i == 30 || i == 36 || i == 48) {
-                // Крок 0.1
-                dec = String.format("%.1f", val * 0.1);
-//            } else if (i == 2 || i == 10 || (i >= 88 && i <= 92) || i == 104) {
-//                // Крок 0.01 (Напруга батареї, струми AC, частота)
-//                dec = String.format("%.2f", val * 0.01);
-            } else {
-                // Цілі числа (SoC, Power)
-                dec = String.valueOf(val);
-            }
-
-            sb.append(String.format("[%-35s][%03d]:%s:%-7s | ", label, i, hex, dec));
-            if ((i + 2) % 4 == 0) sb.append("\n    ");
-        }
-
-        log.info("\nDeye RAW BLOCK_DailyInverter_118:\n    {}", sb.toString());
-    }
-
-    private void parseDeyeBlock_NN(byte[] packet, InverterDataGolego inverterData) {
+    private void parseDeyeBlock_NN(byte[] packet, InverterDataDacha inverterData) {
         int payloadLen = packet.length;
         StringBuilder sb = new StringBuilder();
 
@@ -1026,6 +810,9 @@ public class UsrTcpWiFiParseData {
         }
 
         // 3. Вивід у лог
-        log.info("Deye RAW BLOCK_{}:\n    {}", payloadLen, sb.toString());
+        log.info("\nDeye RAW BLOCK_{}:\nLast time: [{}]\nData:\n    {}",
+                payloadLen,
+                DATE_FORMATTER.format(inverterData.getLastTime()),
+                sb);
     }
 }

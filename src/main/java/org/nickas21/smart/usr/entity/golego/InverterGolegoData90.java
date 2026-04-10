@@ -1,4 +1,4 @@
-package org.nickas21.smart.usr.entity;
+package org.nickas21.smart.usr.entity.golego;
 
 import lombok.Data;
 import org.nickas21.smart.usr.data.UsrWifiBmsInverterStatus;
@@ -11,7 +11,7 @@ import java.time.format.DateTimeFormatter;
 import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.datePatternGridStatus;
 
 @Data
-public class InvertorGolegoData90 {
+public class InverterGolegoData90 {
 
     private Integer port;
     private Long createdAt = Instant.now().toEpochMilli();

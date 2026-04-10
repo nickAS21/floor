@@ -10,7 +10,7 @@ import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
-import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWiFiBmsSummary;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.util.DynamicScheduler;
 import org.springframework.beans.factory.annotation.Autowired;

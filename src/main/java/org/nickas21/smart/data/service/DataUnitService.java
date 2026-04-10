@@ -7,7 +7,7 @@ import org.nickas21.smart.data.dataEntityDto.DataUnitDto;
 import org.nickas21.smart.data.dataEntityDto.DataDeviceDto;
 import org.nickas21.smart.data.dataEntityDto.DataInverterDto;
 import org.nickas21.smart.data.dataEntityDto.InverterInfo;
-import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
+import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 import org.nickas21.smart.util.LocationType;
@@ -61,8 +61,8 @@ public class DataUnitService {
     public List<BatteryInfoDto> getBatteries (LocationType location) {
         List<BatteryInfoDto> batteries = new ArrayList<>();
         if (GOLEGO.equals(location)) {
-            Map<Integer, UsrTcpWiFiBattery> batteriesAll = this.usrTcpWiFiBatteryRegistry.getBatteriesAll();
-            for (Map.Entry<Integer, UsrTcpWiFiBattery> entry : batteriesAll.entrySet()) {
+            Map<Integer, BatteryDataUsrTcpWiFi> batteriesAll = this.usrTcpWiFiBatteryRegistry.getBatteriesAll(BatteryDataUsrTcpWiFi.class);
+            for (Map.Entry<Integer, BatteryDataUsrTcpWiFi> entry : batteriesAll.entrySet()) {
                 if (!entry.getKey().equals(this.usrTcpWiFiService.getTcpProps().getPortInverterGolego()) &&
                         !entry.getKey().equals(this.usrTcpWiFiService.getTcpProps().getPortInverterDacha())) {
                     BatteryInfoDto batteryInfoDto = new BatteryInfoDto(entry, this.usrTcpWiFiService);

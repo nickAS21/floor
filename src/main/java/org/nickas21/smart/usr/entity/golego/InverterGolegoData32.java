@@ -1,4 +1,4 @@
-package org.nickas21.smart.usr.entity;
+package org.nickas21.smart.usr.entity.golego;
 
 import lombok.Data;
 
@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter;
 import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.datePatternGridStatus;
 
 @Data
-public class InvertorGolegoData32 {
+public class InverterGolegoData32 {
     private Integer port;
     private Long createdAt = Instant.now().toEpochMilli();
 

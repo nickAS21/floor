@@ -19,7 +19,7 @@ import org.nickas21.smart.tuya.tuyaEntity.Device;
 import org.nickas21.smart.tuya.tuyaEntity.DeviceStatus;
 import org.nickas21.smart.tuya.tuyaEntity.DeviceUpdate;
 import org.nickas21.smart.tuya.tuyaEntity.Devices;
-import org.nickas21.smart.usr.entity.UsrTcpWiFiBmsSummary;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWiFiBmsSummary;
 import org.nickas21.smart.util.HmacSHA256Util;
 import org.nickas21.smart.util.JacksonUtil;
 import org.springframework.beans.factory.annotation.Autowired;

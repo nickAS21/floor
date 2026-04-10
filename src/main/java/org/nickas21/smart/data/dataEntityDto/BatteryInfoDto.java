@@ -6,9 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
-import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
-import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
-import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
+import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC1Data;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 
 import java.util.Map;
@@ -58,9 +58,9 @@ public class BatteryInfoDto {
         }
     }
 
-    public BatteryInfoDto(Map.Entry<Integer, UsrTcpWiFiBattery> usrTcpWiFiBatteryEntry, UsrTcpWiFiService usrTcpWiFiService){
+    public BatteryInfoDto(Map.Entry<Integer, BatteryDataUsrTcpWiFi> usrTcpWiFiBatteryEntry, UsrTcpWiFiService usrTcpWiFiService){
         this.port = usrTcpWiFiBatteryEntry.getKey();
-        UsrTcpWiFiBattery batteryData = usrTcpWiFiBatteryEntry.getValue();
+        BatteryDataUsrTcpWiFi batteryData = usrTcpWiFiBatteryEntry.getValue();
 
         UsrTcpWifiC0Data c0Data = batteryData.getC0Data();
         if (c0Data != null && c0Data.getTimestamp() != null) {

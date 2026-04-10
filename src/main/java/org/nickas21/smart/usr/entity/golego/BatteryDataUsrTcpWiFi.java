@@ -1,23 +1,19 @@
-package org.nickas21.smart.usr.entity;
+package org.nickas21.smart.usr.entity.golego;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.nickas21.smart.usr.data.UsrTcpWiFiMessageType;
+import org.nickas21.smart.usr.entity.BatteryDataBase;
 import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecordError;
 
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Data
-public class UsrTcpWiFiBattery {
+@EqualsAndHashCode(callSuper = true)
+public class BatteryDataUsrTcpWiFi extends BatteryDataBase {
 
     private final Map<UsrTcpWiFiMessageType, String> idIdents = new ConcurrentHashMap<>();// ID ідентифікатор акумулятора (19 байтів)
-
-    // --- Метадані підключення та ідентифікації ---
-    private final int port;                     // Порт, до якого підключено акумулятор (8891-8898)
-
-    private Instant startTime;            // Час першого отримання пакета (старт сесії)
-    private Instant lastTime;            // Час останнього отриманого пакету
 
     // --- Отримані дані ---
     private UsrTcpWifiC0Data c0Data;         // Поточний пакет C0 (Загальний стан)
@@ -25,10 +21,8 @@ public class UsrTcpWiFiBattery {
     private UsrTcpWiFiPacketRecordError errRecordE1;
     private UsrTcpWiFiPacketRecordError errRecordB1;
 
-    public UsrTcpWiFiBattery(int port) {
-        this.port = port;
-        this.startTime = Instant.now();
-        this.lastTime = startTime;
+    public BatteryDataUsrTcpWiFi(int port) {
+        super(port);
         this.c0Data = new UsrTcpWifiC0Data();
         this.c1Data = new UsrTcpWifiC1Data();
     }

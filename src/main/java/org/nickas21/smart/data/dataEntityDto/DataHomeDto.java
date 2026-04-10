@@ -10,10 +10,10 @@ import org.nickas21.smart.PowerValueRealTimeData;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.config.PortStatus;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
-import org.nickas21.smart.usr.entity.InverterDataGolego;
-import org.nickas21.smart.usr.entity.InvertorGolegoData90;
-import org.nickas21.smart.usr.entity.UsrTcpWiFiBattery;
-import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
+import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
+import org.nickas21.smart.usr.entity.golego.InverterGolegoData90;
+import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
@@ -131,13 +131,13 @@ public class DataHomeDto {
         int portDacha = usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha();
         log.warn("Dacha inverter port [{}]: is -> [{}]", portDacha, usrTcpWiFiService.getStatusByPort(portDacha));
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
-        UsrTcpWiFiBattery usrTcpWiFiBattery = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
+        BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFi = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
         Boolean gridRelayCodeGolegoStateOnLine = deviceService.getGridRelayCodeGolegoStateOnLine();
         if (gridRelayCodeGolegoStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeGolegoStateOnLine;
         Boolean gridRelayCodeGolegoStateSwitch =  deviceService.getGridRelayCodeGolegoStateSwitch();
         if (gridRelayCodeGolegoStateSwitch != null) this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
-        if (usrTcpWiFiBattery != null) {
-            UsrTcpWifiC0Data c0Data = usrTcpWiFiBattery.getC0Data();
+        if (batteryDataUsrTcpWiFi != null) {
+            UsrTcpWifiC0Data c0Data = batteryDataUsrTcpWiFi.getC0Data();
             int portStart = tcpProps.getPortStart();
             int batteriesCnt = tcpProps.getBatteriesCnt();
             double batteryCurrentAll = 0;
@@ -151,11 +151,11 @@ public class DataHomeDto {
                 } else if (port > usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha()) {
                     log.warn("Free Ports [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
                 } else  {
-                    UsrTcpWiFiBattery usrTcpWiFiBatteryA = usrTcpWiFiParseData.getBattery(port);
-                    if (usrTcpWiFiBatteryA != null && usrTcpWiFiBatteryA.getC0Data() != null) {
-                        batteryCurrentAll += usrTcpWiFiBatteryA.getC0Data().getCurrentCurA();
-                        if (usrTcpWiFiBatteryA.getC0Data().getSocPercent() != 0 &&  PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
-                            batterySocSum += usrTcpWiFiBatteryA.getC0Data().getSocPercent();
+                    BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFiA = usrTcpWiFiParseData.getBattery(port);
+                    if (batteryDataUsrTcpWiFiA != null && batteryDataUsrTcpWiFiA.getC0Data() != null) {
+                        batteryCurrentAll += batteryDataUsrTcpWiFiA.getC0Data().getCurrentCurA();
+                        if (batteryDataUsrTcpWiFiA.getC0Data().getSocPercent() != 0 &&  PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
+                            batterySocSum += batteryDataUsrTcpWiFiA.getC0Data().getSocPercent();
                             batteriesActiveCnt++;
                         } else {
                             batteriesNoActive.add(port);
@@ -175,14 +175,14 @@ public class DataHomeDto {
             // from inverter
             UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
             Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
-            InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego);
-            if (inverterDataGolego != null && inverterDataGolego.getInvertorGolegoData90() != null && inverterDataGolego.getInvertorGolegoData90().getHexMap().length > 0) {
-                InvertorGolegoData90 invertorGolegoData90 = inverterDataGolego.getInvertorGolegoData90();
-                this.batteryStatus = invertorGolegoData90.getStatus();
-                this.batteryVol = invertorGolegoData90.getBatteryVoltage();
-                this.batteryCurrent = invertorGolegoData90.getBatteryCurrent();
-                this.homePower = invertorGolegoData90.getLoadOutputActivePower();
-                this.gridVoltageLs.put(1, invertorGolegoData90.getAcInputVoltage());
+            InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego, InverterDataGolego.class);
+            if (inverterDataGolego != null && inverterDataGolego.getInverterGolegoData90() != null && inverterDataGolego.getInverterGolegoData90().getHexMap().length > 0) {
+                InverterGolegoData90 inverterGolegoData90 = inverterDataGolego.getInverterGolegoData90();
+                this.batteryStatus = inverterGolegoData90.getStatus();
+                this.batteryVol = inverterGolegoData90.getBatteryVoltage();
+                this.batteryCurrent = inverterGolegoData90.getBatteryCurrent();
+                this.homePower = inverterGolegoData90.getLoadOutputActivePower();
+                this.gridVoltageLs.put(1, inverterGolegoData90.getAcInputVoltage());
             } else {
                 this.batteryStatus = c0Data.getBmsStatusStr();
                 this.batteryVol = c0Data.getVoltageCurV();

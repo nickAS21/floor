@@ -1,8 +1,8 @@
 package org.nickas21.smart.usr.data;
 
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.usr.entity.UsrTcpWifiC0Data;
-import org.nickas21.smart.usr.entity.UsrTcpWifiC1Data;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC1Data;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
