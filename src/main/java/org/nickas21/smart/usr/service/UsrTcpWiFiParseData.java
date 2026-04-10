@@ -673,7 +673,7 @@ public class UsrTcpWiFiParseData {
         if (payloadLen == 6) {
             long timeMillis = parseDeyeRtcToMillis(packet);
             Instant lastTime = Instant.ofEpochMilli(timeMillis);
-            if (lastTime != inverterData.getLastTime()){
+            if (timeMillis != inverterData.getLastTime().toEpochMilli()){
                 String formattedTime = DATE_FORMATTER.format(lastTime);
                 log.info("Deye New RTC last time: [{}] hex: [{}]", formattedTime, bytesToHex(packet));
             }
