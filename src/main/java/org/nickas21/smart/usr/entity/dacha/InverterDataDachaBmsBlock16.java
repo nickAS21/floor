@@ -9,16 +9,7 @@ import static org.nickas21.smart.util.StringUtils.getUint16;
 @Data
 public class InverterDataDachaBmsBlock16 {
 
-    public static final String[] labels = {
-            "ChargeVoltage(V BMS)",           // 000
-            "BMS Discharge Voltage(V) BMS",   // 002
-            "ChargeCurrent Limit(A) BMS",     // 004
-            "DischargeCurrent Limit(A) BMS",  // 006
-            "SOC(%) BMS",                     // 008
-            "Voltage(V) BMS",                 // 010
-            "Current(A) BMS",                 // 012
-            "Temperature BMS"                 // 014
-    };
+    private final String[] allValues = new String[8];
 
     private Double chargeVoltage;
     private Double dischargeVoltage;
@@ -30,18 +21,46 @@ public class InverterDataDachaBmsBlock16 {
     private Double temperature;
 
     private InverterDataDachaBmsBlock16(byte[] data) {
-        this.chargeVoltage = getUint16(data, 0) * 0.01;
-        this.dischargeVoltage = getUint16(data, 2) * 0.01;
-        this.voltage = getUint16(data, 10) * 0.01;
+        for (int i = 0; i < 8; i++) {
+            int offset = i * 2;
+            int val = getUint16(data, offset);
+            allValues[i] = String.valueOf(val);
 
-        this.chargeCurrentLimit = getUint16(data, 4);
-        this.dischargeCurrentLimit = getUint16(data, 6);
-        this.soc = getUint16(data, 8);
-
-        // Використовуємо оновлений метод
-        this.current = getSignedInt(data, 12);
-
-        this.temperature = (getUint16(data, 14) - 1000) * 0.1;
+            switch (offset) {
+                case 0 -> {
+                    chargeVoltage = val * 0.01;
+                    allValues[i] = String.format("%.2f", chargeVoltage);
+                }
+                case 2 -> {
+                    dischargeVoltage = val * 0.01;
+                    allValues[i] = String.format("%.2f", dischargeVoltage);
+                }
+                case 4 -> {
+                    chargeCurrentLimit = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 6 -> {
+                    dischargeCurrentLimit = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 8 -> {
+                    soc = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 10 -> {
+                    voltage = val * 0.01;
+                    allValues[i] = String.format("%.2f", voltage);
+                }
+                case 12 -> {
+                    current = getSignedInt(data, offset);
+                    allValues[i] = String.valueOf(current);
+                }
+                case 14 -> {
+                    temperature = (val - 1000) * 0.1;
+                    allValues[i] = String.format("%.1f", temperature);
+                }
+            }
+        }
     }
 
     public static Optional<InverterDataDachaBmsBlock16> of(byte[] data) {
@@ -57,26 +76,27 @@ public class InverterDataDachaBmsBlock16 {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        Object[] values = {
-                chargeVoltage, dischargeVoltage, chargeCurrentLimit,
-                dischargeCurrentLimit, soc, voltage, current, temperature
-        };
-
-        for (int i = 0; i < labels.length; i++) {
+        for (int i = 0; i < allValues.length; i++) {
             int offset = i * 2;
-            Object val = values[i];
-
-            // Сучасний Pattern Matching для Double
-            String dec = (val instanceof Double d)
-                    ? (offset == 14 ? String.format("%.1f", d) : String.format("%.2f", d))
-                    : String.valueOf(val);
-
-            sb.append(String.format("[%s][%03d]:%-7s | ", labels[i], offset, dec));
-
-            if ((i + 1) % 2 == 0 && i != labels.length - 1) {
+            sb.append(String.format("[%-30s][%03d]: %-8s | ", getLabel(offset), offset, allValues[i]));
+            if ((i + 1) % 2 == 0) {
                 sb.append("\n    ");
             }
         }
-        return sb.toString();
+        return sb.toString().trim();
+    }
+
+    private String getLabel(int offset) {
+        return switch (offset) {
+            case 0 -> "ChargeVoltage(V BMS)";
+            case 2 -> "BMS Discharge Voltage(V) BMS";
+            case 4 -> "ChargeCurrent Limit(A) BMS";
+            case 6 -> "DischargeCurrent Limit(A) BMS";
+            case 8 -> "SOC(%) BMS";
+            case 10 -> "Voltage(V) BMS";
+            case 12 -> "Current(A) BMS";
+            case 14 -> "Temperature BMS";
+            default -> String.format("Nothing_%03d", offset);
+        };
     }
 }

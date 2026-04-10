@@ -8,7 +8,7 @@ import static org.nickas21.smart.util.StringUtils.getUint16;
 @Data
 public class InverterDataDachaAcBatteryBlock106 {
 
-    private final int[] allValues = new int[53]; // 106 байт / 2 = 53 регістри
+    private final String[] allValues = new String[53];
 
     private Double batteryTemperature;
     private Double batteryVoltage;
@@ -26,33 +26,71 @@ public class InverterDataDachaAcBatteryBlock106 {
         for (int i = 0; i < 53; i++) {
             int offset = i * 2;
             int val = getUint16(data, offset);
-            allValues[i] = val;
+            allValues[i] = String.valueOf(val);
 
             switch (offset) {
-                case 0 -> batteryTemperature = (val - 1000) * 0.1;
-                case 2 -> batteryVoltage = val * 0.01;
-                case 4 -> soc = val;
-                case 8 -> batteryPower = val;
-                case 10 -> batteryCurrent = getSignedInt(data, offset) * 0.01;
-                case 82 -> acVoltageL1 = val * 0.1;
-                case 84 -> acVoltageL2 = val * 0.1;
-                case 86 -> acVoltageL3 = val * 0.1;
-                case 88 -> acCurrentL1 = getSignedInt(data, offset) * 0.01;
-                case 90 -> acCurrentL2 = getSignedInt(data, offset) * 0.01;
-                case 92 -> acCurrentL3 = getSignedInt(data, offset) * 0.01;
-                case 94 -> loadPowerL1 = val;
-                case 96 -> loadPowerL2 = val;
-                case 98 -> loadPowerL3 = val;
-                case 100 -> totalConsumptionPower = val;
-                case 102 -> totalConsumptionApparentPower = val;
-                case 104 -> acFrequency = val * 0.01;
+                case 0 -> {
+                    batteryTemperature = (val - 1000) * 0.1;
+                    allValues[i] = String.format("%.1f", batteryTemperature);
+                }
+                case 2 -> {
+                    batteryVoltage = val * 0.01;
+                    allValues[i] = String.format("%.2f", batteryVoltage);
+                }
+                case 4 -> {
+                    soc = val;
+                    allValues[i] = String.valueOf(soc);
+                }
+                case 8 -> {
+                    // batteryPower знаковий
+                    batteryPower = getSignedInt(data, offset);
+                    allValues[i] = String.valueOf(batteryPower);
+                }
+                case 10 -> {
+                    batteryCurrent = getSignedInt(data, offset) * 0.01;
+                    allValues[i] = String.format("%.2f", batteryCurrent);
+                }
+                case 82, 84, 86 -> {
+                    double v = val * 0.1;
+                    if (offset == 82) acVoltageL1 = v;
+                    else if (offset == 84) acVoltageL2 = v;
+                    else acVoltageL3 = v;
+                    allValues[i] = String.format("%.1f", v);
+                }
+                case 88, 90, 92 -> {
+                    double a = getSignedInt(data, offset) * 0.01;
+                    if (offset == 88) acCurrentL1 = a;
+                    else if (offset == 90) acCurrentL2 = a;
+                    else acCurrentL3 = a;
+                    allValues[i] = String.format("%.2f", a);
+                }
+                case 94, 96, 98 -> {
+                    if (offset == 94) loadPowerL1 = val;
+                    else if (offset == 96) loadPowerL2 = val;
+                    else loadPowerL3 = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 100 -> {
+                    totalConsumptionPower = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 102 -> {
+                    totalConsumptionApparentPower = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 104 -> {
+                    acFrequency = val * 0.01;
+                    allValues[i] = String.format("%.2f", acFrequency);
+                }
             }
         }
     }
 
     public static Optional<InverterDataDachaAcBatteryBlock106> of(byte[] data) {
         try {
-            return Optional.of(new InverterDataDachaAcBatteryBlock106(data));
+            return (data != null && data.length >= 106)
+                    ? Optional.of(new InverterDataDachaAcBatteryBlock106(data))
+                    : Optional.empty();
         } catch (Exception e) {
             return Optional.empty();
         }
@@ -63,11 +101,11 @@ public class InverterDataDachaAcBatteryBlock106 {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < allValues.length; i++) {
             int offset = i * 2;
-            int val = allValues[i];
-            sb.append(String.format("[%-35s][%03d]:0x%04X:%-7s | ", getLabel(offset), offset, val, getFormattedValue(offset, val, allValues)));
+            // toString тепер максимально тупий і надійний
+            sb.append(String.format("[%-35s][%03d]: %-8s | ", getLabel(offset), offset, allValues[i]));
             if ((i + 1) % 2 == 0) sb.append("\n    ");
         }
-        return sb.toString();
+        return sb.toString().trim();
     }
 
     private String getLabel(int offset) {
@@ -90,15 +128,6 @@ public class InverterDataDachaAcBatteryBlock106 {
             case 102 -> "Total Consumption Apparent Power(VA)";
             case 104 -> "AC Output Frequency R(Hz)";
             default -> String.format("Nothing_%03d", offset);
-        };
-    }
-
-    private String getFormattedValue(int offset, int val, int[] all) {
-        return switch (offset) {
-            case 0 -> String.format("%.1f", (val - 1000) * 0.1);
-            case 2, 10, 88, 90, 92, 104 -> String.format("%.2f", (offset == 10 || offset >= 88 && offset <= 92) ? (short)val * 0.01 : val * 0.01);
-            case 82, 84, 86 -> String.format("%.1f", val * 0.1);
-            default -> String.valueOf(val);
         };
     }
 }

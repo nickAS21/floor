@@ -7,7 +7,7 @@ import static org.nickas21.smart.util.StringUtils.getUint16;
 @Data
 public class InverterDataLoadDcBlock80 {
 
-    private final int[] allValues = new int[40];
+    private final String[] allValues = new String[40];
 
     private Double loadVoltageL1, loadVoltageL2, loadVoltageL3;
     private Integer loadPowerL1, loadPowerL2, loadPowerL3;
@@ -19,30 +19,76 @@ public class InverterDataLoadDcBlock80 {
 
     public InverterDataLoadDcBlock80(byte[] data) {
         for (int i = 0; i < 40; i++) {
-            int val = getUint16(data, i * 2);
-            allValues[i] = val;
+            int offset = i * 2;
+            int val = getUint16(data, offset);
+            allValues[i] = String.valueOf(val);
 
             switch (i) {
-                case 0 -> loadVoltageL1 = val * 0.1;
-                case 1 -> loadVoltageL2 = val * 0.1;
-                case 2 -> loadVoltageL3 = val * 0.1;
-                case 6 -> loadPowerL1 = val;
-                case 7 -> loadPowerL2 = val;
-                case 8 -> loadPowerL3 = val;
-                case 9 -> totalConsumptionPower = val;
-                case 10 -> totalConsumptionApparentPower = val;
-                case 11 -> loadFrequency = val * 0.01;
-                case 28 -> { dcPowerPv1 = val; totalDcPowerSumPv += val; }
-                case 29 -> { dcPowerPv2 = val; totalDcPowerSumPv += val; }
-                case 30 -> { dcPowerPv3 = val; totalDcPowerSumPv += val; }
-                case 31 -> { dcPowerPv4 = val; totalDcPowerSumPv += val; }
+                case 0 -> {
+                    loadVoltageL1 = val * 0.1;
+                    allValues[i] = String.format("%.1f", loadVoltageL1);
+                }
+                case 1 -> {
+                    loadVoltageL2 = val * 0.1;
+                    allValues[i] = String.format("%.1f", loadVoltageL2);
+                }
+                case 2 -> {
+                    loadVoltageL3 = val * 0.1;
+                    allValues[i] = String.format("%.1f", loadVoltageL3);
+                }
+                case 6 -> {
+                    loadPowerL1 = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 7 -> {
+                    loadPowerL2 = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 8 -> {
+                    loadPowerL3 = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 9 -> {
+                    totalConsumptionPower = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 10 -> {
+                    totalConsumptionApparentPower = val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 11 -> {
+                    loadFrequency = val * 0.01;
+                    allValues[i] = String.format("%.2f", loadFrequency);
+                }
+                case 28 -> {
+                    dcPowerPv1 = val;
+                    totalDcPowerSumPv += val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 29 -> {
+                    dcPowerPv2 = val;
+                    totalDcPowerSumPv += val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 30 -> {
+                    dcPowerPv3 = val;
+                    totalDcPowerSumPv += val;
+                    allValues[i] = String.valueOf(val);
+                }
+                case 31 -> {
+                    dcPowerPv4 = val;
+                    totalDcPowerSumPv += val;
+                    allValues[i] = String.valueOf(val);
+                }
             }
         }
     }
 
     public static Optional<InverterDataLoadDcBlock80> of(byte[] data) {
         try {
-            return Optional.of(new InverterDataLoadDcBlock80(data));
+            return (data != null && data.length >= 80)
+                    ? Optional.of(new InverterDataLoadDcBlock80(data))
+                    : Optional.empty();
         } catch (Exception e) {
             return Optional.empty();
         }
@@ -52,12 +98,14 @@ public class InverterDataLoadDcBlock80 {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < allValues.length; i++) {
-            int val = allValues[i];
-            sb.append(String.format("[%s][%03d]:0x%04X:%-7s | ", getLabel(i), i * 2, val, getFormattedValue(i, val)));
-            if ((i + 1) % 2 == 0) sb.append("\n    ");
+            int offset = i * 2;
+            sb.append(String.format("[%-35s][%03d]: %-8s | ", getLabel(i), offset, allValues[i]));
+            if ((i + 1) % 2 == 0) {
+                sb.append("\n    ");
+            }
         }
-        sb.append(String.format("[Total DC Power Sum PV][---]:SUM:%-7d |", totalDcPowerSumPv));
-        return sb.toString();
+        sb.append(String.format("[Total DC Power Sum PV(W)          ][---]: %-8d |", totalDcPowerSumPv));
+        return sb.toString().trim();
     }
 
     private String getLabel(int i) {
@@ -76,14 +124,6 @@ public class InverterDataLoadDcBlock80 {
             case 30 -> "DC Power PV3(W)";
             case 31 -> "DC Power PV4(W)";
             default -> String.format("Nothing_%03d", i * 2);
-        };
-    }
-
-    private String getFormattedValue(int i, int val) {
-        return switch (i) {
-            case 0, 1, 2 -> String.format("%.1f", val * 0.1);
-            case 11 -> String.format("%.2f", val * 0.01);
-            default -> String.valueOf(val);
         };
     }
 }
