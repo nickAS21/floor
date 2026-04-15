@@ -104,7 +104,7 @@ public class HistoryService {
 
         // 1. Запис для DACHA (8 хв)
         try {
-            DataHomeDto dachaData = new DataHomeDto(solarmanTuyaService, tuyaDeviceService, usrTcpWiFiService);
+            DataHomeDto dachaData = new DataHomeDto(solarmanTuyaService, usrTcpWiFiParseData, tuyaDeviceService, usrTcpWiFiService);
             List<BatteryInfoDto> batteries = this.unitService.getBatteries (DACHA);
             Integer inverterPort = usrTcpWiFiService.getTcpProps().getPortInverterDacha();
             String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(inverterPort);

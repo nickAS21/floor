@@ -27,6 +27,6 @@ public class DataHomeService {
     }
 
     public DataHomeDto getDataDacha() {
-        return new DataHomeDto(this.solarmanTuyaService, this.deviceService, this.usrTcpWiFiService);
+        return new DataHomeDto(this.solarmanTuyaService, this.usrTcpWiFiParseData, this.deviceService, this.usrTcpWiFiService);
     }
 }

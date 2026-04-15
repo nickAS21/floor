@@ -140,6 +140,7 @@ public class AnalyticService {
             }
         }
     }
+
     public List<DataAnalyticDto> getAnalyticByDay(LocalDate date, LocationType locationType) {
         return loadDtosForDate(date, locationType);
     }
@@ -213,7 +214,7 @@ public class AnalyticService {
             return allMonthData.values().stream()
                     .filter(dayList -> !dayList.isEmpty())
                     // БЕРЕМО ОСТАННЮ ТОЧКУ ДНЯ (це і є Daily за день)
-                    .map(dayList -> dayList.get(dayList.size() - 1))
+                    .map(List::getLast)
                     .sorted(Comparator.comparingLong(DataAnalyticDto::getTimestamp))
                     .toList();
         } catch (IOException e) {
@@ -264,7 +265,7 @@ public class AnalyticService {
         for (List<DataAnalyticDto> dayPoints : allMonthData.values()) {
             if (!dayPoints.isEmpty()) {
                 // Беремо останню точку дня (фінальне накопичене значення)
-                DataAnalyticDto lastPointOfDay = dayPoints.get(dayPoints.size() - 1);
+                DataAnalyticDto lastPointOfDay = dayPoints.getLast();
 
                 yearSolarDailyPower += lastPointOfDay.getSolarDailyPower();
                 yearHomeDailyPower += lastPointOfDay.getHomeDailyPower();
@@ -534,7 +535,7 @@ public class AnalyticService {
                                     .format(DateTimeFormatter.ofPattern(patternMonthFile))
                     ));
             pointsByMonth.forEach((monthSuffix, points) -> {
-                LocationType loc = points.get(0).getLocation();
+                LocationType loc = points.getFirst().getLocation();
                 Path path = getPathFile(loc, monthSuffix);
                 try {
                     // 1. Директорії

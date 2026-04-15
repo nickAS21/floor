@@ -9,10 +9,11 @@ public class InverterDataDachaDailyTotalBlock118 {
 
     private final String[] allValues = new String[59]; // 118 байт / 2 = 59 регістрів
 
-    private Double dailyChargingEnergy;
-    private Double dailyDischargingEnergy;
+    private Double dailyBatteryCharge;
+    private Double dailyBatteryDischarge;
     private Double totalDischargingEnergy;
     private Double totalEnergySell;
+    private Double dailyProductionSolarPower;
     private Double inverterTemperature;
 
     private InverterDataDachaDailyTotalBlock118(byte[] data) {
@@ -23,12 +24,12 @@ public class InverterDataDachaDailyTotalBlock118 {
 
             switch (offset) {
                 case 28 -> {
-                    dailyChargingEnergy = val * 0.1;
-                    allValues[i] = String.format("%.1f", dailyChargingEnergy);
+                    dailyBatteryCharge = val * 0.1;
+                    allValues[i] = String.format("%.1f", dailyBatteryCharge);
                 }
                 case 30 -> {
-                    dailyDischargingEnergy = val * 0.1;
-                    allValues[i] = String.format("%.1f", dailyDischargingEnergy);
+                    dailyBatteryDischarge = val * 0.1;
+                    allValues[i] = String.format("%.1f", dailyBatteryDischarge);
                 }
                 case 36 -> {
                     totalDischargingEnergy = val * 0.1;
@@ -37,6 +38,10 @@ public class InverterDataDachaDailyTotalBlock118 {
                 case 48 -> {
                     totalEnergySell = val * 0.1;
                     allValues[i] = String.format("%.1f", totalEnergySell);
+                }
+               case 58 -> {
+                    dailyProductionSolarPower = val * 0.1;
+                    allValues[i] = String.format("%.1f", dailyProductionSolarPower);
                 }
                 case 82 -> {
                     inverterTemperature = (val - 1000) * 0.1;
@@ -71,10 +76,11 @@ public class InverterDataDachaDailyTotalBlock118 {
 
     private String getLabel(int offset) {
         return switch (offset) {
-            case 28 -> "Daily Charging Energy(kWh)";
-            case 30 -> "Daily Discharging Energy(kWh)";
+            case 28 -> "Daily Battery Charging Energy(kWh)";
+            case 30 -> "Daily Battery Discharging Energy(kWh)";
             case 36 -> "Total Discharging Energy(kWh)";
             case 48 -> "Total Energy Sell(kWh)";
+            case 58 -> "Daily Production (Active)(kWh)";
             case 82 -> "Temperature - Inverter(?)";
             default -> String.format("Nothing_%03d", offset);
         };
