@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
-import org.nickas21.smart.PowerValueRealTimeData;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
 import org.nickas21.smart.data.dataEntityDto.DataHomeDto;
 import org.nickas21.smart.data.dataEntityDto.DataTemperatureDto;
@@ -24,7 +23,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -36,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static java.time.ZoneOffset.UTC;
 import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.updateTimeStampToUtc;
 
 @Slf4j
@@ -133,10 +132,7 @@ public class AnalyticService {
                     removeFromCache(today, locationType);
                 }
                 // Оновлюємо поточні дані
-                switch (locationType) {
-                    case DACHA -> updateAnalyticDacha();
-                    case GOLEGO -> updateAnalyticGolego();
-                }
+                updateAnalytic(locationType);
             }
         }
     }
@@ -295,7 +291,7 @@ public class AnalyticService {
 
             // Перетворюємо в 1-ше число місяця, 00:00:00 UTC
             return yearMonth.atDay(1)
-                    .atStartOfDay(java.time.ZoneOffset.UTC)
+                    .atStartOfDay(UTC)
                     .toInstant()
                     .toEpochMilli();
         } catch (Exception e) {
@@ -351,130 +347,93 @@ public class AnalyticService {
         }
     }
 
-    private synchronized void updateAnalyticDacha() {
-        PowerValueRealTimeData data = solarmanTuyaService.getPowerValueRealTimeData();
-        long ts = data.getCollectionTime() * 1000;
-        if (ts < 1000000000000L) return;
+    private synchronized void updateAnalytic(LocationType locationType) {
+        // 1. Отримуємо DTO залежно від локації
+        DataHomeDto dataHomeDto = (locationType == LocationType.DACHA)
+                ? dataHomeService.getDataDacha()
+                : dataHomeService.getDataGolego();
 
-        LocationType locationType = LocationType.DACHA;
-        ZonedDateTime zdt = getZonedDateTimeInverter(ts, locationType);
-        String key = generateMapDateKey(zdt.toLocalDate(), locationType);
+        long finalTs = dataHomeDto.getTimestamp();
+        if (finalTs < 1000000000000L) return;
 
-        List<DataAnalyticDto> dayList = this.analyticCache.computeIfAbsent(key,
+        // 2. Підготовка TZ та ключів
+        ZonedDateTime zdtLocal = getZonedDateTimeInverter(finalTs, locationType);
+        String mapDateKey = generateMapDateKey(zdtLocal.toLocalDate(), locationType);
+
+        // 3. Робота з кешем
+        List<DataAnalyticDto> dayList = this.analyticCache.computeIfAbsent(mapDateKey,
                 k -> Collections.synchronizedList(new ArrayList<>()));
-        long offsetMs = updateTimeStampToUtc(ts, locationType.getZoneId());
-        long finalTs = ts + offsetMs;
         if (dayList.stream().anyMatch(e -> e.getTimestamp() == finalTs)) return;
 
-        DataAnalyticDto dtoDacha = new DataAnalyticDto(locationType);
-        dtoDacha.setTimestamp(finalTs); // ЧИСТИЙ ЧАС
-        dtoDacha.setGridDailyTotalPower(data.getDailyEnergyBuy());
-        dtoDacha.setBmsSoc(data.getBatterySocValue());
-        dtoDacha.setSolarDailyPower(data.getDailyProductionSolarPower());
-        dtoDacha.setHomeDailyPower(data.getDailyHomeConsumptionPower());
-        dtoDacha.setGridPower(data.getTotalGridPower());
-        dtoDacha.setSolarPower(data.getTotalProductionSolarPower());
-        dtoDacha.setHomePower(data.getTotalHomePower());
-        dtoDacha.setBmsDailyDischarge(data.getDailyBatteryDischarge());
-        dtoDacha.setBmsDailyCharge(data.getDailyBatteryCharge());
-        DataTemperatureDto temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutDacha);
-        if (temperatureDto != null) {
-            dtoDacha.setTemperatureOut(temperatureDto.getTemperature());
-            dtoDacha.setHumidityOut(temperatureDto.getHumidity());
-            dtoDacha.setLuminanceOut(temperatureDto.getLuminance());
-        }
-        temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureInDacha);
-        if (temperatureDto != null) {
-            dtoDacha.setTemperatureIn(temperatureDto.getTemperature());
-            dtoDacha.setHumidityIn(temperatureDto.getHumidity());
-            dtoDacha.setLuminanceIn(temperatureDto.getLuminance());
-        }
-        // ВИКЛИК СПІЛЬНОЇ ЛОГІКИ
         DataAnalyticDto last = dayList.isEmpty() ? null : dayList.getLast();
-        calculateGridTariffs(dtoDacha, last);
+        DataAnalyticDto analyticDto = new DataAnalyticDto(locationType);
 
-        dayList.add(dtoDacha);
+        // 4. Спільні поля
+        analyticDto.setTimestamp(finalTs);
+        analyticDto.setGridPower(dataHomeDto.getGridPower());
+        analyticDto.setHomePower(dataHomeDto.getHomePower());
+        analyticDto.setBmsSoc(dataHomeDto.getBatterySoc());
+        analyticDto.setSolarPower(dataHomeDto.getSolarPower());
+        analyticDto.setSolarDailyPower(dataHomeDto.getDailyProductionSolarPower());
+
+        // 5. Специфічна логіка розрахунку Daily (Dacha vs Golego)
+        if (locationType == LocationType.DACHA) {
+            // Логіка DACHA: Беремо готові лічильники з DTO
+            double lastTotal = (last != null) ? last.getGridDailyTotalPower() : 0.0;
+            double deltaGrid = Math.max(0, dataHomeDto.getDailyGridPower() - lastTotal);
+            applyGridTariffLogic(analyticDto, last, deltaGrid, zdtLocal.getHour());
+
+            analyticDto.setGridDailyTotalPower(dataHomeDto.getDailyGridPower());
+            analyticDto.setHomeDailyPower(dataHomeDto.getDailyConsumptionPower());
+            analyticDto.setBmsDailyDischarge(dataHomeDto.getDailyBatteryDischarge());
+            analyticDto.setBmsDailyCharge(dataHomeDto.getDailyBatteryCharge());
+
+            // Додаємо температуру (тільки для Dacha)
+            fillTemperatureData(analyticDto);
+        } else {
+            // Логіка GOLEGO: Розраховуємо дельти інтегрально
+            double deltaTime = updateRateMs / 3600000.0;
+            double deltaGridKwh = Math.max(0, (dataHomeDto.getGridPower() / 1000.0) * deltaTime);
+            double deltaHomeKwh = (dataHomeDto.getHomePower() / 1000.0) * deltaTime;
+            double deltaBmsKwh = (dataHomeDto.getBatteryVol() * dataHomeDto.getBatteryCurrent() * deltaTime) / 1000.0;
+
+            applyGridTariffLogic(analyticDto, last, deltaGridKwh, zdtLocal.getHour());
+            analyticDto.setGridDailyTotalPower(analyticDto.getGridDailyDayPower() + analyticDto.getGridDailyNightPower());
+
+            double prevHome = (last != null) ? last.getHomeDailyPower() : 0.0;
+            double prevDischarge = (last != null) ? last.getBmsDailyDischarge() : 0.0;
+            double prevCharge = (last != null) ? last.getBmsDailyCharge() : 0.0;
+
+            analyticDto.setHomeDailyPower(prevHome + deltaHomeKwh);
+            if (deltaBmsKwh < 0) {
+                analyticDto.setBmsDailyDischarge(prevDischarge + Math.abs(deltaBmsKwh));
+                analyticDto.setBmsDailyCharge(prevCharge);
+            } else {
+                analyticDto.setBmsDailyCharge(prevCharge + deltaBmsKwh);
+                analyticDto.setBmsDailyDischarge(prevDischarge);
+            }
+        }
+
+        // 6. Фіналізація
+        dayList.add(analyticDto);
         dayList.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
         saveToMonthlyFile(finalTs, locationType);
     }
 
-    private synchronized void updateAnalyticGolego() {
-        DataHomeDto dataHomeDto = dataHomeService.getDataGolego();
-        LocationType locationType = LocationType.GOLEGO;
-        long timestampRaw = dataHomeDto.getTimestamp();
-        if (timestampRaw < 1000000000000L) { // Перевірка, що дата не з 1970-х років
-            log.warn("Invalid timestamp GOLEGO) [{}]", timestampRaw);
-            return;
+    // Допоміжний метод для температури, щоб не захаращувати основний
+    private void fillTemperatureData(DataAnalyticDto dto) {
+        DataTemperatureDto tempOut = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutDacha);
+        if (tempOut != null) {
+            dto.setTemperatureOut(tempOut.getTemperature());
+            dto.setHumidityOut(tempOut.getHumidity());
+            dto.setLuminanceOut(tempOut.getLuminance());
         }
-        ZonedDateTime zonedDateTimeInverter = getZonedDateTimeInverter(timestampRaw, locationType);
-        String mapDateKey = generateMapDateKey(zonedDateTimeInverter.toLocalDate(), locationType);
-
-        List<DataAnalyticDto> dayList = this.analyticCache.computeIfAbsent(mapDateKey,
-                k -> Collections.synchronizedList(new ArrayList<>()));
-
-        // 1. ПЕРЕВІРКА НА ДУБЛІКАТ
-        long finalTs  = timestampRaw + (zonedDateTimeInverter.getOffset().getTotalSeconds() * 1000L);
-        if (dayList.stream().anyMatch(e -> e.getTimestamp() == finalTs)) return;
-
-        // 2. СОРТУВАННЯ перед розрахунками
-        dayList.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
-
-        double deltaTime = updateRateMs / 3600000.0;
-        double currentGridPower = dataHomeDto.getGridPower();
-
-        // Розрахунок дельти енергії в кВт·год (ділимо на 1000)
-        double deltaGridKwh = (currentGridPower / 1000.0) * deltaTime;
-        double deltaHomeKwh = (dataHomeDto.getHomePower() / 1000.0) * deltaTime;
-        // Bms Power теж у кВт·год
-        double currentBmsPowerKwh = (dataHomeDto.getBatteryVol() * dataHomeDto.getBatteryCurrent() * deltaTime) / 1000.0;
-
-        double dailyGridGolegoNight = 0;
-        double dailyGridGolegoDay = 0;
-        double dailyHomePower = 0;
-        double dailyBmsDischarge = 0;
-        double dailyBmsCharge = 0;
-
-        if (!dayList.isEmpty()) {
-            DataAnalyticDto last = dayList.getLast();
-            dailyGridGolegoNight = last.getGridDailyNightPower();
-            dailyGridGolegoDay = last.getGridDailyDayPower();
-            dailyHomePower = last.getHomeDailyPower();
-            dailyBmsDischarge = last.getBmsDailyDischarge();
-            dailyBmsCharge = last.getBmsDailyCharge();
+        DataTemperatureDto tempIn = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureInDacha);
+        if (tempIn != null) {
+            dto.setTemperatureIn(tempIn.getTemperature());
+            dto.setHumidityIn(tempIn.getHumidity());
+            dto.setLuminanceIn(tempIn.getLuminance());
         }
-
-        // 3. Тарифи День/Ніч (Тільки якщо споживання з мережі > 0)
-        int currentHour = zonedDateTimeInverter.getHour(); // використовуємо вже отриманий час
-        if (deltaGridKwh > 0) {
-            if (currentHour < dayStart || currentHour >= nightStart) dailyGridGolegoNight += deltaGridKwh;
-            else dailyGridGolegoDay += deltaGridKwh;
-        }
-
-        DataAnalyticDto dtoGolego = new DataAnalyticDto(locationType);
-        dtoGolego.setTimestamp(finalTs);
-        dtoGolego.setGridPower(currentGridPower);
-        dtoGolego.setSolarPower(0);
-        dtoGolego.setHomePower(dataHomeDto.getHomePower());
-        dtoGolego.setBmsSoc(dataHomeDto.getBatterySoc());
-
-        dtoGolego.setGridDailyDayPower(dailyGridGolegoDay);
-        dtoGolego.setGridDailyNightPower(dailyGridGolegoNight);
-        dtoGolego.setGridDailyTotalPower(dailyGridGolegoDay + dailyGridGolegoNight);
-
-        // ПРАВИЛЬНО: додаємо кВт·год споживання дому
-        dtoGolego.setHomeDailyPower(dailyHomePower + deltaHomeKwh);
-
-        // Розрахунок заряду/розряду BMS
-        if (currentBmsPowerKwh < 0) {
-            dtoGolego.setBmsDailyDischarge(dailyBmsDischarge + Math.abs(currentBmsPowerKwh));
-            dtoGolego.setBmsDailyCharge(dailyBmsCharge);
-        } else {
-            dtoGolego.setBmsDailyCharge(dailyBmsCharge + currentBmsPowerKwh);
-            dtoGolego.setBmsDailyDischarge(dailyBmsDischarge); // Це добре
-        }
-        dayList.add(dtoGolego);
-        dayList.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
-        saveToMonthlyFile(finalTs, locationType);
     }
 
     private synchronized void saveToMonthlyFile(long timestamp, LocationType location) {
@@ -530,7 +489,7 @@ public class AnalyticService {
             Map<String, List<DataAnalyticDto>> pointsByMonth = incomingPoints.stream()
                     .collect(Collectors.groupingBy(p ->
                             Instant.ofEpochMilli(p.getTimestamp())
-                                    .atZone(ZoneOffset.UTC)
+                                    .atZone(UTC)
                                     .toLocalDate()
                                     .format(DateTimeFormatter.ofPattern(patternMonthFile))
                     ));
@@ -559,7 +518,7 @@ public class AnalyticService {
                     // 3. Обробка точок
                     int count = 0;
                     for (DataAnalyticDto p : points) {
-                        ZonedDateTime zdt = Instant.ofEpochMilli(p.getTimestamp()).atZone(ZoneOffset.UTC);
+                        ZonedDateTime zdt = Instant.ofEpochMilli(p.getTimestamp()).atZone(UTC);
                         String mapDateKey = generateMapDateKey(zdt.toLocalDate(), p.getLocation());
 
                         List<DataAnalyticDto> dayList = monthData.computeIfAbsent(mapDateKey, k -> new ArrayList<>());
@@ -595,7 +554,7 @@ public class AnalyticService {
     }
 
     private String generateMapDateKey(LocalDate date, LocationType location) {
-        return date.toString() + separatorKey + location;
+        return date.toString() + separatorKey + location.name();
     }
 
     private Path getPathFile(LocationType location, String monthSuffix) {
@@ -642,6 +601,21 @@ public class AnalyticService {
         } else {
             current.setGridDailyDayPower(last.getGridDailyDayPower() + delta);
             current.setGridDailyNightPower(last.getGridDailyNightPower());
+        }
+    }
+
+    private void applyGridTariffLogic(DataAnalyticDto current, DataAnalyticDto last, double deltaGrid, int hour) {
+        // Беремо значення з попередньої точки (якщо вона є)
+        double prevDay = (last != null) ? last.getGridDailyDayPower() : 0.0;
+        double prevNight = (last != null) ? last.getGridDailyNightPower() : 0.0;
+
+        // Додаємо дельту у відповідний тариф
+        if (hour < dayStart || hour >= nightStart) {
+            current.setGridDailyNightPower(prevNight + deltaGrid);
+            current.setGridDailyDayPower(prevDay);
+        } else {
+            current.setGridDailyDayPower(prevDay + deltaGrid);
+            current.setGridDailyNightPower(prevNight);
         }
     }
 }

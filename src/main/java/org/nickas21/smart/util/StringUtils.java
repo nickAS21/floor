@@ -92,12 +92,16 @@ public class StringUtils {
                 .atZone(ZoneId.systemDefault())
                 .format(DateTimeFormatter.ofPattern(datePattern));
     }
+
     public static String formatTimestamp(long timestamp, String pattern) {
-        return Instant.ofEpochMilli(timestamp)
-                .atZone(ZoneId.systemDefault())
-                .format(DateTimeFormatter.ofPattern(pattern));
+        return formatTimestamp(timestamp, pattern, ZoneId.systemDefault());
     }
 
+    public static String formatTimestamp(long timestamp, String pattern, ZoneId zoneId) {
+        return Instant.ofEpochMilli(timestamp)
+                .atZone(zoneId)
+                .format(DateTimeFormatter.ofPattern(pattern));
+    }
 
     public static String getCurrentTimeString(Instant now) {
         DateTimeFormatter f = DateTimeFormatter.ofPattern(datePattern);

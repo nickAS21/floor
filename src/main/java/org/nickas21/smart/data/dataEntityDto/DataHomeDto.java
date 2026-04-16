@@ -164,7 +164,7 @@ public class DataHomeDto {
             String connectionBatteryStatus = usrTcpWiFiService.calculateStatus(solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() * 1000, solarmanTuyaService.getTimeoutSecUpdate());
             log.warn("Dacha inverter and battery: is -> [{}]", connectionBatteryStatus);
         }
-        log.warn("DataHomeDacha [{}]", this);
+        log.warn("DataHomeDacha  tome long: [{}], time: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus), this);
     }
 
     // Golego
@@ -209,7 +209,7 @@ public class DataHomeDto {
 
             if (c0Data.getTimestamp() != null) {
                 long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli()/1000L, LocationType.GOLEGO.getZoneId());
-                this.timestamp =c0Data.getTimestamp().toEpochMilli() + offsetMs;
+                this.timestamp = c0Data.getTimestamp().toEpochMilli() + offsetMs;
             }
             this.batterySoc = batteriesActiveCnt == 0 ? 0 : batterySocSum/batteriesActiveCnt;
 
@@ -250,7 +250,7 @@ public class DataHomeDto {
             Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryHome =  deviceService.getLastUpdateTimeGridStatusInfoHome();
             this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryHome != null ? formatTimestamp(lastUpdateTimeGridStatusEntryHome.getKey(), datePatternGridStatus) : "null";
         }
-        log.warn("DataHomeGolego [{}]", this);
+        log.warn("DataHomeGolego  tome long: [{}], time: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus), this);
     }
 
 
