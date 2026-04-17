@@ -67,7 +67,7 @@ public class AnalyticService {
     @PostConstruct
     public void init() {
         for (LocationType locationType : LocationType.values()) {
-            LocalDate today = getLocalDateInverter(locationType);
+            LocalDate today = LocalDate.now(UTC);;
             initAndUpdateCash(today, locationType);
         }
     }
@@ -116,11 +116,11 @@ public class AnalyticService {
         this.tuyaDeviceService = tuyaDeviceService;
     }
 
-    @Scheduled(fixedRateString = "${smart.analytic.update-rate:300000}")
+    @Scheduled(fixedRateString = "${smart.analytic.update-rate:240000}")    // 4 min
     public void updateAndSaveAnalytic() {
         for (LocationType locationType : LocationType.values()) {
 
-            LocalDate today = getLocalDateInverter(locationType);
+            LocalDate today = LocalDate.now(UTC);;
             LocalDate yesterday = today.minusDays(1);
             String todayKey = generateMapDateKey(today, locationType);
             String yesterdayKey = generateMapDateKey(yesterday, locationType);
@@ -128,7 +128,7 @@ public class AnalyticService {
                 // ПЕРЕВІРКА ПЕРЕХОДУ:
                 // Вчорашні дані ще в кеші, а сьогоднішніх — ще не було.
                 if (this.analyticCache.containsKey(yesterdayKey) && !this.analyticCache.containsKey(todayKey)) {
-                    log.info("Зафіксовано перехід доби для {}. Очищаємо кеш від застарілих даних.", locationType);
+                    log.info("Day transition detected for {}. Cleaning up obsolete cache entries.", locationType);
                     removeFromCache(today, locationType);
                 }
                 // Оновлюємо поточні дані
@@ -300,31 +300,31 @@ public class AnalyticService {
         }
     }
 
-    private synchronized void saveToMonthlyFile(DataAnalyticDto dto) {
-        ZonedDateTime zdt = getZonedDateTimeInverter(dto.getTimestamp(), dto.getLocation());
-        LocalDate pointDate = zdt.toLocalDate();
-        String monthSuffix = pointDate.format(DateTimeFormatter.ofPattern(patternMonthFile));
-        Path path = getPathFile(dto.getLocation(), monthSuffix);
-        try {
-            if (Files.notExists(path.getParent())) Files.createDirectories(path.getParent());
-            Map<String, List<DataAnalyticDto>> monthData;
-            if (Files.exists(path)) {
-                String json = Files.readString(path, StandardCharsets.UTF_8);
-                monthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
-            } else {
-                monthData = new LinkedHashMap<>();
-            }
-            String mapDateKey = generateMapDateKey(pointDate, dto.getLocation());
-            List<DataAnalyticDto> currentTimeDateAnalyticDtos = this.analyticCache.computeIfAbsent(mapDateKey,
-                    k -> Collections.synchronizedList(new ArrayList<>()));
-            monthData.put(mapDateKey, new ArrayList<>(currentTimeDateAnalyticDtos));
-            String resultJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(monthData);
-            Files.writeString(path, resultJson, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        } catch (IOException e) {
-            log.error("Failed to save file for {}: ", monthSuffix, e);
-            throw new RuntimeException("FileSystem error during import for " + monthSuffix + ": " + e.getMessage());
-        }
-    }
+//    private synchronized void saveToMonthlyFile(DataAnalyticDto dto) {
+//        ZonedDateTime zdt = getZonedDateTimeInverter(dto.getTimestamp(), dto.getLocation());
+//        LocalDate pointDate = zdt.toLocalDate();
+//        String monthSuffix = pointDate.format(DateTimeFormatter.ofPattern(patternMonthFile));
+//        Path path = getPathFile(dto.getLocation(), monthSuffix);
+//        try {
+//            if (Files.notExists(path.getParent())) Files.createDirectories(path.getParent());
+//            Map<String, List<DataAnalyticDto>> monthData;
+//            if (Files.exists(path)) {
+//                String json = Files.readString(path, StandardCharsets.UTF_8);
+//                monthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
+//            } else {
+//                monthData = new LinkedHashMap<>();
+//            }
+//            String mapDateKey = generateMapDateKey(pointDate, dto.getLocation());
+//            List<DataAnalyticDto> currentTimeDateAnalyticDtos = this.analyticCache.computeIfAbsent(mapDateKey,
+//                    k -> Collections.synchronizedList(new ArrayList<>()));
+//            monthData.put(mapDateKey, new ArrayList<>(currentTimeDateAnalyticDtos));
+//            String resultJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(monthData);
+//            Files.writeString(path, resultJson, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+//        } catch (IOException e) {
+//            log.error("Failed to save file for {}: ", monthSuffix, e);
+//            throw new RuntimeException("FileSystem error during import for " + monthSuffix + ": " + e.getMessage());
+//        }
+//    }
 
     private synchronized void saveToMonthlyFile(LocalDate localDate, List<DataAnalyticDto> dtos, LocationType locationType) {
         String monthSuffix = localDate.format(DateTimeFormatter.ofPattern(patternMonthFile));
@@ -357,8 +357,12 @@ public class AnalyticService {
         if (finalTs < 1000000000000L) return;
 
         // 2. Підготовка TZ та ключів
+// Використовуємо дату в UTC для ключа, бо таймстамп точки — це UTC.
+        LocalDate utcDate = Instant.ofEpochMilli(finalTs).atZone(UTC).toLocalDate();
+        String mapDateKey = generateMapDateKey(utcDate, locationType);
+
+        // Далі для логіки тарифів (день/ніч) нам все одно потрібен локальний час інвертора
         ZonedDateTime zdtLocal = getZonedDateTimeInverter(finalTs, locationType);
-        String mapDateKey = generateMapDateKey(zdtLocal.toLocalDate(), locationType);
 
         // 3. Робота з кешем
         List<DataAnalyticDto> dayList = this.analyticCache.computeIfAbsent(mapDateKey,
@@ -392,7 +396,7 @@ public class AnalyticService {
             fillTemperatureData(analyticDto);
         } else {
             // Логіка GOLEGO: Розраховуємо дельти інтегрально
-            double deltaTime = updateRateMs / 3600000.0;
+            double deltaTime = (double) updateRateMs / 3600000.0;
             double deltaGridKwh = Math.max(0, (dataHomeDto.getGridPower() / 1000.0) * deltaTime);
             double deltaHomeKwh = (dataHomeDto.getHomePower() / 1000.0) * deltaTime;
             double deltaBmsKwh = (dataHomeDto.getBatteryVol() * dataHomeDto.getBatteryCurrent() * deltaTime) / 1000.0;
@@ -412,6 +416,7 @@ public class AnalyticService {
                 analyticDto.setBmsDailyCharge(prevCharge + deltaBmsKwh);
                 analyticDto.setBmsDailyDischarge(prevDischarge);
             }
+            log.info("BMS CALC: delta={}, currentDischarge={}, currentCharge={}", deltaBmsKwh, analyticDto.getBmsDailyDischarge(), analyticDto.getBmsDailyCharge());
         }
 
         // 6. Фіналізація
@@ -437,8 +442,9 @@ public class AnalyticService {
     }
 
     private synchronized void saveToMonthlyFile(long timestamp, LocationType location) {
-        ZonedDateTime zdt = getZonedDateTimeInverter(timestamp, location);
-        String monthSuffix = zdt.format(DateTimeFormatter.ofPattern(patternMonthFile));
+        // Використовуємо UTC для визначення місяця та імені файлу
+        ZonedDateTime zdtUtc = Instant.ofEpochMilli(timestamp).atZone(UTC);
+        String monthSuffix = zdtUtc.format(DateTimeFormatter.ofPattern(patternMonthFile));
         Path path = getPathFile(location, monthSuffix);
 
         try {
@@ -459,17 +465,14 @@ public class AnalyticService {
             }
 
             // 4. Оновлюємо дані лише для конкретного дня
-            String mapDateKey = generateMapDateKey(zdt.toLocalDate(), location);
+            // Використовуємо UTC дату для ключа в мапі
+            String mapDateKey = generateMapDateKey(zdtUtc.toLocalDate(), location);
             List<DataAnalyticDto> dailyCache = this.analyticCache.get(mapDateKey);
 
             if (dailyCache != null) {
-                // Робимо копію списку, щоб уникнути ConcurrentModificationException, якщо кеш оновиться під час серіалізації
                 monthData.put(mapDateKey, new ArrayList<>(dailyCache));
-
-                // 5. Записуємо відразу в файл через InputStream/OutputStream — це ефективніше для великих JSON
                 objectMapper.writerWithDefaultPrettyPrinter().writeValue(path.toFile(), monthData);
             }
-
         } catch (IOException e) {
             log.error("Failed to save file for {}: {}", monthSuffix, e.getMessage());
             throw new RuntimeException("FileSystem error for " + monthSuffix, e);
@@ -559,12 +562,6 @@ public class AnalyticService {
 
     private Path getPathFile(LocationType location, String monthSuffix) {
         return Paths.get(dirAnalytic, location.name() + separatorKey + monthSuffix + ".json");
-    }
-
-    private LocalDate getLocalDateInverter(LocationType locationType) {
-        return Instant.now()
-                .atZone(locationType.getZoneId())
-                .toLocalDate();
     }
 
     private

@@ -78,8 +78,8 @@ smart:
       night-start: 23
     dir: "${ANALITIC_DIR:./analytic/}"
       # Каталог для аналітики
-      # Інтервал оновлення в мілісекундах (5 хвилин)
-    update-rate: 300000
+      # Інтервал оновлення в мілісекундах (4 хвилин)
+    update-rate: 240000
 
 telegram:
   bot:

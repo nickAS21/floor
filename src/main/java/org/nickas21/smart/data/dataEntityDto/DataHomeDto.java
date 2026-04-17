@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static java.time.ZoneOffset.UTC;
 import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 
 @Slf4j
@@ -102,13 +103,6 @@ public class DataHomeDto {
             this.dailyProductionSolarPower = dailyTotalBlock118.getDailyProductionSolarPower();
             this.dailyBatteryCharge = dailyTotalBlock118.getDailyBatteryCharge();
             this.dailyBatteryDischarge = dailyTotalBlock118.getDailyBatteryDischarge();
-
-//            this.gridPower = powerValueRealTimeData.getTotalGridPower();
-//            this.dailyConsumptionPower = powerValueRealTimeData.getDailyHomeConsumptionPower();
-//            this.dailyGridPower = powerValueRealTimeData.getDailyEnergyBuy();
-//            this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
-//            this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
-//            this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());
         }
         else if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
             long ts = powerValueRealTimeData.getCollectionTime() * 1000L;
@@ -124,13 +118,6 @@ public class DataHomeDto {
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
             this.dailyBatteryCharge = powerValueRealTimeData.getDailyBatteryCharge();
             this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
-
-//            this.gridPower = powerValueRealTimeData.getTotalGridPower();
-//            this.dailyConsumptionPower = powerValueRealTimeData.getDailyHomeConsumptionPower();
-//            this.dailyGridPower = powerValueRealTimeData.getDailyEnergyBuy();
-//            this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
-//            this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
-//            this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());
         }
 
         if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
@@ -164,7 +151,7 @@ public class DataHomeDto {
             String connectionBatteryStatus = usrTcpWiFiService.calculateStatus(solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() * 1000, solarmanTuyaService.getTimeoutSecUpdate());
             log.warn("Dacha inverter and battery: is -> [{}]", connectionBatteryStatus);
         }
-        log.warn("DataHomeDacha  tome long: [{}], time: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus), this);
+        log.warn("DataHomeDacha  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
     }
 
     // Golego
@@ -250,7 +237,7 @@ public class DataHomeDto {
             Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryHome =  deviceService.getLastUpdateTimeGridStatusInfoHome();
             this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryHome != null ? formatTimestamp(lastUpdateTimeGridStatusEntryHome.getKey(), datePatternGridStatus) : "null";
         }
-        log.warn("DataHomeGolego  tome long: [{}], time: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus), this);
+        log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
     }
 
 
