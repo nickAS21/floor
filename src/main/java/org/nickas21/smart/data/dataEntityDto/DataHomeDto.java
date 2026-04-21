@@ -67,6 +67,8 @@ public class DataHomeDto {
 
     double dailyConsumptionPower;
     double dailyGridPower;
+    double dailyGridDayPower;
+    double dailyGridNightPower;
     double dailyBatteryCharge;
     double dailyBatteryDischarge;
     double dailyProductionSolarPower;

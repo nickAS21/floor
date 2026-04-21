@@ -619,4 +619,41 @@ public class AnalyticService {
             current.setGridDailyNightPower(prevNight);
         }
     }
+
+    public DataHomeDto getEnrichedDataGolego() {
+        // Спочатку отримуємо чисті дані з сенсорів
+        DataHomeDto dto = dataHomeService.getDataGolego();
+        // Самі ж їх тут і збагачуємо, бо ми маємо доступ до кешу
+        this.enrichWithTariffs(dto, LocationType.GOLEGO);
+        return dto;
+    }
+
+    public DataHomeDto getEnrichedDataDacha() {
+        DataHomeDto dto = dataHomeService.getDataDacha();
+        this.enrichWithTariffs(dto, LocationType.DACHA);
+        return dto;
+    }
+
+    public void enrichWithTariffs(DataHomeDto dto, LocationType location) {
+        String key = generateMapDateKey(LocalDate.now(UTC), location);
+        List<DataAnalyticDto> dayData = this.analyticCache.get(key);
+        if (dayData != null && !dayData.isEmpty()) {
+            DataAnalyticDto lastPoint = dayData.getLast();
+            dto.setDailyGridDayPower(lastPoint.getGridDailyDayPower());
+            dto.setDailyGridNightPower(lastPoint.getGridDailyNightPower());
+            dto.setDailyGridPower(lastPoint.getGridDailyTotalPower());
+            dto.setDailyConsumptionPower(lastPoint.getHomeDailyPower());
+            dto.setDailyBatteryCharge(lastPoint.getBmsDailyCharge());
+            dto.setDailyBatteryDischarge(lastPoint.getBmsDailyDischarge());
+            dto.setDailyProductionSolarPower(lastPoint.getSolarDailyPower());
+        } else {
+            dto.setDailyGridDayPower(0.0);
+            dto.setDailyGridNightPower(0.0);
+            dto.setDailyGridPower(0.0);
+            dto.setDailyConsumptionPower(0.0);
+            dto.setDailyBatteryCharge(0.0);
+            dto.setDailyBatteryDischarge(0.0);
+            dto.setDailyProductionSolarPower(0.0);
+        }
+    }
 }
