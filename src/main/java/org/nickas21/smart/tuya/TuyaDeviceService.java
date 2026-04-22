@@ -114,7 +114,6 @@ public class TuyaDeviceService {
     public static final String deviceIdTempScaleKuhny = "bf12ddeca9ec3aeaaboax1";
     public final String deviceId3_floor = "bf4f86fd54edc80f6aegzd";
     public final String deviceIdBadRoom = "bfa270cc48a9f36de9xi6p";
-    public final String deviceIdBoylerWiFi = "bfa0c1041fa8ad83e1oeik";
 
     @Getter
     @Setter
@@ -285,33 +284,35 @@ public class TuyaDeviceService {
 
     public boolean updateAllThermostatToMin(String msgInfo) {
         String[] filters = getDeviceProperties().getCategoryForControlPowers();
-        if (this.devices != null) {
-            queueLock.lock();
-            int cntUpdate = 0;
-            try {
-                log.info("Start update Devices [{}].", this.devices.getDevIds().size());
-
-                Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-                for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
-                    Device v = entry.getValue();
-                    for (String f : filters) {
-                        if (f.equals(v.getCategory())) {
-                            DeviceUpdate deviceUpdate = getDeviceUpdate(this.getDeviceProperties().getTempSetMin(), v);
-                            queueUpdate.put(v, deviceUpdate);
-                            cntUpdate++;
-                        }
-                    }
-                }
-                updateThermostats(queueUpdate, true);
-            } finally {
-                queueLock.unlock();
-                log.info("Finish updating Devices [{}] from [{}] after [{}]", cntUpdate, this.devices.getDevIds().size(), msgInfo);
-            }
-            return true;
-        } else {
+        if (this.devices == null) {
             log.error("Devices is null, Devices not Update after start.");
             return false;
         }
+
+        queueLock.lock();
+        int cntUpdate = 0;
+        try {
+            log.info("Start update Devices [{}].", this.devices.getDevIds().size());
+            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+
+            for (Device v : this.devices.getDevIds().values()) {
+                if (isCategoryMatch(v.getCategory(), filters)) {
+                    DeviceUpdate deviceUpdate = getDeviceUpdate(this.getDeviceProperties().getTempSetMin(), v);
+                    if (tryPutToQueue(queueUpdate, v, deviceUpdate)) {
+                        cntUpdate++;
+                    }
+                }
+            }
+
+            if (!queueUpdate.isEmpty()) {
+                updateThermostats(queueUpdate, true);
+            }
+
+        } finally {
+            queueLock.unlock();
+            log.info("Finish updating Devices [{}] from [{}] after [{}]", cntUpdate, this.devices.getDevIds().size(), msgInfo);
+        }
+        return true;
     }
 
     public void updateAllThermostat(Object tempSet) {
@@ -373,27 +374,15 @@ public class TuyaDeviceService {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(true, filters);
         Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-        for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
-            Device v = entry.getValue();
-            Object valueNew = v.getValueSetMaxOn();
-            DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, v);
-            Object valueOld = v.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
+        for (Device v : devicesTempSort.values()) {
+            DeviceUpdate deviceUpdate = getDeviceUpdate(v.getValueSetMaxOn(), v);
             if (atomicDeltaPower.get() - v.getConsumptionPower() > 0) {
-                if (deviceUpdate.isUpdate()) {
-                    queueUpdate.put(v, deviceUpdate);
-                    log.info("Device: [{}] Add to Queue. Charge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
-                            v.getName(),
-                            atomicDeltaPower.get(), v.getConsumptionPower(), atomicDeltaPower.get() - v.getConsumptionPower(),
-                            deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
-                            valueOld);
+                if (tryPutToQueue(queueUpdate, v, deviceUpdate)) {
+                    log.info("Device: [{}] Add to Queue. Left power: {}W", v.getName(), atomicDeltaPower.get() - v.getConsumptionPower());
                     atomicDeltaPower.getAndUpdate(value -> value - v.getConsumptionPower());
-                } else {
-                    log.info("Device: [{}] not Update. Charge left power [{}], [{}] changeValue [{}] lastValue [{}]",
-                            v.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), valueOld);
                 }
             } else {
-                log.info("Device: [{}] not Update. Charge left power [{}] consumptionPower [{}], tempSetKey changeValue [{}] currentValue [{}]",
-                        v.getName(), atomicDeltaPower.get(), v.getConsumptionPower(), deviceUpdate.getValueNew(), valueOld);
+                log.info("Device: [{}] ignored - not enough power", v.getName());
             }
         }
         queueLock.lock();
@@ -451,57 +440,67 @@ public class TuyaDeviceService {
 
     public void updateThermostatBatteryDischarge(int deltaPower, String... filters) {
         AtomicReference<Integer> atomicDeltaPower = new AtomicReference<>(deltaPower);
+        // Сортування (false) — ймовірно, від найпотужніших до слабших для швидкого ефекту
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(false, filters);
         Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-        for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
-            Device device = entry.getValue();
+
+        for (Device device : devicesTempSort.values()) {
+            if (atomicDeltaPower.get() >= 0) {
+                break;
+            }
             Object valueNew = deviceProperties.getTempSetMin();
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, device);
-            if (atomicDeltaPower.get() < 0) {
-                if (deviceUpdate.isUpdate()) {
-                    queueUpdate.put(device, deviceUpdate);
-                    log.info("Device: [{}] Add to Queue. Discharge left power [{}] - [{}] = [{}], [{}] changeValue [{}] lastValue [{}]",
-                            device.getName(),
-                            atomicDeltaPower.get(), device.getConsumptionPower(), atomicDeltaPower.get() + device.getConsumptionPower(),
-                            deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(),
-                            device.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
-                    atomicDeltaPower.getAndUpdate(value -> value + device.getConsumptionPower());
-                } else {
-                    log.info("Device: [{}] not Update. Discharge left power [{}], [{}] changeValue [{}] lastValue [{}]",
-                            device.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), device.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
-                }
+            if (tryPutToQueue(queueUpdate, device, deviceUpdate)) {
+                log.info("Device: [{}] Add to Queue (Discharge). Power: [{}] + [{}] = [{}]W",
+                        device.getName(), atomicDeltaPower.get(), device.getConsumptionPower(),
+                        atomicDeltaPower.get() + device.getConsumptionPower());
+                atomicDeltaPower.getAndUpdate(value -> value + device.getConsumptionPower());
             } else {
-                log.info("Device: [{}] not Update. Discharge left power [{}], [{}] changeValue [{}] lastValue [{}]",
-                        device.getName(), atomicDeltaPower.get(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), device.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
+                log.info("Device: [{}] skipped in Discharge. Left power: {}W",
+                        device.getName(), atomicDeltaPower.get());
             }
         }
-        queueLock.lock();
-        try {
-            updateThermostats(queueUpdate, false);
-        } finally {
-            queueLock.unlock();
+
+        if (!queueUpdate.isEmpty()) {
+            queueLock.lock();
+            try {
+                updateThermostats(queueUpdate, false);
+            } finally {
+                queueLock.unlock();
+            }
         }
     }
 
     public void updateThermostatBatteryDischargePreDestroy(String... filters) {
         LinkedHashMap<String, Device> devicesTempSort = getDevicesTempSort(false, filters);
         Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-        for (Map.Entry<String, Device> entry : devicesTempSort.entrySet()) {
-            Device device = entry.getValue();
+
+        for (Device device : devicesTempSort.values()) {
+            if (isDeviceInHandleMode(device.getId())) {
+                log.info("PreDestroy: Device: [{}] skipped - MANUAL mode active", device.getName());
+                continue;
+            }
+
             Object valueNew = deviceProperties.getTempSetMin();
-            if (device.getValueSetMaxOn() != null && device.getValueSetMaxOn() instanceof Boolean) {
+            if (device.getValueSetMaxOn() instanceof Boolean) {
                 valueNew = false;
             }
             DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, device);
-            log.info("Device: [{}] Update (PreDestroy). [{}] changeValue [{}] lastValue [{}]",
-                    device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), device.getStatusValue(deviceUpdate.getFieldNameValueUpdate()));
-            queueUpdate.put(device, deviceUpdate);
+            if (deviceUpdate.isUpdate()) {
+                log.info("Device: [{}] Update (PreDestroy). [{}] changeValue [{}] lastValue [{}]",
+                        device.getName(), deviceUpdate.getFieldNameValueUpdate(),
+                        deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+                queueUpdate.put(device, deviceUpdate);
+            }
         }
-        queueLock.lock();
-        try {
-            updateThermostats(queueUpdate, false);
-        } finally {
-            queueLock.unlock();
+
+        if (!queueUpdate.isEmpty()) {
+            queueLock.lock();
+            try {
+                updateThermostats(queueUpdate, false);
+            } finally {
+                queueLock.unlock();
+            }
         }
     }
 
@@ -1288,8 +1287,7 @@ public class TuyaDeviceService {
                     Map<Device, DeviceUpdate> queueUpdateSwitch = new ConcurrentHashMap<>();
                     for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
                         if (!deviceId3_floor.equals(entry.getKey()) &&
-                                !deviceIdBadRoom.equals(entry.getKey()) &&
-                                !deviceIdBoylerWiFi.equals(entry.getKey())) {
+                                !deviceIdBadRoom.equals(entry.getKey())) {
                             this.deviceUpdateCategory(entry.getValue(), filters, queueUpdateSwitch, thermostatSwitchOffOnNew); // on/off term
                         }
                     }
@@ -1303,8 +1301,7 @@ public class TuyaDeviceService {
                     Map<Device, DeviceUpdate> queueUpdateValue = new ConcurrentHashMap<>();
                     for (Map.Entry<String, Device> entry : this.devices.getDevIds().entrySet()) {
                         if (!deviceId3_floor.equals(entry.getKey()) &&
-                                !deviceIdBadRoom.equals(entry.getKey()) &&
-                                !deviceIdBoylerWiFi.equals(entry.getKey())) {
+                                !deviceIdBadRoom.equals(entry.getKey())) {
                             this.deviceUpdateCategory(entry.getValue(), filters, queueUpdateValue, thermostatValueNew); // on/off term
                         }
                     }
@@ -1332,17 +1329,31 @@ public class TuyaDeviceService {
     }
 
     private void deviceUpdateCategory(Device device, String[] filters, Map<Device, DeviceUpdate> queueUpdate, Object valueNew) {
-        for (String f : filters) {
-            if (f.equals(device.getCategory())) {
-                DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, device);
-                if (deviceUpdate.isUpdate()) {
-                    queueUpdate.put(device, deviceUpdate);
-                } else {
-                    log.info("UpdateCategory: Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
-                            device.getName(), deviceUpdate.getFieldNameValueUpdate(), deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
-                }
-            }
+        if (!isCategoryMatch(device.getCategory(), filters)) {
+            return;
         }
+        if (isDeviceInHandleMode(device.getId())) {
+            log.info("UpdateCategory: Device: [{}] skipped - MANUAL/HANDLE mode is active", device.getName());
+            return;
+        }
+        DeviceUpdate deviceUpdate = getDeviceUpdate(valueNew, device);
+        if (deviceUpdate.isUpdate()) {
+            queueUpdate.put(device, deviceUpdate);
+            log.info("UpdateCategory: Device: [{}] added to queue. New value: [{}]",
+                    device.getName(), deviceUpdate.getValueNew());
+        } else {
+            log.info("UpdateCategory: Device: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
+                    device.getName(), deviceUpdate.getFieldNameValueUpdate(),
+                    deviceUpdate.getValueNew(), deviceUpdate.getValueOld());
+        }
+    }
+
+    private boolean isCategoryMatch(String deviceCategory, String[] filters) {
+        if (deviceCategory == null || filters == null) return false;
+        for (String f : filters) {
+            if (f.equals(deviceCategory)) return true;
+        }
+        return false;
     }
 
 
@@ -1388,6 +1399,21 @@ public class TuyaDeviceService {
 
     public void getTemperatureValue(String temperatureCodeId) {
         Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(temperatureCodeId).currentStateOnLine();
+    }
+
+    private boolean tryPutToQueue(Map<Device, DeviceUpdate> queue, Device device, DeviceUpdate update) {
+        // 1. Перевірка на ручний режим
+        if (isDeviceInHandleMode(device.getId())) {
+            log.info("Device: [{}] skipped - MANUAL/HANDLE mode active", device.getName());
+            return false;
+        }
+        // 2. Перевірка, чи взагалі потрібне оновлення
+        if (!update.isUpdate()) {
+            return false;
+        }
+
+        queue.put(device, update);
+        return true;
     }
 }
 
