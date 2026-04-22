@@ -391,7 +391,7 @@ public class AnalyticService {
             analyticDto.setBmsDailyDischarge(dataHomeDto.getDailyBatteryDischarge());
             analyticDto.setBmsDailyCharge(dataHomeDto.getDailyBatteryCharge());
 
-            fillTemperatureData(analyticDto);
+            fillTemperatureData(analyticDto, tuyaDeviceService.deviceIdTemperatureInDacha, tuyaDeviceService.deviceIdTemperatureOutDacha);
         } else {
             double deltaTime = (double) updateRateMs / 3600000.0;
             double deltaGridKwh = Math.max(0, (dataHomeDto.getGridPower() / 1000.0) * deltaTime);
@@ -413,8 +413,9 @@ public class AnalyticService {
                 analyticDto.setBmsDailyCharge(prevCharge + deltaBmsKwh);
                 analyticDto.setBmsDailyDischarge(prevDischarge);
             }
-            log.info("BMS CALC GOLEGO: ts={}, deltaBms={}, discharge={}, charge={}",
-                    finalTs, deltaBmsKwh, analyticDto.getBmsDailyDischarge(), analyticDto.getBmsDailyCharge());
+            fillTemperatureData(analyticDto, tuyaDeviceService.deviceIdTemperatureInGolego, tuyaDeviceService.deviceIdTemperatureOutGolego);
+//            log.info("BMS CALC GOLEGO: ts={}, deltaBms={}, discharge={}, charge={}",
+//                    finalTs, deltaBmsKwh, analyticDto.getBmsDailyDischarge(), analyticDto.getBmsDailyCharge());
         }
 
         // 6. Збереження
@@ -424,14 +425,14 @@ public class AnalyticService {
     }
 
     // Допоміжний метод для температури, щоб не захаращувати основний
-    private void fillTemperatureData(DataAnalyticDto dto) {
-        DataTemperatureDto tempOut = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutDacha);
+    private void fillTemperatureData(DataAnalyticDto dto, String deviceIdTemperatureIn, String deviceIdTemperatureOut) {
+        DataTemperatureDto tempOut = tuyaDeviceService.getTemperatureValueById(deviceIdTemperatureOut);
         if (tempOut != null) {
             dto.setTemperatureOut(tempOut.getTemperature());
             dto.setHumidityOut(tempOut.getHumidity());
             dto.setLuminanceOut(tempOut.getLuminance());
         }
-        DataTemperatureDto tempIn = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureInDacha);
+        DataTemperatureDto tempIn = tuyaDeviceService.getTemperatureValueById(deviceIdTemperatureIn);
         if (tempIn != null) {
             dto.setTemperatureIn(tempIn.getTemperature());
             dto.setHumidityIn(tempIn.getHumidity());

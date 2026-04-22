@@ -23,7 +23,7 @@ public class DataHomeService {
     }
 
     public DataHomeDto getDataGolego() {
-        return new DataHomeDto(this.deviceService, this.usrTcpWiFiParseData, this.usrTcpWiFiService);
+        return new DataHomeDto(this.deviceService, this.usrTcpWiFiParseData, this.deviceService, this.usrTcpWiFiService);
     }
 
     public DataHomeDto getDataDacha() {

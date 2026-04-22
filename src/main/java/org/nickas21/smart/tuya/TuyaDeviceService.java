@@ -104,7 +104,9 @@ import static org.nickas21.smart.util.StringUtils.isDecimal;
 public class TuyaDeviceService {
 
     public final String gridRelayDopPrefixDacha = "gridOnlineDacha";
-    public final String deviceIdTemperatureOutDacha = "bf328d7e1327e7c600ncnf";
+    public final String deviceIdTemperatureInGolego = "bf328d7e1327e7c600ncnf";
+    public final String deviceIdTemperatureOutGolego = "bf2eb5d509c0b86bf3akjf";
+    public final String deviceIdTemperatureOutDacha = "bfa008be96bfd5052bqybl";
     public final String deviceIdTemperatureInDacha = "bf8ba5a92ae00cb510nat5";
     public final String gridRelayDopPrefixGolego = "gridOnlineGolego";
     public final String boilerRelayDopPrefixGolego = "boilerOnlineGolego";
@@ -418,17 +420,19 @@ public class TuyaDeviceService {
                 public void run() {
                     queueUpdate.forEach((device, deviceUpdate) -> {
                         try {
-                            Object changeValue = deviceUpdate.getValueNew();
-                            Object lastValue = device.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
-                            String update = "";
-                            if (!changeValue.equals(lastValue) || isUpdateAlways) {
-                                sendPostRequestCommand(device.getId(), deviceUpdate.getFieldNameValueUpdate(), changeValue, device.getName());
-                                atomicTaskCnt.incrementAndGet();
-                            } else {
-                                update = "Not";
+                            if (!isDeviceInHandleMode(device.getId())) {
+                                Object changeValue = deviceUpdate.getValueNew();
+                                Object lastValue = device.getStatusValue(deviceUpdate.getFieldNameValueUpdate());
+                                String update = "";
+                                if (!changeValue.equals(lastValue) || isUpdateAlways) {
+                                    sendPostRequestCommand(device.getId(), deviceUpdate.getFieldNameValueUpdate(), changeValue, device.getName());
+                                    atomicTaskCnt.incrementAndGet();
+                                } else {
+                                    update = "Not";
+                                }
+                                log.info("Timer: Device: [{}] " + update + " Update. Parameter [{}] lastValue [{}] changeValue [{}] ",
+                                        device.getName(), deviceUpdate.getFieldNameValueUpdate(), lastValue, changeValue);
                             }
-                            log.info("Timer: Device: [{}] " + update + " Update. Parameter [{}] lastValue [{}] changeValue [{}] ",
-                                    device.getName(), deviceUpdate.getFieldNameValueUpdate(), lastValue, changeValue);
                         } catch (Exception e) {
                             log.error("Timer: Device: [{}] Update. [{}], intervalMillis: [{}], timeoutSecUpdateMillis [{}], size [{}]",
                                     device.getName(), e.getMessage(), intervalMillis, timeoutSecUpdateMillis, size);
@@ -755,7 +759,6 @@ public class TuyaDeviceService {
 
     private Device initDeviceTuya(String deviceId, Object... devParams) throws Exception {
         Device device = null;
-        if (!isDeviceInHandleMode(deviceId)) {
             String path = String.format(GET_DEVICES_ID_URL_PATH, deviceId);
             RequestEntity<Object> requestEntity = createGetTuyaRequest(path, false);
             ResponseEntity<ObjectNode> responseEntity = sendRequest(requestEntity);
@@ -784,9 +787,6 @@ public class TuyaDeviceService {
             } else {
                 log.warn("Device with id [{}] is not available", deviceId);
             }
-        } else {
-            log.error("Device with id [{}] is not available. Device is off or handle mode or bad or delete", deviceId);
-        }
         return device;
     }
 

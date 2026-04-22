@@ -97,26 +97,28 @@ public class Device {
     public boolean setBizCode (ObjectNode bizCodeNode) {
         DeviceBizCode deviceBizCode = treeToValue(bizCodeNode, DeviceBizCode.class);
         boolean updateGridOnline = false;
-        this.setBizCodeLast(deviceBizCode.getBizCode());
-        this.setUpdate_time(deviceBizCode.getTs());
-        if ("nameUpdate".equals(deviceBizCode.getBizCode())) {
-            deviceBizCode.setValueOld(this.getName());
-            deviceBizCode.setValue(deviceBizCode.getBizData().getName());
-            this.setName(deviceBizCode.getBizData().getName());
-        } else if ("online".equals(deviceBizCode.getBizCode())) {
-            this.onLine.put(deviceBizCode.getTs(), true);
-            deviceBizCode.setValueOld(false);
-            deviceBizCode.setValue(true);
-            updateGridOnline = true;
-        } else if ("offline".equals(deviceBizCode.getBizCode())) {
-            this.onLine.put(deviceBizCode.getTs(), false);
-            deviceBizCode.setValueOld(true);
-            deviceBizCode.setValue(false);
-            updateGridOnline = true;
+        if (!deviceBizCode.getBizCode().equals(this.getBizCodeLast())) {
+            this.setBizCodeLast(deviceBizCode.getBizCode());
+            this.setUpdate_time(deviceBizCode.getTs());
+            if ("nameUpdate".equals(deviceBizCode.getBizCode())) {
+                deviceBizCode.setValueOld(this.getName());
+                deviceBizCode.setValue(deviceBizCode.getBizData().getName());
+                this.setName(deviceBizCode.getBizData().getName());
+            } else if ("online".equals(deviceBizCode.getBizCode())) {
+                this.onLine.put(deviceBizCode.getTs(), true);
+                deviceBizCode.setValueOld(false);
+                deviceBizCode.setValue(true);
+                updateGridOnline = true;
+            } else if ("offline".equals(deviceBizCode.getBizCode())) {
+                this.onLine.put(deviceBizCode.getTs(), false);
+                deviceBizCode.setValueOld(true);
+                deviceBizCode.setValue(false);
+                updateGridOnline = true;
+            }
+            log.info("Device: [{}] time: -> [{}] parameter bizCode: [{}] valueOld: [{}]  valueNew: [{}] ",
+                    this.getName(), toLocaleTimeString(this.getUpdate_time()), deviceBizCode.getBizCode(),
+                    deviceBizCode.getValueOld(), deviceBizCode.getValue());
         }
-        log.info("Device: [{}] time: -> [{}] parameter bizCode: [{}] valueOld: [{}]  valueNew: [{}] ",
-                this.getName(), toLocaleTimeString(this.getUpdate_time()), deviceBizCode.getBizCode(),
-                deviceBizCode.getValueOld(), deviceBizCode.getValue());
         return updateGridOnline;
     }
     public Object getStatusValue (String key, Object valueDef){

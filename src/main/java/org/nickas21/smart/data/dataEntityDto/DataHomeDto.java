@@ -143,6 +143,7 @@ public class DataHomeDto {
            this.humidityIn = temperatureDto.getHumidity();
            this.luminanceIn = temperatureDto.getLuminance();
         }
+
         Boolean gridRelayCodeDachaStateOnLine = tuyaDeviceService.getGridRelayCodeDachaStateOnLine();
         if (gridRelayCodeDachaStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeDachaStateOnLine;
         Boolean gridRelayCodeDachaStateSwitch =  tuyaDeviceService.getGridRelayCodeDachaStateSwitch();
@@ -157,7 +158,7 @@ public class DataHomeDto {
     }
 
     // Golego
-    public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, UsrTcpWiFiService usrTcpWiFiService) {
+    public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
         int portDacha = usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha();
         log.warn("Dacha inverter port [{}]: is -> [{}]", portDacha, usrTcpWiFiService.getStatusByPort(portDacha));
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
@@ -230,6 +231,20 @@ public class DataHomeDto {
             } else {
                 this.gridPower = 0;
             }
+
+            DataTemperatureDto temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutGolego);
+            if (temperatureDto != null) {
+                this.temperatureOut = temperatureDto.getTemperature();
+                this.humidityOut = temperatureDto.getHumidity();
+                this.luminanceOut = temperatureDto.getLuminance();
+            }
+            temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureInGolego);
+            if (temperatureDto != null) {
+                this.temperatureIn = temperatureDto.getTemperature();
+                this.humidityIn = temperatureDto.getHumidity();
+                this.luminanceIn = temperatureDto.getLuminance();
+            }
+
             this.solarPower = 0;
             this.dailyConsumptionPower = 0;
             this.dailyGridPower = 0;
