@@ -9,6 +9,7 @@ import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
 import org.nickas21.smart.data.dataEntityDto.DataHomeDto;
 import org.nickas21.smart.data.dataEntityDto.DataTemperatureDto;
 import org.nickas21.smart.tuya.TuyaDeviceService;
+import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 import org.nickas21.smart.util.LocationType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -58,6 +59,7 @@ public class AnalyticService {
     private final DataHomeService dataHomeService;
     private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
     private final TuyaDeviceService tuyaDeviceService;
+    private final UsrTcpWiFiService usrTcpWiFiService;
     public static final String patternYearFile = "yyyy";
     public static final String patternMonthFile = "yyyy-MM";
     public static final String patternDayKey = "yyyy-MM-dd";
@@ -110,10 +112,11 @@ public class AnalyticService {
         });
     }
 
-    public AnalyticService(DataHomeService dataHomeService, DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService tuyaDeviceService) {
+    public AnalyticService(DataHomeService dataHomeService, DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
         this.dataHomeService = dataHomeService;
         this.solarmanTuyaService = solarmanTuyaService;
         this.tuyaDeviceService = tuyaDeviceService;
+        this.usrTcpWiFiService = usrTcpWiFiService;
     }
 
     @Scheduled(fixedRateString = "${smart.analytic.update-rate:240000}")    // 4 min
@@ -355,6 +358,21 @@ public class AnalyticService {
 
         long finalTs = dataHomeDto.getTimestamp();
         if (finalTs < 1000000000000L) return;
+        long systemTs = System.currentTimeMillis();
+
+// ПЕРЕВІРКА НА "ЗАЛИПАННЯ" (Timeout 10 хвилин)
+        if (Math.abs(systemTs - finalTs) > 10 * 60 * 1000) {
+            log.error("ANALYTIC CRITICAL: Data for {} is STALE! Force closing socket...", locationType);
+
+            // Викликаємо твій метод через сервіс
+            int port = (locationType == LocationType.DACHA)
+                    ? usrTcpWiFiService.usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha()
+                    : usrTcpWiFiService.usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego();
+
+            usrTcpWiFiService.forceCloseSocket(port);
+
+            return; // Обов'язково виходимо, щоб не плодити криві дані
+        }
 
         // 2. Час суворо UTC
         ZonedDateTime zdtUtc = Instant.ofEpochMilli(finalTs).atZone(UTC);
@@ -414,8 +432,6 @@ public class AnalyticService {
                 analyticDto.setBmsDailyDischarge(prevDischarge);
             }
             fillTemperatureData(analyticDto, tuyaDeviceService.deviceIdTemperatureInGolego, tuyaDeviceService.deviceIdTemperatureOutGolego);
-//            log.info("BMS CALC GOLEGO: ts={}, deltaBms={}, discharge={}, charge={}",
-//                    finalTs, deltaBmsKwh, analyticDto.getBmsDailyDischarge(), analyticDto.getBmsDailyCharge());
         }
 
         // 6. Збереження

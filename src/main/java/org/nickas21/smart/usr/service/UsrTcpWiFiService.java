@@ -40,7 +40,7 @@ public class UsrTcpWiFiService {
     private String logsDir;
     @Getter
     private final UsrTcpWiFiProperties tcpProps;
-    private final UsrTcpWiFiParseData usrTcpWiFiParseData;
+    public final UsrTcpWiFiParseData usrTcpWiFiParseData;
     private final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
 
     @Autowired
@@ -128,7 +128,7 @@ public class UsrTcpWiFiService {
         });
     }
 
-    private void forceCloseSocket(int port) {
+    public void forceCloseSocket(int port) {
         Socket conn = activeConnections.get(port);
         if (conn != null && !conn.isClosed()) {
             try {
