@@ -125,7 +125,8 @@ public class DataHomeDto {
         if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
             this.gridPower = powerValueRealTimeData.getTotalGridPower();
             this.dailyGridPower = powerValueRealTimeData.getDailyEnergyBuy();
-            this.dailyConsumptionPower = powerValueRealTimeData.getDailyHomeConsumptionPower();
+            double dailyCommonConsumptionPower = this.gridPower + this.dailyProductionSolarPower;
+            this.dailyConsumptionPower = dailyCommonConsumptionPower - this.dailyBatteryCharge;
             this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
             this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
             this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());

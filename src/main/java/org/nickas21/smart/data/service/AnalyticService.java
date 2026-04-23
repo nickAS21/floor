@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.dataEntityDto.DataAnalyticDto;
 import org.nickas21.smart.data.dataEntityDto.DataHomeDto;
 import org.nickas21.smart.data.dataEntityDto.DataTemperatureDto;
@@ -57,7 +56,6 @@ public class AnalyticService {
     private final Map<String, List<DataAnalyticDto>> analyticCache = new HashMap<>();
 
     private final DataHomeService dataHomeService;
-    private final DefaultSmartSolarmanTuyaService solarmanTuyaService;
     private final TuyaDeviceService tuyaDeviceService;
     private final UsrTcpWiFiService usrTcpWiFiService;
     public static final String patternYearFile = "yyyy";
@@ -112,9 +110,8 @@ public class AnalyticService {
         });
     }
 
-    public AnalyticService(DataHomeService dataHomeService, DefaultSmartSolarmanTuyaService solarmanTuyaService, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
+    public AnalyticService(DataHomeService dataHomeService, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
         this.dataHomeService = dataHomeService;
-        this.solarmanTuyaService = solarmanTuyaService;
         this.tuyaDeviceService = tuyaDeviceService;
         this.usrTcpWiFiService = usrTcpWiFiService;
     }
