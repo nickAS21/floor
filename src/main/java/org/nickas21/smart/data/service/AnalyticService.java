@@ -358,10 +358,11 @@ public class AnalyticService {
 
         long finalTs = dataHomeDto.getTimestamp();
         if (finalTs < 1000000000000L) return;
-        long systemTs = System.currentTimeMillis();
+        long offsetMs = updateTimeStampToUtc(Instant.now().toEpochMilli()/1000L, locationType.getZoneId());
+        long systemTsWithOffset = Instant.now().toEpochMilli() + offsetMs;
 
 // ПЕРЕВІРКА НА "ЗАЛИПАННЯ" (Timeout 10 хвилин)
-        if (Math.abs(systemTs - finalTs) > 10 * 60 * 1000) {
+        if (Math.abs(systemTsWithOffset - finalTs) > 10 * 60 * 1000) {
             log.error("ANALYTIC CRITICAL: Data for {} is STALE! Force closing socket...", locationType);
 
             // Викликаємо твій метод через сервіс
