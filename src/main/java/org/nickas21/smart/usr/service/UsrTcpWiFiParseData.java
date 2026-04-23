@@ -523,53 +523,122 @@ public class UsrTcpWiFiParseData {
      */
     public byte[] parseAndProcessInverterDyey(byte[] buffer) {
         int currentIndex = 0;
-        int lastProcessedIndex = 0; // Краще використовувати цей індекс для залишку
+        int lastProcessedIndex = 0;
 
         while (true) {
             int startIndex = indexOf(buffer, START_SIGN_01_03, currentIndex);
 
-            // Якщо маркер не знайдено або недостатньо байтів для читання довжини
-            if (startIndex == -1 || startIndex + 2 >= buffer.length) break;
+            // 1. Якщо маркер не знайдено - перевіряємо наявність мережевого сміття (IP заголовків)
+            if (startIndex == -1) {
+                detectNetworkLeak(buffer, currentIndex);
+                break;
+            }
+
+            if (startIndex + 2 >= buffer.length) break;
 
             int dataLength = buffer[startIndex + 2] & 0xFF;
+            int expectedFullLength = dataLength + PACKET_DEYE_SERVICE_LENGTH;
 
-            // САНИТАРНА ПЕРЕВІРКА: щоб не чекати "нескінченний" пакет
+            // 2. Валідація довжини (захист від сміття з великою "фейковою" довжиною)
             if (dataLength > 200) {
                 currentIndex = startIndex + 1;
                 continue;
             }
 
-            int expectedFullLength = dataLength + PACKET_DEYE_SERVICE_LENGTH;
-
-            // ПЕРЕВІРКА: Чи весь пакет вже в буфері?
             if (startIndex + expectedFullLength <= buffer.length) {
-                try {
-                    byte[] payload = new byte[dataLength];
-                    System.arraycopy(buffer, startIndex + 3, payload, 0, dataLength);
-                    processInverterDeye(payload);
-                    // Зсуваємось за межі обробленого пакета
-                    currentIndex = startIndex + expectedFullLength;
-                    lastProcessedIndex = currentIndex;
+                // --- НОВА ВАЛІДАЦІЯ ЛАНЦЮЖКА ---
+                boolean isSequenceValid = false;
 
-                } catch (Exception e) {
-                    log.error("Error processing Deye payload: " + e.getMessage());
-                    // Якщо всередині process сталася біда — пробуємо шукати далі з наступного байта
+                // Якщо пакет останній у буфері
+                if (startIndex + expectedFullLength == buffer.length) {
+                    isSequenceValid = true;
+                } else {
+                    // Перевіряємо, чи наступні байти є початком нового валідного пакету
+                    if (startIndex + expectedFullLength + 1 < buffer.length) {
+                        byte n1 = buffer[startIndex + expectedFullLength];
+                        byte n2 = buffer[startIndex + expectedFullLength + 1];
+                        if (n1 == START_SIGN_01_03[0] && n2 == START_SIGN_01_03[1]) {
+                            isSequenceValid = true;
+                        }
+                    }
+                }
+
+                // 3. Обробка тільки якщо ланцюжок підтверджено
+                if (isSequenceValid) {
+                    try {
+                        byte[] payload = new byte[dataLength];
+                        System.arraycopy(buffer, startIndex + 3, payload, 0, dataLength);
+                        processInverterDeye(payload);
+
+                        currentIndex = startIndex + expectedFullLength;
+                        lastProcessedIndex = currentIndex;
+                    } catch (Exception e) {
+                        log.error("Error processing Deye payload: " + e.getMessage());
+                        currentIndex = startIndex + 1;
+                    }
+                } else {
+                    // Знайдений маркер був частиною сміття (наприклад, всередині IP пакету)
+                    // Шукаємо далі
                     currentIndex = startIndex + 1;
                 }
             } else {
-                // Пакет знайдено, але він ще не повний. Виходимо, щоб дочекатися решти.
+                // Пакет ще не повний, чекаємо довантаження
                 break;
             }
         }
 
-        // Якщо нічого не обробили, повертаємо весь буфер
         if (lastProcessedIndex == 0 && currentIndex == 0) return buffer;
-
-        // Якщо обробили все під нуль
         if (lastProcessedIndex >= buffer.length) return new byte[0];
 
-        // Повертаємо залишок (хвіст останнього незавершеного пакета)
         return Arrays.copyOfRange(buffer, lastProcessedIndex, buffer.length);
+    }
+
+    /**
+     * Детектор мережевого сміття (IPv4).
+     * Шукає ознаки IP-пакетів (0x45) та підмережі 192.168
+     */
+    private void detectNetworkLeak(byte[] buffer, int offset) {
+        for (int i = offset; i < buffer.length - 20; i++) {
+            // 0x45 - це стандартний початок IPv4 заголовка (Version 4, IHL 5)
+            if (buffer[i] == 0x45) {
+                try {
+                    // Розбираємо поля згідно зі структурою IPv4
+                    int version = (buffer[i] >> 4) & 0x0F;
+                    int ihl = (buffer[i] & 0x0F) * 4; // Довжина заголовка в байтах
+                    int totalLength = ((buffer[i + 2] & 0xFF) << 8) | (buffer[i + 3] & 0xFF);
+                    int ttl = buffer[i + 8] & 0xFF;
+                    int protocol = buffer[i + 9] & 0xFF; // 6 = TCP, 17 = UDP
+
+                    // Формуємо IP адреси
+                    String srcIp = String.format("%d.%d.%d.%d",
+                            buffer[i + 12] & 0xFF, buffer[i + 13] & 0xFF,
+                            buffer[i + 14] & 0xFF, buffer[i + 15] & 0xFF);
+
+                    String dstIp = String.format("%d.%d.%d.%d",
+                            buffer[i + 16] & 0xFF, buffer[i + 17] & 0xFF,
+                            buffer[i + 18] & 0xFF, buffer[i + 19] & 0xFF);
+
+                    // Виводимо все в один інформативний лог
+                    log.warn("--- DETECTED NETWORK TRASH (IPv4) ---");
+                    log.warn("Header Pos: [{}], Total Len: [{}], TTL: [{}]", i, totalLength, ttl);
+                    log.warn("Protocol: [{}] (6=TCP, 17=UDP)", protocol);
+                    log.warn("Source IP:      [{}]", srcIp);
+                    log.warn("Destination IP: [{}]", dstIp);
+
+                    // Якщо хочеш бачити сирі байти цього заголовка для дебагу
+                    StringBuilder hex = new StringBuilder();
+                    for (int j = 0; j < Math.min(totalLength, 20); j++) {
+                        hex.append(String.format("%02X ", buffer[i + j]));
+                    }
+                    log.warn("Raw Header Hex: [{}]", hex.toString().trim());
+                    log.warn("-------------------------------------");
+
+                    break; // Знайшли один — виходимо
+                } catch (Exception e) {
+                    log.error("Error parsing network trash: {}", e.getMessage());
+                }
+            }
+        }
     }
 //    public static boolean isFrameDyeyCrcValid(byte[] buffer, int startIndex, int fullLength) {
 //        // Довжина даних для розрахунку (весь пакет мінус 2 останні байти CRC)
