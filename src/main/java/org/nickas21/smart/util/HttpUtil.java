@@ -85,13 +85,14 @@ public class HttpUtil {
     public static String toLocaleTimeString(Long milliSec) {
         return toLocaleTimeString(Instant.ofEpochMilli(milliSec));
     }
+
     public static String toLocaleTimeString(Instant curInst) {
         DateTimeFormatter formatter = DateTimeFormatter
-                .ofLocalizedTime(FormatStyle.MEDIUM)
-                .withLocale(locale)
+                .ofPattern("HH:mm:ss") // "HH" — is 24-format (00-23)
                 .withZone(timeZone.toZoneId());
         return formatter.format(curInst);
     }
+
     public static String toLocaleDateString(Long milliSec) {
         return toLocaleDateString(Instant.ofEpochMilli(milliSec));
     }
