@@ -70,7 +70,7 @@ public class HttpUtil {
     public static final String productionDailySolarPowerKey = "Etdy_ge1";   // kWh
 
     public static final Locale locale = Locale.forLanguageTag("en-US");
-    public static final TimeZone timeZone = TimeZone.getTimeZone("Europe/Kyiv");
+    public static final ZoneId timeZoneMain =LocationType.DACHA.getZoneId();
     // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
     // Поправка                      00:13                     23:00
     public static final int timeLocalNightTariffStart = 23;
@@ -89,7 +89,7 @@ public class HttpUtil {
     public static String toLocaleTimeString(Instant curInst) {
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofPattern("HH:mm:ss") // "HH" — is 24-format (00-23)
-                .withZone(timeZone.toZoneId());
+                .withZone(timeZoneMain);
         return formatter.format(curInst);
     }
 
@@ -100,14 +100,14 @@ public class HttpUtil {
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofLocalizedDate(FormatStyle.FULL)
                 .withLocale(locale)
-                .withZone(timeZone.toZoneId());
+                .withZone(timeZoneMain);
         return formatter.format(curInst);
     }
     public static String toLocaleDateTimeString(Instant curInst) {
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.MEDIUM)
                 .withLocale(locale)
-                .withZone(timeZone.toZoneId());
+                .withZone(timeZoneMain);
         return formatter.format(curInst);
     }
     public static int toLocaleDateTimeHour() {
@@ -134,7 +134,7 @@ public class HttpUtil {
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
                 .withLocale(Locale.forLanguageTag("uk-UA"))
-                .withZone(timeZone.toZoneId());
+                .withZone(timeZoneMain);
         return formatter.format(Instant.ofEpochMilli(milliSec));
     }
 
@@ -142,7 +142,7 @@ public class HttpUtil {
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.SHORT)
                 .withLocale(Locale.US)
-                .withZone(timeZone.toZoneId());
+                .withZone(timeZoneMain);
         return formatter.format(Instant.ofEpochMilli(milliSec));
     }
 
@@ -169,7 +169,7 @@ public class HttpUtil {
     public static Long[] getSunRiseSunset(double locationLat, double locationLng) {
         Long[] result = new Long[2];
         log.info("GetSunRiseSunset Calendar dateTime: [{}]", toLocaleDateTimeString(Calendar.getInstance().toInstant()));
-        Calendar date = Calendar.getInstance(timeZone);
+        Calendar date = Calendar.getInstance(TimeZone.getTimeZone(timeZoneMain));
         int localOffsetHrs = ZoneId.systemDefault().getRules().getOffset(Instant.ofEpochMilli(date.getTimeInMillis())).getTotalSeconds()/60/60;
 
         if (date.get(Calendar.HOUR_OF_DAY) <= localOffsetHrs) {
@@ -186,7 +186,6 @@ public class HttpUtil {
     public static boolean isDeviceInHandleMode(String deviceId){
         return devicesInHandleMode.get(deviceId) != null;
     }
-
 
     /**
      * curHour == (6:50 - 8:00)

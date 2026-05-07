@@ -19,7 +19,7 @@ dacha:
 golego:
   settings:
     devices_change_handle_control: "${DEVICES_CHANGE_HANDLE_CONTROL_GOLEGO:false}"
-    battery_critical_night_soc_charging: "${BATTERY_SOC_CRITICAL_NIGHT_CHARGING:60}"
+    battery_critical_night_soc_charging: "${BATTERY_SOC_CRITICAL_NIGHT_CHARGING:95}"
     heater_grid_auto_all_day: "${HEATER_GRID_AUTO_ALL_DAY_GOLEGO:false}"
 
 springdoc:

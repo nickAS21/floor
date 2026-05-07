@@ -33,11 +33,8 @@ import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.reactive.function.client.ClientRequest;
-import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
-import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -122,8 +119,8 @@ public class TuyaDeviceService {
 
     @Getter
     @Setter
-    @Value("${golego.settings.battery_critical_night_soc_charging:60}")
-    private double batteryCriticalNightSocWinterGolego; //60, 50, 40;
+    @Value("${golego.settings.battery_critical_night_soc_charging:95}")
+    private double batteryCriticalNightSocWinterGolego; //95 - для стабільності, 60, 50, 40;
 
     @Getter
     @Setter
@@ -182,7 +179,7 @@ public class TuyaDeviceService {
     private final Lock queueLock = new ReentrantLock();
     private final RestTemplate httpClient = new RestTemplate();
     private final WebClient authClient = WebClient.builder().build();
-    private final WebClient webClient;
+//    private final WebClient webClient;
     private Long timeoutSecUpdateMillis;
     private boolean batteryCriticalOrHeatNightDachaWinter = false;
     private boolean batteryCriticalOrHeatNightGolego = false;
@@ -195,13 +192,13 @@ public class TuyaDeviceService {
     public TuyaDeviceService(TuyaConnectionProperties connectionConfiguration, TuyaDeviceProperties deviceProperties) {
         this.connectionConfiguration = connectionConfiguration;
         this.deviceProperties = deviceProperties;
-        this.webClient = WebClient.builder()
-                .baseUrl(connectionConfiguration.getRegion().getApiUrl())
-                .filter(ExchangeFilterFunction.ofRequestProcessor(
-                        (ClientRequest request) -> Mono.just(ClientRequest.from(request)
-                                .headers(httpHeaders -> httpHeaders.setBearerAuth(getTuyaToken().getAccessToken()))
-                                .build())))
-                .build();
+//        this.webClient = WebClient.builder()
+//                .baseUrl(connectionConfiguration.getRegion().getApiUrl())
+//                .filter(ExchangeFilterFunction.ofRequestProcessor(
+//                        (ClientRequest request) -> Mono.just(ClientRequest.from(request)
+//                                .headers(httpHeaders -> httpHeaders.setBearerAuth(getTuyaToken().getAccessToken()))
+//                                .build())))
+//                .build();
     }
 
     public void init() {
@@ -604,7 +601,7 @@ public class TuyaDeviceService {
         String ts = String.valueOf(System.currentTimeMillis());
         String signature = sign(this.connectionConfiguration.getAk() + ts +
                 stringToSign(path, getBodyHash(null), HttpMethod.GET), this.connectionConfiguration.getSk());
-        ResponseSpec responseSpec = authClient.get()
+        ResponseSpec responseSpec = this.authClient.get()
                 .uri(connectionConfiguration.getRegion().getApiUrl(),
                         uriBuilder -> uriBuilder
                                 .path(path)
@@ -985,27 +982,48 @@ public class TuyaDeviceService {
     }
 
     public DataTemperatureDto getTemperatureValueById(String deviceIdTemperature) {
-        // 1. Спроба взяти відразу (якщо id != null)
-        Device device = this.devices.getDevIds().get(deviceIdTemperature);
-        if (device != null) {
-            return new DataTemperatureDto(device.getStatus());
+        // 1. Швидка перевірка кешу
+        if (this.devices != null && this.devices.getDevIds() != null) {
+            Device device = this.devices.getDevIds().get(deviceIdTemperature);
+            if (device != null) {
+                return new DataTemperatureDto(device.getStatus());
+            }
         }
 
-        // 2. Якщо null — чекаємо до 4 хвилин, поки хтось інший покладе дані в мапу
-        try {
-            return CompletableFuture.supplyAsync(() -> {
-                // Крутимося, поки не з'явиться девайс
-                Device d = null;
-                while (d == null) {
-                    d = this.devices.getDevIds().get(deviceIdTemperature);
-                }
-                return new DataTemperatureDto(d.getStatus());
-            }).get(4, TimeUnit.MINUTES); // Ось тут магія очікування без ручного sleep
+        // 2. Якщо даних немає, замість циклу while/sleep використовуємо
+        // асинхронне очікування через CompletableFuture
+        log.info("Device {} not in cache. Waiting for data without blocking threads...", deviceIdTemperature);
 
+        try {
+            return waitForDeviceData(deviceIdTemperature, 0)
+                    .get(4, TimeUnit.MINUTES);
         } catch (Exception e) {
-            log.error("Не дочекалися девайса {} за 4 хвилини", deviceIdTemperature);
+            log.error("Failed to get data for device {} after timeout: {}", deviceIdTemperature, e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Рекурсивний метод, який використовує системний планувальник замість Thread.sleep()
+     */
+    private CompletableFuture<DataTemperatureDto> waitForDeviceData(String deviceId, int attempt) {
+        // Якщо перевищили кількість спроб (наприклад, 120 спроб по 2 сек = 4 хв)
+        if (attempt >= 120) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Перевіряємо наявність даних
+        if (this.devices != null && this.devices.getDevIds() != null) {
+            Device device = this.devices.getDevIds().get(deviceId);
+            if (device != null) {
+                return CompletableFuture.completedFuture(new DataTemperatureDto(device.getStatus()));
+            }
+        }
+
+        // Замість sleep — відкладаємо наступну перевірку в Executor
+        return CompletableFuture.supplyAsync(() -> null,
+                        CompletableFuture.delayedExecutor(2, TimeUnit.SECONDS))
+                .thenCompose(v -> waitForDeviceData(deviceId, attempt + 1));
     }
 
     public String getGridRelayCodeIdGolego() {
@@ -1110,9 +1128,7 @@ public class TuyaDeviceService {
         Device device = this.devices.getDevIds().get(gridRelayCodeId);
         if (device == null || device.currentStateOnLine() == null || !device.currentStateOnLine().getValue()) {
             log.error("Device Relay Golego switch is null... , is offline... and is not update");
-        }
-
-       if (device.currentStateOnLine().getValue()) {
+        } else if (device.currentStateOnLine().getValue()) {
             boolean paramOnOff = false; // isSwitchRelayAfterNightOff()
             boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
             if (batterySocFromUsr >= 0 && batterySocFromUsr < ALARM.getSoc()) {
@@ -1395,10 +1411,6 @@ public class TuyaDeviceService {
             return true;
         }
         return false;
-    }
-
-    public void getTemperatureValue(String temperatureCodeId) {
-        Entry<Long, Boolean> gridStateOnLine = this.devices.getDevIds().get(temperatureCodeId).currentStateOnLine();
     }
 
     private boolean tryPutToQueue(Map<Device, DeviceUpdate> queue, Device device, DeviceUpdate update) {
