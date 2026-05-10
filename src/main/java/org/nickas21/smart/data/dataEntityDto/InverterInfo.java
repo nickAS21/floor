@@ -28,12 +28,12 @@ public enum InverterInfo {
     DACHA(
             "Hybrid Inverter",
             "Deye",
-            "SUN-12K-SG05LP3-EU- SM2 -> master + slave",
+            "SUN-12K-SG05LP3-EU-SM2 -> master + slave",
             24.0,
             LocalDate.of(2026, 5, 4),
             PhaseType.THREE_PHASE,
             true,
-            "240А 2*MPPT: PV: 2+1",
+            "240А 2*MPPT: PV: 1+1",
             48,
             LocationType.DACHA // Передаємо об'єкт локації
     );

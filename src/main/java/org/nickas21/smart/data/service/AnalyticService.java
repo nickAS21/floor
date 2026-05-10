@@ -300,32 +300,6 @@ public class AnalyticService {
         }
     }
 
-//    private synchronized void saveToMonthlyFile(DataAnalyticDto dto) {
-//        ZonedDateTime zdt = getZonedDateTimeInverter(dto.getTimestamp(), dto.getLocation());
-//        LocalDate pointDate = zdt.toLocalDate();
-//        String monthSuffix = pointDate.format(DateTimeFormatter.ofPattern(patternMonthFile));
-//        Path path = getPathFile(dto.getLocation(), monthSuffix);
-//        try {
-//            if (Files.notExists(path.getParent())) Files.createDirectories(path.getParent());
-//            Map<String, List<DataAnalyticDto>> monthData;
-//            if (Files.exists(path)) {
-//                String json = Files.readString(path, StandardCharsets.UTF_8);
-//                monthData = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<DataAnalyticDto>>>() {});
-//            } else {
-//                monthData = new LinkedHashMap<>();
-//            }
-//            String mapDateKey = generateMapDateKey(pointDate, dto.getLocation());
-//            List<DataAnalyticDto> currentTimeDateAnalyticDtos = this.analyticCache.computeIfAbsent(mapDateKey,
-//                    k -> Collections.synchronizedList(new ArrayList<>()));
-//            monthData.put(mapDateKey, new ArrayList<>(currentTimeDateAnalyticDtos));
-//            String resultJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(monthData);
-//            Files.writeString(path, resultJson, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-//        } catch (IOException e) {
-//            log.error("Failed to save file for {}: ", monthSuffix, e);
-//            throw new RuntimeException("FileSystem error during import for " + monthSuffix + ": " + e.getMessage());
-//        }
-//    }
-
     private synchronized void saveToMonthlyFile(LocalDate localDate, List<DataAnalyticDto> dtos, LocationType locationType) {
         String monthSuffix = localDate.format(DateTimeFormatter.ofPattern(patternMonthFile));
         Path path = getPathFile(locationType, monthSuffix);

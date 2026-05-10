@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.BatteryStatus;
 import org.nickas21.smart.solarman.Seasons;
+import org.nickas21.smart.solarman.SolarmanDevice;
 import org.nickas21.smart.solarman.SolarmanStationsService;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.RealTimeDataValue;
@@ -19,6 +20,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.nickas21.smart.util.HttpUtil.batteryCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.batteryPowerKey;
@@ -268,115 +270,121 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         }
     }
 
+    /**
+     * For loop: Now we don't make a single query, but go through all the devices of the station.
+     * 1) Summation: Parameters such as Solar Power, Load, Daily Energy are now added up.
+     * 2) Average: For SOC (battery charge) and temperature, we divide the sum by the number of devices, because percentages cannot be summed.
+     * 3) Shared data: We take the firmware versions and grid relay status from the first successfully polled inverter (usually the Master), since they are identical for the entire system.
+     */
     private void updatePowerValue() {
-        RealTimeData solarmanRealTimeData = solarmanStationsService.getRealTimeData();
+        // Акумулятори для СУМ
+        double totalSolarSum = 0, totalHomeSum = 0, totalGridSum = 0;
+        double batteryPowerSum = 0, bmsCurrentSum = 0, batteryCurrentFactSum = 0;
+        double dailyChargeSum = 0, dailyDischargeSum = 0;
+        double totalProdSolarSum = 0, dailyProdSolarSum = 0, dailyHomeConsSum = 0;
+        double totalSellSum = 0, totalBuySum = 0, dailySellSum = 0, dailyBuySum = 0;
 
-        String inverterProtocolVersionValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(invProtocolVerKey)).findFirst()
-                .map(RealTimeDataValue::getValue).orElse("");
-        String inverterMAINValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(invMAINKey)).findFirst()
-                .map(RealTimeDataValue::getValue).orElse("");
-        String inverterHMIValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(invHMIKey)).findFirst()
-                .map(RealTimeDataValue::getValue).orElse("");
-        double inverterTempValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(invTempKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        // battery
-        double bmsSocValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(bmsSocKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double bmsTempValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(bmsTempKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double batterySocValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batterySocKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        String batteryStatusValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryStatusKey)).findFirst()
-                .map(RealTimeDataValue::getValue).orElse(null);
-        double batteryPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryPowerKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
-        double bmsVoltageValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(bmsVoltageKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-         double bmsCurrentValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(bmsCurrentKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double batteryVoltageValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryVoltageKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double batteryCurrentValueFact = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(batteryCurrentKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double batteryCurrentValue =  batteryCurrentValueFact == 0 && batteryVoltageValue != 0 ? Math.round((batteryPowerValue/batteryVoltageValue) * 1000.0) / 1000.0 : batteryCurrentValueFact;
-        double dailyBatteryChargeValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyBatteryChargeKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double dailyBatteryDischargeValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyBatteryDischargeKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double totalProductionSolarPowerValue = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalProductionSolarPowerKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double homeDailyConsumptionPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(homeDailyConsumptionPowerKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
-        double productionDailySolarPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(productionDailySolarPowerKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+        // Акумулятори для СЕРЕДНІХ значень
+        double bmsSocSum = 0, batterySocSum = 0, bmsTempSum = 0, invTempSum = 0;
+        double bmsVoltSum = 0, batteryVoltSum = 0;
 
+        int activeDevices = 0;
+        long latestTime = 0;
 
-        double totalSolarPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalSolarPowerKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
+        for (SolarmanDevice device : this.solarmanStationsService.solarmanStation.getDevices().values()) {
+            RealTimeData data = this.solarmanStationsService.getRealTimeData(device.getInverterSn(), device.getInverterId());
+            if (data == null || data.getDataList() == null) continue;
 
-        double totalConsumptionPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalHomeConsumptionPowerKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
+            activeDevices++;
+            latestTime = Math.max(latestTime, data.getCollectionTime());
+            List<RealTimeDataValue> list = data.getDataList();
 
-        double totalEnergySell = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalEnergySellKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+            // 1. Сумуємо показники
+            totalSolarSum += getDouble(list, totalSolarPowerKey);
+            totalHomeSum += getDouble(list, totalHomeConsumptionPowerKey);
+            totalGridSum += getDouble(list, totalGridPowerKey);
+            batteryPowerSum += getDouble(list, batteryPowerKey);
+            bmsCurrentSum += getDouble(list, bmsCurrentKey);
+            batteryCurrentFactSum += getDouble(list, batteryCurrentKey);
+            dailyChargeSum += getDouble(list, dailyBatteryChargeKey);
+            dailyDischargeSum += getDouble(list, dailyBatteryDischargeKey);
+            totalProdSolarSum += getDouble(list, totalProductionSolarPowerKey);
+            dailyProdSolarSum += getDouble(list, productionDailySolarPowerKey);
+            dailyHomeConsSum += getDouble(list, homeDailyConsumptionPowerKey);
+            totalSellSum += getDouble(list, totalEnergySellKey);
+            totalBuySum += getDouble(list, totalEnergyBuyKey);
+            dailySellSum += getDouble(list, dailyEnergySellKey);
+            dailyBuySum += getDouble(list, dailyEnergyBuyKey);
 
-        double totalEnergyBuy = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalEnergyBuyKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+            // 2. Додаємо для розрахунку середнього
+            bmsSocSum += getDouble(list, bmsSocKey);
+            batterySocSum += getDouble(list, batterySocKey);
+            bmsTempSum += getDouble(list, bmsTempKey);
+            invTempSum += getDouble(list, invTempKey);
+            bmsVoltSum += getDouble(list, bmsVoltageKey);
+            batteryVoltSum += getDouble(list, batteryVoltageKey);
 
-        double dailyEnergySell = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyEnergySellKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+            // 3. Текстові дані та напругу мережі беремо з першого (Master)
+            if (activeDevices == 1) {
+                powerValueRealTimeData.setInverterProtocolVersionValue(getString(list, invProtocolVerKey));
+                powerValueRealTimeData.setInverterMAINValue(getString(list, invMAINKey));
+                powerValueRealTimeData.setInverterHMIValue(getString(list, invHMIKey));
+                powerValueRealTimeData.setBatteryStatusValue(getString(list, batteryStatusKey));
+                powerValueRealTimeData.setGridStatusRelay(getString(list, gridRelayStatusKey));
+                powerValueRealTimeData.setGridStatusSolarman(getString(list, gridStatusKey));
+                powerValueRealTimeData.setGridVoltageL1(getDouble(list, gridVoltageL1Key));
+                powerValueRealTimeData.setGridVoltageL2(getDouble(list, gridVoltageL2Key));
+                powerValueRealTimeData.setGridVoltageL3(getDouble(list, gridVoltageL3Key));
+            }
+        }
 
-        double dailyEnergyBuy = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(dailyEnergyBuyKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse(0.0);
+        if (activeDevices == 0) return;
 
-        double totalGridPower = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(totalGridPowerKey)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
+        // ЗАПИС АГРЕГОВАНИХ ДАНИХ
+        powerValueRealTimeData.setCollectionTime(latestTime);
 
-        String gridRelayStatus = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridRelayStatusKey)).findFirst()
-                .map(RealTimeDataValue::getValue).orElse(null);
-        String gridStatus = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridStatusKey)).findFirst()
-                .map(RealTimeDataValue::getValue).orElse(null);
-        double gridVoltageL1 = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridVoltageL1Key)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
-        double gridVoltageL2 = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridVoltageL2Key)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
-        double gridVoltageL3 = solarmanRealTimeData.getDataList().stream().filter(value -> value.getKey().equals(gridVoltageL3Key)).findFirst()
-                .map(realTimeDataValue -> Double.parseDouble(realTimeDataValue.getValue())).orElse((double) 0);
+        // Суми
+        powerValueRealTimeData.setTotalSolarPower(totalSolarSum);
+        powerValueRealTimeData.setTotalHomePower(totalHomeSum);
+        powerValueRealTimeData.setTotalGridPower(totalGridSum);
+        powerValueRealTimeData.setBatteryPowerValue(batteryPowerSum);
+        powerValueRealTimeData.setBmsCurrentValue(bmsCurrentSum);
+        powerValueRealTimeData.setDailyBatteryCharge(dailyChargeSum);
+        powerValueRealTimeData.setDailyBatteryDischarge(dailyDischargeSum);
+        powerValueRealTimeData.setTotalProductionSolarPower(totalProdSolarSum);
+        powerValueRealTimeData.setDailyProductionSolarPower(dailyProdSolarSum);
+        powerValueRealTimeData.setDailyHomeConsumptionPower(dailyHomeConsSum);
+        powerValueRealTimeData.setTotalEnergySell(totalSellSum);
+        powerValueRealTimeData.setTotalEnergyBuy(totalBuySum);
+        powerValueRealTimeData.setDailyEnergySell(dailySellSum);
+        powerValueRealTimeData.setDailyEnergyBuy(dailyBuySum);
 
-        powerValueRealTimeData.setCollectionTime(solarmanRealTimeData.getCollectionTime());
-        powerValueRealTimeData.setInverterProtocolVersionValue(inverterProtocolVersionValue);
-        powerValueRealTimeData.setInverterMAINValue(inverterMAINValue);
-        powerValueRealTimeData.setInverterHMIValue(inverterHMIValue);
-        powerValueRealTimeData.setInverterTempValue(inverterTempValue);
+        // Середні (ділимо на кількість активних інверторів)
+        double avgBatteryVolt = batteryVoltSum / activeDevices;
+        powerValueRealTimeData.setBmsSocValue(bmsSocSum / activeDevices);
+        powerValueRealTimeData.setBatterySocValue(batterySocSum / activeDevices);
+        powerValueRealTimeData.setBmsTempValue(bmsTempSum / activeDevices);
+        powerValueRealTimeData.setInverterTempValue(invTempSum / activeDevices);
+        powerValueRealTimeData.setBmsVoltageValue(bmsVoltSum / activeDevices);
+        powerValueRealTimeData.setBatteryVoltageValue(avgBatteryVolt);
 
-        //battery
-        powerValueRealTimeData.setBmsSocValue(bmsSocValue);
-        powerValueRealTimeData.setBmsTempValue(bmsTempValue);
-        powerValueRealTimeData.setBatterySocValue(batterySocValue);
-        powerValueRealTimeData.setBatteryStatusValue(batteryStatusValue);
-        powerValueRealTimeData.setBatteryPowerValue(batteryPowerValue);
+        // Розрахунок струму (Твоя логіка з Math.round)
+        double batteryCurrentValue = (batteryCurrentFactSum == 0 && avgBatteryVolt != 0)
+                ? Math.round((batteryPowerSum / avgBatteryVolt) * 1000.0) / 1000.0
+                : batteryCurrentFactSum;
         powerValueRealTimeData.setBatteryCurrentValue(batteryCurrentValue);
-        powerValueRealTimeData.setBatteryVoltageValue(batteryVoltageValue);
-        powerValueRealTimeData.setBmsVoltageValue(bmsVoltageValue);
-        powerValueRealTimeData.setBmsCurrentValue(bmsCurrentValue);
-        powerValueRealTimeData.setDailyBatteryCharge(dailyBatteryChargeValue);
-        powerValueRealTimeData.setDailyBatteryDischarge(dailyBatteryDischargeValue);
-        powerValueRealTimeData.setTotalProductionSolarPower(totalProductionSolarPowerValue);
-        powerValueRealTimeData.setDailyHomeConsumptionPower(homeDailyConsumptionPower);
-        powerValueRealTimeData.setDailyProductionSolarPower(productionDailySolarPower);
+    }
 
-        powerValueRealTimeData.setTotalSolarPower(totalSolarPower);
-        powerValueRealTimeData.setTotalHomePower(totalConsumptionPower);
-        powerValueRealTimeData.setTotalEnergySell(totalEnergySell);
-        powerValueRealTimeData.setTotalEnergyBuy(totalEnergyBuy);
-        powerValueRealTimeData.setDailyEnergySell(dailyEnergySell);
-        powerValueRealTimeData.setDailyEnergyBuy(dailyEnergyBuy);
-        powerValueRealTimeData.setGridStatusRelay(gridRelayStatus);
-        powerValueRealTimeData.setGridStatusSolarman(gridStatus);
-        powerValueRealTimeData.setTotalGridPower(totalGridPower);
-        powerValueRealTimeData.setGridVoltageL1(gridVoltageL1);
-        powerValueRealTimeData.setGridVoltageL2(gridVoltageL2);
-        powerValueRealTimeData.setGridVoltageL3(gridVoltageL3);
+    // Допоміжні методи для чистоти коду
+    private double getDouble(List<RealTimeDataValue> list, String key) {
+        return list.stream().filter(v -> v.getKey().equals(key)).findFirst()
+                .map(v -> { try { return Double.parseDouble(v.getValue()); } catch (Exception e) { return 0.0; } })
+                .orElse(0.0);
+    }
+
+    private String getString(List<RealTimeDataValue> list, String key) {
+        return list.stream().filter(v -> v.getKey().equals(key)).findFirst()
+                .map(RealTimeDataValue::getValue).orElse("");
     }
 
 

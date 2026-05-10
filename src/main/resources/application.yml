@@ -55,7 +55,7 @@ connector:
     username:
     password:
     #    password-hash:
-    logger-sn: "${CONNECTOR_SOLARMAN_LOGGER-SN:}"
+    logger-sns: "${CONNECTOR_SOLARMAN_LOGGER_SNS:}"
 smart:
   tuya:
     temp_set_min: "${TUYA_TEMP_SET_MIN:5}"

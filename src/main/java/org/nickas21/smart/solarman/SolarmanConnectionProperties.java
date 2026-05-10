@@ -15,7 +15,7 @@ public class SolarmanConnectionProperties {
     private String username;
     private String password;
     private String passwordHash;
-    private String loggerSn;
+    private String[] loggerSns;
 
     public String getPasswordHash() {
         return StringUtils.hasLength(passwordHash) ? passwordHash : getBodyHash(password);

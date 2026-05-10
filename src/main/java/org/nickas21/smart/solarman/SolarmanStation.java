@@ -3,14 +3,17 @@ package org.nickas21.smart.solarman;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 @Data
 @Builder
 public class SolarmanStation {
     private String name;
     private Long stationId;
-    private String inverterSn;
-    private Long inverterId;
-    private Long loggerId;
+
+    @Builder.Default
+    private ConcurrentHashMap<String, SolarmanDevice> devices = new ConcurrentHashMap<>();
+
     @Builder.Default
     private Long timeoutSec = 120L;
     @Builder.Default
@@ -31,6 +34,6 @@ public class SolarmanStation {
     private int dopPowerToMin = 800;
     @Builder.Default
     private int seasonsId = 3;  // Summer - 3, Winter - 1
-    private double locationLat;   //": 50.31023634165624,
+    private double locationLat;
     private double locationLng;
 }

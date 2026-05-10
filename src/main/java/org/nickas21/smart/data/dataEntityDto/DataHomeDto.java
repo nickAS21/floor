@@ -87,6 +87,8 @@ public class DataHomeDto {
     public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
         InverterDataDacha inverterData = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha(), InverterDataDacha.class);
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
+        // TODO after two logger add
+        inverterData = null;
         if (inverterData != null && inverterData.getLastTime().toEpochMilli() != inverterData.getStartTime().toEpochMilli()){
             this.timestamp = inverterData.getLastTime().toEpochMilli();
             InverterDataDachaAcBatteryBlock106 batteryBlock106 = inverterData.getInverterDataDachaAcBatteryBlock106();

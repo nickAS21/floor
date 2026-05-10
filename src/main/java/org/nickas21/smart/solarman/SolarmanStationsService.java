@@ -3,7 +3,6 @@ package org.nickas21.smart.solarman;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.solarman.api.Communication;
-import org.nickas21.smart.solarman.api.HistoricalOneDayTimeData;
 import org.nickas21.smart.solarman.api.RealTimeData;
 import org.nickas21.smart.solarman.api.SolarmanToken;
 import org.nickas21.smart.solarman.api.Station;
@@ -17,8 +16,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_COMMUNICATION;
 import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_CURRENT_DATA;
-import static org.nickas21.smart.solarman.api.ApiPath.DEVICE_HISTORICAL_DATA;
 import static org.nickas21.smart.solarman.api.ApiPath.STATION_LIST;
 import static org.nickas21.smart.solarman.api.ApiPath.TOKEN;
 import static org.nickas21.smart.util.JacksonUtil.fromString;
@@ -39,7 +35,7 @@ public class SolarmanStationsService {
     private final SolarmanConnectionProperties solarmanConnectionProperties;
     private final SolarmanStationProperties stationProperties;
     @Getter
-    private SolarmanStation solarmanStation;
+    public SolarmanStation solarmanStation;
     private SolarmanToken accessSolarmanToken;
     private Map<Long, Station> stations;
     private final WebClient authClient = WebClient.builder().build();
@@ -164,8 +160,11 @@ public class SolarmanStationsService {
             solarmanStation.setLocationLat(stations.get(stationId).getLocationLat());
             solarmanStation.setLocationLng(stations.get(stationId).getLocationLng());
             log.info("First station id: [{}], name [{}]", stationId, stationName);
-            String loggerSn = this.solarmanConnectionProperties.getLoggerSn();
-            getDeviceCommunication(loggerSn);
+
+            for (String loggerSn : this.solarmanConnectionProperties.getLoggerSns()) {
+                getDeviceCommunication(loggerSn);
+            }
+
         }
     }
 
@@ -211,78 +210,55 @@ public class SolarmanStationsService {
 
     private void getDeviceCommunication(String loggerSn) {
         try {
-            // Твій запит, але з таймаутом, щоб не чекати вічно
-            Optional<CommunicationResponse> result = webClient.post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(DEVICE_COMMUNICATION)
-                            .queryParam("language", "en")
-                            .build())
-                    .headers(httpHeaders -> {
-                        httpHeaders.add("t", String.valueOf(System.currentTimeMillis()));
-                        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
-                    })
-                    .bodyValue(new CommunicationRequest(loggerSn))
-                    .retrieve()
-                    .bodyToMono(CommunicationResponse.class)
-                    .timeout(Duration.ofSeconds(10))
-                    .blockOptional();
+            webClient.post()
+                .uri(uriBuilder -> uriBuilder.path(DEVICE_COMMUNICATION).queryParam("language", "en").build())
+                .headers(httpHeaders -> {
+                    httpHeaders.add("t", String.valueOf(System.currentTimeMillis()));
+                    httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+                })
+                .bodyValue(new CommunicationRequest(loggerSn))
+                .retrieve()
+                .bodyToMono(CommunicationResponse.class)
+                .timeout(Duration.ofSeconds(10))
+                .blockOptional()
+                .ifPresent(response -> {
+                    Communication communication = response.communication();
+                    if (communication == null || communication.getChildList() == null || communication.getChildList().isEmpty()) return;
 
-            // Замість orElseThrow() використовуємо ifPresent, щоб не крашити додаток
-            result.ifPresent(response -> {
-                Communication communication = response.communication();
-                if (communication == null) return;
-
-                // Твоя перевірка ChildList, але безпечна (без IndexOutOfBoundsException)
-                if (communication.getChildList() != null && !communication.getChildList().isEmpty()) {
                     var firstInverter = communication.getChildList().getFirst();
-                    boolean isError = false;
 
-                    // Перевірка Inverter SN
-                    if (StringUtils.hasLength(firstInverter.getDeviceSn())) {
-                        solarmanStation.setInverterSn(firstInverter.getDeviceSn());
-                    } else {
-                        log.error("Create solarman InverterInfo Sn required, not null.");
-                        isError = true;
+                    if (!StringUtils.hasLength(firstInverter.getDeviceSn()) ||
+                            firstInverter.getDeviceId() == null || firstInverter.getDeviceId() <= 0 ||
+                            communication.getDeviceId() == null || communication.getDeviceId() <= 0) {
+                        log.error("Solarman data invalid for loggerSn: {}", loggerSn);
+                        return;
                     }
 
-                    // Перевірка Inverter ID
-                    if (firstInverter.getDeviceId() != null && firstInverter.getDeviceId() > 0) {
-                        solarmanStation.setInverterId(firstInverter.getDeviceId());
-                    } else {
-                        log.error("Create solarman InverterInfo Id required, not zero.");
-                        isError = true;
-                    }
+                    SolarmanDevice solarmanDevice = SolarmanDevice.builder()
+                            .loggerSn(loggerSn)
+                            .inverterSn(firstInverter.getDeviceSn())
+                            .inverterId(firstInverter.getDeviceId())
+                            .loggerId(communication.getDeviceId())
+                            .build();
 
-                    // Перевірка Logger ID
-                    if (communication.getDeviceId() != null && communication.getDeviceId() > 0) {
-                        solarmanStation.setLoggerId(communication.getDeviceId());
-                    } else {
-                        log.error("Create solarman Logger Id required, not zero.");
-                        isError = true;
-                    }
+                    log.info("InverterSn: [{}], InverterId: [{}], LoggerId: [{}]",
+                            solarmanDevice.getInverterSn(),
+                            solarmanDevice.getInverterId(),
+                            solarmanDevice.getLoggerId());
 
-                    if (!isError) {
-                        log.info("InverterSn: [{}], InverterId: [{}], LoggerId: [{}]",
-                                solarmanStation.getInverterSn(),
-                                solarmanStation.getInverterId(),
-                                solarmanStation.getLoggerId());
-                    }
-                } else {
-                    log.warn("ChildList is empty for logger: {}", loggerSn);
-                }
-            });
+                    solarmanStation.getDevices().put(loggerSn, solarmanDevice);
 
+                });
         } catch (Exception e) {
-            // Якщо все впало (немає нету, auth failed), ми просто йдемо далі
-            log.error("Solarman communication failed for {}: {}. Offline mode active.", loggerSn, e.getMessage());
+            log.error("Solarman communication failed for {}: {}", loggerSn, e.getMessage());
         }
     }
 
-    public RealTimeData getRealTimeData() {
-        RealTimeData result = fetchRealTimeData();
-        if (result.getDataList() == null) {
-            result = fetchRealTimeData();
-            if (result.getDataList() == null) {
+    public RealTimeData getRealTimeData(String inverterSn, Long inverterId) {
+        RealTimeData result = fetchRealTimeData(inverterSn,inverterId);
+        if (result == null || result.getDataList() == null) {
+            result = fetchRealTimeData(inverterSn, inverterId);
+            if (result == null || result.getDataList() == null) {
                 throw new IllegalStateException(
                         "Solarman returned dataList is null after retrying the request"
                 );
@@ -291,14 +267,8 @@ public class SolarmanStationsService {
         return result;
     }
 
-    public RealTimeData fetchRealTimeData() {
+    private RealTimeData fetchRealTimeData(String inverterSn, Long inverterId) {
         try {
-            // 1. Validate if we have the necessary IDs before calling the API
-            if (solarmanStation.getInverterId() == null || solarmanStation.getInverterId() <= 0) {
-                log.warn("Cannot fetch real-time data: Inverter ID is missing or invalid.");
-                return null; // Or return a default/empty RealTimeData object
-            }
-
             // 2. Execute request with safety measures
             Optional<RealTimeData> response = webClient.post()
                     .uri(uriBuilder -> uriBuilder
@@ -309,7 +279,7 @@ public class SolarmanStationsService {
                         httpHeaders.add("t", String.valueOf(System.currentTimeMillis()));
                         httpHeaders.setContentType(MediaType.APPLICATION_JSON);
                     })
-                    .bodyValue(new RealTimeDataRequest(solarmanStation.getInverterSn(), solarmanStation.getInverterId()))
+                    .bodyValue(new RealTimeDataRequest(inverterSn, inverterId))
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, clientResponse -> {
                         log.error("Solarman RealTimeData API error: {}", clientResponse.statusCode());
@@ -325,62 +295,9 @@ public class SolarmanStationsService {
             }
 
             return response.orElse(null); // Return null instead of throwing an exception
-
         } catch (Exception e) {
             // Catch network issues, timeouts, and logic errors
             log.error("Failed to fetch real-time data: {}. Continuing in local mode.", e.getMessage());
-            return null;
-        }
-    }
-
-    public HistoricalOneDayTimeData fetchHistoricalOneDayTimeData(Instant instant) {
-        // 1. Format date correctly (e.g., "2026-05-07")
-        String dateStr = instant.atZone(ZoneId.systemDefault()).toLocalDate().toString();
-
-        try {
-            // 2. Pre-check: Do we have the Inverter ID?
-            if (solarmanStation.getInverterId() == null || solarmanStation.getInverterId() <= 0) {
-                log.warn("Skipping historical data fetch: Inverter ID is missing for date: {}", dateStr);
-                return null;
-            }
-
-            log.info("Requesting Solarman historical data for date: {}", dateStr);
-
-            // 3. Safe WebClient call
-            Optional<HistoricalOneDayTimeData> response = webClient.post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(DEVICE_HISTORICAL_DATA)
-                            .queryParam("language", "en")
-                            .build())
-                    .headers(httpHeaders -> {
-                        httpHeaders.add("t", String.valueOf(System.currentTimeMillis()));
-                        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
-                    })
-                    .bodyValue(new HistoricalDataRequest(
-                            solarmanStation.getInverterId(),
-                            solarmanStation.getInverterSn(),
-                            dateStr,
-                            dateStr,
-                            2  // Time interval (e.g., 10 minutes)
-                    ))
-                    .retrieve()
-                    .onStatus(HttpStatusCode::isError, clientResponse -> {
-                        log.error("Solarman History API error status: {}", clientResponse.statusCode());
-                        return Mono.empty();
-                    })
-                    .bodyToMono(HistoricalOneDayTimeData.class)
-                    .timeout(Duration.ofSeconds(20)) // Historical data can take longer to process
-                    .blockOptional();
-
-            if (response.isEmpty()) {
-                log.warn("No historical data found for date: {}", dateStr);
-            }
-
-            return response.orElse(null);
-
-        } catch (Exception e) {
-            // Handle network issues or timeouts without crashing
-            log.error("Failed to fetch historical data for {}: {}. Continuing locally.", dateStr, e.getMessage());
             return null;
         }
     }
