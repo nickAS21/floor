@@ -323,7 +323,7 @@ public class UsrTcpWiFiParseData {
             try {
                 double batteryCurrentAll = 0;
                 double batterySocMax = c0Data.getSocPercent();
-                for (int i = 0; i < this.usrTcpWiFiProperties.getBatteriesCnt(); i++) {
+                for (int i = 0; i < this.usrTcpWiFiProperties.getPortsCnt(); i++) {
                     int portOut = this.usrTcpWiFiProperties.getPortStart() + i;
                     BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFiA = this.getBattery(portOut);
                     if (batteryDataUsrTcpWiFiA != null && batteryDataUsrTcpWiFiA.getC0Data() != null) {

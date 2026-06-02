@@ -3,9 +3,9 @@ package org.nickas21.smart.data.service;
 
 import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.dataEntityDto.BatteryInfoDto;
-import org.nickas21.smart.data.dataEntityDto.DataUnitDto;
 import org.nickas21.smart.data.dataEntityDto.DataDeviceDto;
 import org.nickas21.smart.data.dataEntityDto.DataInverterDto;
+import org.nickas21.smart.data.dataEntityDto.DataUnitDto;
 import org.nickas21.smart.data.dataEntityDto.InverterInfo;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.datePatternGridStatus;
 import static org.nickas21.smart.util.LocationType.DACHA;
@@ -50,11 +51,23 @@ public class DataUnitService {
     public DataUnitDto getUnitDacha() {
         List<BatteryInfoDto> batteries = this.getBatteries (DACHA);
         List<DataDeviceDto> devices = new ArrayList<>();
-        Integer portInverterDacha = usrTcpWiFiService.getTcpProps().getPortInverterDacha();
+        var props = usrTcpWiFiService.getTcpProps();
+        Integer portInverterDacha = props.getPortInverterDacha();
         Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(portInverterDacha).orElse(0L);
         String timestamp =  formatTimestamp(lastTimestamp, datePatternGridStatus);
+
         String connectionStatus = usrTcpWiFiService.getStatusByPort(portInverterDacha);
-        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterDacha, connectionStatus, InverterInfo.DACHA);
+        String connectionStatusAll = props.getAllPortsInverterDacha().stream()
+                .map(port -> {
+                    String role = (port.equals(portInverterDacha)) ? "master" : "slave" + (port - portInverterDacha);
+                    String status = usrTcpWiFiService.getStatusByPort(port);
+                    return "%s: port - %d status - %s;".formatted(role, port, status);
+                })
+                .collect(Collectors.joining(" "));
+        InverterInfo inverterInfo = InverterInfo.DACHA;
+        inverterInfo.setModelName("SUN-12K-SG05LP3-EU-SM2 -> " + connectionStatusAll);
+
+        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterDacha, connectionStatus, inverterInfo);
         return new DataUnitDto(batteries, dataInverterDto, devices);
     }
 

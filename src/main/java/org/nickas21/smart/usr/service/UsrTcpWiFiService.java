@@ -60,9 +60,9 @@ public class UsrTcpWiFiService {
         this.logsDir = usrTcpLogsWiFiProperties.getDir();
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         Integer portStart = tcpProps.getPortStart();
-        int batteriesCnt = tcpProps.getBatteriesCnt();
-        Integer[] ports = new Integer[batteriesCnt];
-        for (int i = 0; i < batteriesCnt; i++) {
+        int portsCnt = tcpProps.getPortsCnt();
+        Integer[] ports = new Integer[portsCnt];
+        for (int i = 0; i < portsCnt; i++) {
             ports[i] = portStart + i;
             if (ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego()) ||
                     ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha())){

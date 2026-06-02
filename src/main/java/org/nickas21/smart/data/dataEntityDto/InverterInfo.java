@@ -3,6 +3,7 @@ package org.nickas21.smart.data.dataEntityDto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
+import lombok.Setter;
 import org.nickas21.smart.util.LocationType;
 
 import java.time.LocalDate;
@@ -21,26 +22,27 @@ public enum InverterInfo {
             LocalDate.of(2024, 8, 7),
             PhaseType.SINGLE_PHASE,
             true,
-            "120A MPPT Charge Controller",
+            "120A MPPT Charge Controller (NON)",
             48,
-            LocationType.GOLEGO // Передаємо об'єкт локації
+            LocationType.GOLEGO
     ),
     DACHA(
             "Hybrid Inverter",
             "Deye",
-            "SUN-12K-SG05LP3-EU-SM2 -> master + slave",
+            "SUN-12K-SG05LP3-EU-SM2 -> master (port: 8900) + slave (port: 8901)",
             24.0,
             LocalDate.of(2026, 5, 4),
             PhaseType.THREE_PHASE,
             true,
-            "240А 2*MPPT: PV: 1+1",
+            "240А master: 2*MPPT, PV: 1+1; slave: 2*MPPT, PV: 1+1.",
             48,
-            LocationType.DACHA // Передаємо об'єкт локації
+            LocationType.DACHA
     );
 
     private final String productName;
     private final String manufacturer;
-    private final String modelName;
+    @Setter // Додаємо сетер, щоб змінювати значення на льоту
+    private String modelName;
     private final double ratedPower;
     private final String commissioningDate;
     private final String phaseType;

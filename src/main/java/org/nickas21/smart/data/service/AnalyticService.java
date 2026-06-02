@@ -332,16 +332,18 @@ public class AnalyticService {
         long offsetMs = updateTimeStampToUtc(Instant.now().toEpochMilli()/1000L, locationType.getZoneId());
         long systemTsWithOffset = Instant.now().toEpochMilli() + offsetMs;
 
-// ПЕРЕВІРКА НА "ЗАЛИПАННЯ" (Timeout 10 хвилин)
+        // ПЕРЕВІРКА НА "ЗАЛИПАННЯ" (Timeout 10 хвилин)
         if (Math.abs(systemTsWithOffset - finalTs) > 10 * 60 * 1000) {
             log.error("ANALYTIC CRITICAL: Data for {} is STALE! Force closing socket...", locationType);
 
             // Викликаємо твій метод через сервіс
-            int port = (locationType == LocationType.DACHA)
-                    ? usrTcpWiFiService.usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha()
-                    : usrTcpWiFiService.usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego();
-
-            usrTcpWiFiService.forceCloseSocket(port);
+            if (locationType == LocationType.DACHA) {
+                usrTcpWiFiService.usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsInverterDacha()
+                        .forEach(usrTcpWiFiService::forceCloseSocket);
+            } else {
+                int portGolego = usrTcpWiFiService.usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego();
+                usrTcpWiFiService.forceCloseSocket(portGolego);
+            }
 
             return; // Обов'язково виходимо, щоб не плодити криві дані
         }

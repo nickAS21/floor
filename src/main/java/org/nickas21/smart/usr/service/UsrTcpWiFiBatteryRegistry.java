@@ -36,7 +36,7 @@ public class UsrTcpWiFiBatteryRegistry {
     public void initInverter(Integer port) {
         if (port.equals(this.usrTcpWiFiProperties.getPortInverterGolego())) {
             inverters.putIfAbsent(port, new InverterDataGolego(port, new InverterGolegoData32(), new InverterGolegoData90()));
-        } else if (port.equals(this.usrTcpWiFiProperties.getPortInverterDacha())) {
+        } else if (this.usrTcpWiFiProperties.getAllPortsInverterDacha().contains(port)) {
             inverters.putIfAbsent(port, new InverterDataDacha(port));
         }
     }

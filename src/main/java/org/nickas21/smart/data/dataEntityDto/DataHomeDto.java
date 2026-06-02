@@ -16,7 +16,6 @@ import org.nickas21.smart.usr.entity.dacha.InverterDataDachaAcBatteryBlock106;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDachaBmsBlock16;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDachaDailyTotalBlock118;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDachaOutToHomeBlock8;
-import org.nickas21.smart.usr.entity.dacha.InverterDataLoadDcBlock80;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
 import org.nickas21.smart.usr.entity.golego.InverterGolegoData90;
@@ -85,28 +84,47 @@ public class DataHomeDto {
 
     // Dacha
     public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
-        InverterDataDacha inverterData = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha(), InverterDataDacha.class);
+        UsrTcpWiFiProperties props = usrTcpWiFiParseData.usrTcpWiFiProperties;
+        List<Integer> portsDacha = props.getAllPortsInverterDacha();
+        boolean allPortsActive = portsDacha.stream()
+                .map(usrTcpWiFiService::getStatusByPort)
+                .allMatch(status -> PortStatus.ACTIVE.name().equalsIgnoreCase(status));
+        InverterDataDacha inverterMasterData = null;
+        if (allPortsActive) inverterMasterData = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(props.getPortInverterDacha(), InverterDataDacha.class);
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
-        // TODO after two logger add
-        inverterData = null;
-        if (inverterData != null && inverterData.getLastTime().toEpochMilli() != inverterData.getStartTime().toEpochMilli()){
-            this.timestamp = inverterData.getLastTime().toEpochMilli();
-            InverterDataDachaAcBatteryBlock106 batteryBlock106 = inverterData.getInverterDataDachaAcBatteryBlock106();
+        if (inverterMasterData != null && inverterMasterData.getLastTime().toEpochMilli() != inverterMasterData.getStartTime().toEpochMilli()){
+            this.timestamp = inverterMasterData.getLastTime().toEpochMilli();
+            // 1. Блок Акумулятора (BMS) — строго з Мастера (8900)
+            InverterDataDachaAcBatteryBlock106 batteryBlock106 = inverterMasterData.getInverterDataDachaAcBatteryBlock106();
             this.batterySoc = batteryBlock106.getSoc();
             this.batteryVol = batteryBlock106.getBatteryVoltage();
-            InverterDataDachaBmsBlock16 bmsBlock16 = inverterData.getInverterDataDachaBmsBlock16();
+            InverterDataDachaBmsBlock16 bmsBlock16 = inverterMasterData.getInverterDataDachaBmsBlock16();
             this.batteryCurrent = calibrateCurrent(batteryBlock106.getBatteryCurrent(), bmsBlock16.getCurrent());
             this.batteryStatus = resolveBatteryStatus(this.batteryCurrent);
-
-            InverterDataLoadDcBlock80 dcBlock80 = inverterData.getInverterDataLoadDcBlock80();
-            this.solarPower = dcBlock80.getTotalDcPowerSumPv();
-            InverterDataDachaOutToHomeBlock8 outToHomeBlock8 = inverterData.getInverterDataDachaOutToHomeBlock8();
+            // 2. Блок Дому (Load) — строго з Мастера
+            InverterDataDachaOutToHomeBlock8 outToHomeBlock8 = inverterMasterData.getInverterDataDachaOutToHomeBlock8();
             this.homePower = outToHomeBlock8.getPowerOutTotal();
-
-            InverterDataDachaDailyTotalBlock118 dailyTotalBlock118 = inverterData.getInverterDataDachaDailyTotalBlock118();
-            this.dailyProductionSolarPower = dailyTotalBlock118.getDailyProductionSolarPower();
+            // 3. Подобові лічильники Акумулятора — строго з Мастера
+            InverterDataDachaDailyTotalBlock118 dailyTotalBlock118 = inverterMasterData.getInverterDataDachaDailyTotalBlock118();
             this.dailyBatteryCharge = dailyTotalBlock118.getDailyBatteryCharge();
             this.dailyBatteryDischarge = dailyTotalBlock118.getDailyBatteryDischarge();
+            // 4. --- СУМУВАННЯ СОНЦЯ З УСІХ ЛОКАЛЬНИХ ЛОГЕРІВ ---
+            int totalSolarPowerSum = 0;
+            double dailyProductionSolarSum = 0.0;
+            for (Integer port : portsDacha) {
+                InverterDataDacha inv = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(port, InverterDataDacha.class);
+                if (inv != null) {
+                    if (inv.getInverterDataLoadDcBlock80() != null) {
+                        totalSolarPowerSum += inv.getInverterDataLoadDcBlock80().getTotalDcPowerSumPv();
+                    }
+                    if (inv.getInverterDataDachaDailyTotalBlock118() != null) {
+                        dailyProductionSolarSum += inv.getInverterDataDachaDailyTotalBlock118().getDailyProductionSolarPower();
+                    }
+                }
+            }
+            // Записуємо фінальні сумовані значення по сонцю
+            this.solarPower = totalSolarPowerSum;
+            this.dailyProductionSolarPower = dailyProductionSolarSum;
         }
         else if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
             long ts = powerValueRealTimeData.getCollectionTime() * 1000L;
@@ -162,8 +180,8 @@ public class DataHomeDto {
 
     // Golego
     public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
-        int portDacha = usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha();
-        log.warn("Dacha inverter port [{}]: is -> [{}]", portDacha, usrTcpWiFiService.getStatusByPort(portDacha));
+        int portGolego = usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego();
+        log.warn("Golego inverter port [{}]: is -> [{}]", portGolego, usrTcpWiFiService.getStatusByPort(portGolego));
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFi = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
         Boolean gridRelayCodeGolegoStateOnLine = deviceService.getGridRelayCodeGolegoStateOnLine();
@@ -173,16 +191,16 @@ public class DataHomeDto {
         if (batteryDataUsrTcpWiFi != null) {
             UsrTcpWifiC0Data c0Data = batteryDataUsrTcpWiFi.getC0Data();
             int portStart = tcpProps.getPortStart();
-            int batteriesCnt = tcpProps.getBatteriesCnt();
+            int portsCnt = tcpProps.getPortsCnt();
             double batteryCurrentAll = 0;
             double batterySocSum = 0;
             int batteriesActiveCnt = 0;
             List<Integer> batteriesNoActive = new ArrayList<>();
-            for (int i = 0; i < batteriesCnt; i++) {
+            for (int i = 0; i < portsCnt; i++) {
                 int port = portStart + i;
                 if (port == usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego() ) {
                     log.warn("Golego inverter port [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
-                } else if (port > usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha()) {
+                } else if (port > (usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha() + usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDachaCntSlave())) {
                     log.warn("Free Ports [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
                 } else  {
                     BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFiA = usrTcpWiFiParseData.getBattery(port);
