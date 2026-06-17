@@ -74,8 +74,8 @@ public class HttpUtil {
     // Проблема: якщо реальний час: 18:40, Дача лічильник 17:27 => +1:13
     // Поправка                      00:13                     23:00
     public static final int timeLocalNightTariffStart = 23;
-    public static final int hourNightTariffStartDopDacha = 1; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
-    public static final int minutesNightTariffStartDopDacha = 20; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
+    public static final int hourNightTariffStartDopDacha = 0; //  New Gama300
+    public static final int minutesNightTariffStartDopDacha = 0; //  New Gama300
     public static final int hourNightTariffStartDopGolego = 0; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
     public static final int minutesNightTariffStartDopGolego = 0; //  Проблема: якщо реальний час: Дача лічильник  => +1:17 Станом на 10/10/2025 => Тому включення полів в 0:30
     public static final int hourNightTariffFinish = 6;
