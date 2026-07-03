@@ -594,51 +594,139 @@ public class UsrTcpWiFiParseData {
     }
 
     /**
-     * Детектор мережевого сміття (IPv4).
-     * Шукає ознаки IP-пакетів (0x45) та підмережі 192.168
+     * Детектор випадкового IPv4-трафіку у потоці даних.
+     *
+     * Перевіряє:
+     *  - Version == 4
+     *  - IHL у допустимих межах
+     *  - Total Length коректна
+     *  - TTL != 0
+     *  - Protocol відомий
+     *  - Header Checksum правильна
+     *
+     * Це практично усуває false positive для CAN, Modbus, Deye та інших бінарних протоколів.
      */
     private void detectNetworkLeak(byte[] buffer, int offset) {
-        for (int i = offset; i < buffer.length - 20; i++) {
-            // 0x45 - це стандартний початок IPv4 заголовка (Version 4, IHL 5)
-            if (buffer[i] == 0x45) {
-                try {
-                    // Розбираємо поля згідно зі структурою IPv4
-                    int version = (buffer[i] >> 4) & 0x0F;
-                    int ihl = (buffer[i] & 0x0F) * 4; // Довжина заголовка в байтах
-                    int totalLength = ((buffer[i + 2] & 0xFF) << 8) | (buffer[i + 3] & 0xFF);
-                    int ttl = buffer[i + 8] & 0xFF;
-                    int protocol = buffer[i + 9] & 0xFF; // 6 = TCP, 17 = UDP
 
-                    // Формуємо IP адреси
-                    String srcIp = String.format("%d.%d.%d.%d",
-                            buffer[i + 12] & 0xFF, buffer[i + 13] & 0xFF,
-                            buffer[i + 14] & 0xFF, buffer[i + 15] & 0xFF);
+        if (buffer == null || buffer.length < 20) {
+            return;
+        }
 
-                    String dstIp = String.format("%d.%d.%d.%d",
-                            buffer[i + 16] & 0xFF, buffer[i + 17] & 0xFF,
-                            buffer[i + 18] & 0xFF, buffer[i + 19] & 0xFF);
+        for (int i = offset; i <= buffer.length - 20; i++) {
 
-                    // Виводимо все в один інформативний лог
-                    log.warn("--- DETECTED NETWORK TRASH (IPv4) ---");
-                    log.warn("Header Pos: [{}], Total Len: [{}], TTL: [{}]", i, totalLength, ttl);
-                    log.warn("Protocol: [{}] (6=TCP, 17=UDP)", protocol);
-                    log.warn("Source IP:      [{}]", srcIp);
-                    log.warn("Destination IP: [{}]", dstIp);
+            int firstByte = buffer[i] & 0xFF;
 
-                    // Якщо хочеш бачити сирі байти цього заголовка для дебагу
-                    StringBuilder hex = new StringBuilder();
-                    for (int j = 0; j < Math.min(totalLength, 20); j++) {
-                        hex.append(String.format("%02X ", buffer[i + j]));
-                    }
-                    log.warn("Raw Header Hex: [{}]", hex.toString().trim());
-                    log.warn("-------------------------------------");
+            // IPv4 Version = 4
+            if ((firstByte >> 4) != 4) {
+                continue;
+            }
 
-                    break; // Знайшли один — виходимо
-                } catch (Exception e) {
-                    log.error("Error parsing network trash: {}", e.getMessage());
-                }
+            int ihl = (firstByte & 0x0F) * 4;
+
+            if (ihl < 20 || ihl > 60) {
+                continue;
+            }
+
+            if (i + ihl > buffer.length) {
+                continue;
+            }
+
+            int totalLength =
+                    ((buffer[i + 2] & 0xFF) << 8)
+                            | (buffer[i + 3] & 0xFF);
+
+            if (totalLength < ihl) {
+                continue;
+            }
+
+            if (i + totalLength > buffer.length) {
+                continue;
+            }
+
+            int ttl = buffer[i + 8] & 0xFF;
+
+            if (ttl == 0) {
+                continue;
+            }
+
+            int protocol = buffer[i + 9] & 0xFF;
+
+            switch (protocol) {
+                case 1:     // ICMP
+                case 2:     // IGMP
+                case 6:     // TCP
+                case 17:    // UDP
+                case 41:    // IPv6
+                case 47:    // GRE
+                case 50:    // ESP
+                case 51:    // AH
+                case 58:    // ICMPv6
+                case 89:    // OSPF
+                    break;
+
+                default:
+                    continue;
+            }
+
+            // Перевірка контрольної суми IPv4
+            if (!isValidIpv4HeaderChecksum(buffer, i, ihl)) {
+                continue;
+            }
+
+            String srcIp = String.format("%d.%d.%d.%d",
+                    buffer[i + 12] & 0xFF,
+                    buffer[i + 13] & 0xFF,
+                    buffer[i + 14] & 0xFF,
+                    buffer[i + 15] & 0xFF);
+
+            String dstIp = String.format("%d.%d.%d.%d",
+                    buffer[i + 16] & 0xFF,
+                    buffer[i + 17] & 0xFF,
+                    buffer[i + 18] & 0xFF,
+                    buffer[i + 19] & 0xFF);
+
+            log.warn("========== IPv4 PACKET DETECTED ==========");
+            log.warn("Position      : {}", i);
+            log.warn("Header Length : {}", ihl);
+            log.warn("Total Length  : {}", totalLength);
+            log.warn("TTL           : {}", ttl);
+            log.warn("Protocol      : {}", protocol);
+            log.warn("Source        : {}", srcIp);
+            log.warn("Destination   : {}", dstIp);
+
+            StringBuilder hex = new StringBuilder();
+            for (int j = 0; j < totalLength && i + j < buffer.length; j++) {
+                hex.append(String.format("%02X ", buffer[i + j]));
+            }
+
+            log.warn("Packet HEX    : {}", hex.toString().trim());
+            log.warn("==========================================");
+
+            return;
+        }
+    }
+
+    /**
+     * Перевірка checksum IPv4-заголовка.
+     */
+    private boolean isValidIpv4HeaderChecksum(byte[] packet, int offset, int headerLength) {
+
+        long sum = 0;
+
+        for (int i = 0; i < headerLength; i += 2) {
+
+            int word =
+                    ((packet[offset + i] & 0xFF) << 8)
+                            | (packet[offset + i + 1] & 0xFF);
+
+            sum += word;
+
+            while ((sum & 0xFFFF0000L) != 0) {
+                sum = (sum & 0xFFFFL) + (sum >> 16);
             }
         }
+
+        return (sum & 0xFFFFL) == 0xFFFFL;
     }
 //    public static boolean isFrameDyeyCrcValid(byte[] buffer, int startIndex, int fullLength) {
 //        // Довжина даних для розрахунку (весь пакет мінус 2 останні байти CRC)

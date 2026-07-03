@@ -180,8 +180,6 @@ public class DataHomeDto {
 
     // Golego
     public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
-        int portGolego = usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego();
-        log.warn("Golego inverter port [{}]: is -> [{}]", portGolego, usrTcpWiFiService.getStatusByPort(portGolego));
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFi = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
         Boolean gridRelayCodeGolegoStateOnLine = deviceService.getGridRelayCodeGolegoStateOnLine();
@@ -275,8 +273,52 @@ public class DataHomeDto {
             Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryHome =  deviceService.getLastUpdateTimeGridStatusInfoHome();
             this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryHome != null ? formatTimestamp(lastUpdateTimeGridStatusEntryHome.getKey(), datePatternGridStatus) : "null";
         }
+        if (this.timestamp == 0) {
+            this.timestamp = System.currentTimeMillis();
+            long offsetMs = updateTimeStampToUtc(this.timestamp/1000L, LocationType.GOLEGO.getZoneId());
+            this.timestamp += offsetMs;
+        }
+        if (this.batteryStatus!= null && this.batterySoc == 0 && this.batteryVol > 0) {
+            this.batterySoc = calculateSocByVoltage(this.batteryVol);
+        }
         log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
     }
+
+
+
+        /**
+         * Розрахунок SOC (%) на основі напруги (V) для 48V збірки (16S).
+         * @param batteryVol вхідна напруга в вольтах
+         * @return State of Charge (SOC) від 0.0 до 100.0
+         */
+        public static double calculateSocByVoltage(Double batteryVol) {
+            if (batteryVol == null) return 0.0;
+            if (batteryVol >= 58.4) return 100.0;
+            if (batteryVol <= 40.0) return 0.0;
+
+            // Працюємо виключно з об'єктом Integer
+            Integer mv = (int) (batteryVol * 1000);
+
+            return switch (mv) {
+                // Чистий об'єктний тип Integer + Guard (when)
+                case Integer v when v >= 54000 -> {
+                    double k = (100.0 - 99.0) / (58.4 - 54.0);
+                    yield 99.0 + k * (batteryVol - 54.0);
+                }
+
+                // Чистий об'єктний тип Integer + Guard (when)
+                case Integer v when v >= 50400 -> {
+                    double k = (99.0 - 14.0) / (54.0 - 50.4);
+                    yield 14.0 + k * (batteryVol - 50.4);
+                }
+
+                // Обов'язковий дефолт для обробки решти значень Integer та null-безпеки
+                default -> {
+                    double k = (14.0 - 0.0) / (50.4 - 40.0);
+                    yield 0.0 + k * (batteryVol - 40.0);
+                }
+            };
+        }
 
 
     public static synchronized List<DataAnalyticDto> updateTimeStampToUtc(List<DataAnalyticDto> incomingLocalPoints) {

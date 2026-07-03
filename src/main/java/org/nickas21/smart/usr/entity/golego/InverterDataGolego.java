@@ -5,8 +5,6 @@ import lombok.EqualsAndHashCode;
 import org.nickas21.smart.usr.entity.InverterDataBase;
 import org.nickas21.smart.util.LocationType;
 
-import java.util.Objects;
-
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class InverterDataGolego  extends InverterDataBase {
@@ -16,8 +14,8 @@ public class InverterDataGolego  extends InverterDataBase {
 
     public InverterDataGolego(int port, InverterGolegoData32 inverterGolegoData32, InverterGolegoData90 inverterGolegoData90) {
         super(port, LocationType.GOLEGO.getZoneId());
-        this.inverterGolegoData32 = Objects.requireNonNull(inverterGolegoData32, "Data32 cannot be null");
-        this.inverterGolegoData90 = Objects.requireNonNull(inverterGolegoData90, "Data90 cannot be null");
+//        this.inverterGolegoData32 = Objects.requireNonNull(inverterGolegoData32, "Data32 cannot be null");
+//        this.inverterGolegoData90 = Objects.requireNonNull(inverterGolegoData90, "Data90 cannot be null");
     }
 
     public void inverterDataUpdate (InverterGolegoData90 inverterGolegoData90) {
