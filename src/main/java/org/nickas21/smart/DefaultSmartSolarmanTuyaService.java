@@ -123,6 +123,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             double bmsVolNew = powerValueRealTimeData.getBmsVoltageValue();
             double bmsCurNew = powerValueRealTimeData.getBmsCurrentValue();
             double bmsTempNew = powerValueRealTimeData.getBmsTempValue();
+            double invTempNew = powerValueRealTimeData.getInverterTempValue();
             double batterySocNew = powerValueRealTimeData.getBatterySocValue();
             double batterySocUsr = usrBmsSummary == null ? -1: usrBmsSummary.socPercent();
             double batterySocMin = getBatSocMin();
@@ -153,7 +154,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                             \nCurrent data:
                             Current Dacha real time data: [{}], -Update Dacha real time data: [{}],
                             -batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], -batterySocMin: [{} %],
-                            -batteryStatus: [{}], -batteryPower: [{} W], -batVolNew: [{} V], -batCurrentNew: [{} A],  -bmsVolNew: [{} V], -bmsCurrentNew: [{} A], -BMS Temperature: [{}  grad C]
+                            -batteryStatus: [{}], -batteryPower: [{} W], -batVolNew: [{} V], -batCurrentNew: [{} A],  -bmsVolNew: [{} V], -bmsCurrentNew: [{} A], -BMS Temperature: [{}  grad C] -Invetrer Temperature: [{}  grad C]
                             -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],
                             -relayStatus: [{}], -gridStatusSolarman: [{}], -gridDachaStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh],
@@ -175,6 +176,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     batVolNew, batCurNew,
                     bmsVolNew, bmsCurNew,
                     bmsTempNew,
+                    invTempNew,
 
                     powerValueRealTimeData.getTotalProductionSolarPower(),
                     powerValueRealTimeData.getDailyHomeConsumptionPower(),
@@ -193,7 +195,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     usrBmsSummary == null ? 0 : usrBmsSummary.socPercent(),
                     tuyaDeviceService.getGridRelayCodeGolegoStateOnLine(),
                     usrBmsSummary == null ? "null" : usrBmsSummary.bmsSummary());
-            tuyaDeviceService.sendDachaGolegoBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, bmsTempNew,
+            tuyaDeviceService.sendDachaGolegoBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, bmsTempNew, invTempNew,
                     batterySocNew, batteryPowerNew, batteryStatusNew, usrBmsSummary);
             if (isDay) {
                 isUpdateToMinAfterIsDayFalse = false;
@@ -285,8 +287,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         double totalSellSum = 0, totalBuySum = 0, dailySellSum = 0, dailyBuySum = 0;
 
         // Акумулятори для СЕРЕДНІХ значень
-        double bmsSocSum = 0, batterySocSum = 0, bmsTempSum = 0, invTempSum = 0;
-        double bmsVoltSum = 0, batteryVoltSum = 0;
+        double bmsSoc = 0, batterySoc = 0, bmsTemp = 0, invTempSum = 0;
+        double bmsVolt = 0, batteryVolt = 0;
 
         int activeDevices = 0;
         long latestTime = 0;
@@ -317,15 +319,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             dailyBuySum += getDouble(list, dailyEnergyBuyKey);
 
             // 2. Додаємо для розрахунку середнього
-            bmsSocSum += getDouble(list, bmsSocKey);
-            batterySocSum += getDouble(list, batterySocKey);
-            bmsTempSum += getDouble(list, bmsTempKey);
             invTempSum += getDouble(list, invTempKey);
-            bmsVoltSum += getDouble(list, bmsVoltageKey);
-            batteryVoltSum += getDouble(list, batteryVoltageKey);
 
             // 3. Текстові дані та напругу мережі беремо з першого (Master)
             if (activeDevices == 1) {
+                batterySoc = getDouble(list, batterySocKey);
+                batteryVolt = getDouble(list, batteryVoltageKey);
+                bmsTemp = getDouble(list, bmsTempKey);
+                bmsVolt = getDouble(list, bmsVoltageKey);
+                bmsSoc = getDouble(list, bmsSocKey);
                 powerValueRealTimeData.setInverterProtocolVersionValue(getString(list, invProtocolVerKey));
                 powerValueRealTimeData.setInverterMAINValue(getString(list, invMAINKey));
                 powerValueRealTimeData.setInverterHMIValue(getString(list, invHMIKey));
@@ -360,17 +362,16 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         powerValueRealTimeData.setDailyEnergyBuy(dailyBuySum);
 
         // Середні (ділимо на кількість активних інверторів)
-        double avgBatteryVolt = batteryVoltSum / activeDevices;
-        powerValueRealTimeData.setBmsSocValue(bmsSocSum / activeDevices);
-        powerValueRealTimeData.setBatterySocValue(batterySocSum / activeDevices);
-        powerValueRealTimeData.setBmsTempValue(bmsTempSum / activeDevices);
+        powerValueRealTimeData.setBmsSocValue(bmsSoc);
+        powerValueRealTimeData.setBatterySocValue(batterySoc);
+        powerValueRealTimeData.setBmsTempValue(bmsTemp);
         powerValueRealTimeData.setInverterTempValue(invTempSum / activeDevices);
-        powerValueRealTimeData.setBmsVoltageValue(bmsVoltSum / activeDevices);
-        powerValueRealTimeData.setBatteryVoltageValue(avgBatteryVolt);
+        powerValueRealTimeData.setBmsVoltageValue(bmsVolt);
+        powerValueRealTimeData.setBatteryVoltageValue(batteryVolt);
 
         // Розрахунок струму (Твоя логіка з Math.round)
-        double batteryCurrentValue = (batteryCurrentFactSum == 0 && avgBatteryVolt != 0)
-                ? Math.round((batteryPowerSum / avgBatteryVolt) * 1000.0) / 1000.0
+        double batteryCurrentValue = (batteryCurrentFactSum == 0 && batteryVolt != 0)
+                ? Math.round((batteryPowerSum / batteryVolt) * 1000.0) / 1000.0
                 : batteryCurrentFactSum;
         powerValueRealTimeData.setBatteryCurrentValue(batteryCurrentValue);
     }

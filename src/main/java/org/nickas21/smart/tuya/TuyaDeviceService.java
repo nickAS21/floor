@@ -885,8 +885,9 @@ public class TuyaDeviceService {
         }
     }
 
-    public void sendDachaGolegoBatteryChargeRemaining(double batVolNew, double batCurNew, double bmsVolNew, double bmsCurNew, double bmsTempNew, double batterySocNew,
+    public void sendDachaGolegoBatteryChargeRemaining(double batVolNew, double batCurNew, double bmsVolNew, double bmsCurNew, double bmsTempNew, double invTempNew, double batterySocNew,
                                                       double  batteryPowerNew, String batteryStatusNew, UsrTcpWiFiBmsSummary usrBmsSummary) {
+        bmsCurNew = bmsCurNew == 0 ? batCurNew : bmsCurNew;
         double batteryChargeRemainingDacha = batterySocNew;
         double batteryChargeRemainingGolego = usrBmsSummary == null ? 0 : usrBmsSummary.socPercent();
         Entry<Long, Double> lastUpdateTimeAlarmDacha = new AbstractMap.SimpleEntry<>(Instant.now().toEpochMilli(), batteryChargeRemainingDacha);
@@ -906,6 +907,7 @@ public class TuyaDeviceService {
             }
             // if battery == USER
 //            String msgSoc = msg + "Battery Remaining at the Country House: [" + batteryChargeRemaining + " %]/(on inverter [" + batterySocFromSolarman + " %]).";
+
             double bmsPower = Math.round((bmsVolNew * bmsCurNew) * 100.0) / 100.0;
 
             String  msgSoc = msg + "Info: Battery on the Country House:\n" +
@@ -915,10 +917,11 @@ public class TuyaDeviceService {
                     "- BmsPower: [" + bmsPower + " W];\n" +
                     "- BmsCurrent: [" + bmsCurNew + " A];\n" +
                     "- BmsTemperature: [" + bmsTempNew + "  ℃];\n" +
-                    "- Powers: [" + batteryPowerNew + " W];\n";
+                    "- InvTemperature: [" + String.format("%.2f", invTempNew) + "  ℃];\n" +
+                    "- BatteryPowers: [" + batteryPowerNew + " W];\n";
             if (usrBmsSummary == null) {
-                msgSoc = msgSoc + "- Voltages: [" + batVolNew + " V];\n" +
-                        "- Currents: [" + batCurNew + " A].";
+                msgSoc = msgSoc + "- BatteryVoltages: [" + String.format("%.2f", batVolNew) + " V];\n" +
+                        "- BatteryCurrents: [" + batCurNew + " A].";
             } else {
                 msgSoc = msgSoc + "Info: Usr Battery on Golego:\n" +
                         "- SOC: [" + usrBmsSummary.socPercent() + " %];\n"
