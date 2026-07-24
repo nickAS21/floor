@@ -12,7 +12,7 @@ public class UsrTcpWiFiProperties {
 
     private Integer portStart = 8891;
     private Integer portsCnt = 14;
-    private Integer portMaster = 8898;
+    private Integer portBatMasterGolego = 8894;
     private Integer portInverterGolego = 8899;
     private Integer portInverterDacha = 8900;
     private Integer portInverterDachaCntSlave = 1;

@@ -117,7 +117,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     public void setBmsSocCur() {
         try {
             updatePowerValue();
-            UsrTcpWiFiBmsSummary usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(tcpProps.getPortMaster());
+            UsrTcpWiFiBmsSummary usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(tcpProps.getPortBatMasterGolego());
             double batCurNew = powerValueRealTimeData.getBatteryCurrentValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
             double bmsVolNew = powerValueRealTimeData.getBmsVoltageValue();

@@ -7,8 +7,6 @@ import org.nickas21.smart.usr.entity.InverterDataBase;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDacha;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
-import org.nickas21.smart.usr.entity.golego.InverterGolegoData32;
-import org.nickas21.smart.usr.entity.golego.InverterGolegoData90;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -33,9 +31,10 @@ public class UsrTcpWiFiBatteryRegistry {
     public void initBattery(Integer port) {
         batteries.putIfAbsent(port, new BatteryDataUsrTcpWiFi(port));
     }
+
     public void initInverter(Integer port) {
         if (port.equals(this.usrTcpWiFiProperties.getPortInverterGolego())) {
-            inverters.putIfAbsent(port, new InverterDataGolego(port, new InverterGolegoData32(), new InverterGolegoData90()));
+            inverters.putIfAbsent(port, new InverterDataGolego(port));
         } else if (this.usrTcpWiFiProperties.getAllPortsInverterDacha().contains(port)) {
             inverters.putIfAbsent(port, new InverterDataDacha(port));
         }
@@ -49,7 +48,7 @@ public class UsrTcpWiFiBatteryRegistry {
         return null;
     }
 
-    public <T extends BatteryDataBase> Map<Integer, T> getBatteriesAll(Class<T> clazz) {
+    public <T extends BatteryDataBase> Map<Integer, T> getBatteriesGolegoAll(Class<T> clazz) {
         return batteries.entrySet().stream()
                 .filter(entry -> clazz.isInstance(entry.getValue()))
                 .collect(Collectors.collectingAndThen(
@@ -60,6 +59,7 @@ public class UsrTcpWiFiBatteryRegistry {
                         Collections::unmodifiableMap
                 ));
     }
+
     public <T extends InverterDataBase> T getInverter(Integer port, Class<T> clazz) {
         // computeIfAbsent автоматично виконає ініціалізацію, якщо ключа немає
         InverterDataBase inverter = inverters.computeIfAbsent(port, k -> {

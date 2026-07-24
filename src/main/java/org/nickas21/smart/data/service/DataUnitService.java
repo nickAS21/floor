@@ -7,6 +7,7 @@ import org.nickas21.smart.data.dataEntityDto.DataDeviceDto;
 import org.nickas21.smart.data.dataEntityDto.DataInverterDto;
 import org.nickas21.smart.data.dataEntityDto.DataUnitDto;
 import org.nickas21.smart.data.dataEntityDto.InverterInfo;
+import org.nickas21.smart.data.dataEntityDto.InverterRole;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
@@ -59,28 +60,25 @@ public class DataUnitService {
         String connectionStatus = usrTcpWiFiService.getStatusByPort(portInverterDacha);
         String connectionStatusAll = props.getAllPortsInverterDacha().stream()
                 .map(port -> {
-                    String role = (port.equals(portInverterDacha)) ? "master" : "slave" + (port - portInverterDacha);
+                    int offset = port - portInverterDacha + 1;
+                    String role = InverterRole.getRoleByOffset(offset);
                     String status = usrTcpWiFiService.getStatusByPort(port);
-                    return "%s: port - %d status - %s;".formatted(role, port, status);
+                    return "%s -> port: %d; status: %s;".formatted(role, port, status);
                 })
-                .collect(Collectors.joining(" "));
-        InverterInfo inverterInfo = InverterInfo.DACHA;
-        inverterInfo.setModelName("SUN-12K-SG05LP3-EU-SM2 -> " + connectionStatusAll);
-
-        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterDacha, connectionStatus, inverterInfo);
+                .collect(Collectors.joining("\n"));
+        InverterInfo inverterInfoDacha = InverterInfo.DACHA;
+        inverterInfoDacha.setModelName("SUN-12K-SG05LP3-EU-SM2:\n" + connectionStatusAll);
+        DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterDacha, connectionStatus, inverterInfoDacha);
         return new DataUnitDto(batteries, dataInverterDto, devices);
     }
 
     public List<BatteryInfoDto> getBatteries (LocationType location) {
         List<BatteryInfoDto> batteries = new ArrayList<>();
         if (GOLEGO.equals(location)) {
-            Map<Integer, BatteryDataUsrTcpWiFi> batteriesAll = this.usrTcpWiFiBatteryRegistry.getBatteriesAll(BatteryDataUsrTcpWiFi.class);
+            Map<Integer, BatteryDataUsrTcpWiFi> batteriesAll = this.usrTcpWiFiBatteryRegistry.getBatteriesGolegoAll(BatteryDataUsrTcpWiFi.class);
             for (Map.Entry<Integer, BatteryDataUsrTcpWiFi> entry : batteriesAll.entrySet()) {
-                if (!entry.getKey().equals(this.usrTcpWiFiService.getTcpProps().getPortInverterGolego()) &&
-                        !entry.getKey().equals(this.usrTcpWiFiService.getTcpProps().getPortInverterDacha())) {
-                    BatteryInfoDto batteryInfoDto = new BatteryInfoDto(entry, this.usrTcpWiFiService);
-                    batteries.add(batteryInfoDto);
-                }
+                BatteryInfoDto batteryInfoDto = new BatteryInfoDto(entry, this.usrTcpWiFiService);
+                batteries.add(batteryInfoDto);
             }
             return batteries;
         } else if (DACHA.equals(location)) {

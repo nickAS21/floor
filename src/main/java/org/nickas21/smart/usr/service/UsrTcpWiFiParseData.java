@@ -90,16 +90,13 @@ public class UsrTcpWiFiParseData {
     // ------------------ parse & process (core) ------------------
     protected byte[] parseAndProcessData(byte[] buffer, int port) {
         if (buffer == null || buffer.length == 0) return buffer;
-        if (port < (usrTcpWiFiProperties.getPortInverterGolego())) {
-            //            log.warn("Start Golego acum decoder byteArray from port [{}]", port);
+        if (port <= (usrTcpWiFiProperties.getPortBatMasterGolego())) {
             return parseAndProcessBmsGolego(buffer, port);
         } else if (port == (usrTcpWiFiProperties.getPortInverterGolego())) {
-//            log.warn("Start Golegos inv decoder byteArray from ports [{}]", port);
             return parseAndProcessInverterGolego(buffer);
         }
-        else if (port == (usrTcpWiFiProperties.getPortInverterDacha())) {
-
-            return parseAndProcessInverterDyey(buffer);
+        else if (usrTcpWiFiProperties.getAllPortsInverterDacha().contains(port)) {
+            return parseAndProcessInverterDyey(buffer, port);
         }
         return new byte[0];
     }
@@ -349,7 +346,7 @@ public class UsrTcpWiFiParseData {
                 return null;
             }
         } else {
-            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", portMaster, this.usrTcpWiFiBatteryRegistry.getBatteriesAll(BatteryDataUsrTcpWiFi.class).size());
+            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", portMaster, this.usrTcpWiFiBatteryRegistry.getBatteriesGolegoAll(BatteryDataUsrTcpWiFi.class).size());
             return null;
         }
     }
@@ -357,15 +354,11 @@ public class UsrTcpWiFiParseData {
     public BatteryDataUsrTcpWiFi getBattery(int port){
         return this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class);
     }
-    public BatteryDataUsrTcpWiFi getInverter(int port){
-        return this.usrTcpWiFiBatteryRegistry.getBattery(port, BatteryDataUsrTcpWiFi.class);
-    }
-
 
     @NotNull
     private StringBuilder getStringBuilderError() {
         StringBuilder errorBuilder = new StringBuilder();
-        for (Map.Entry<Integer, BatteryDataUsrTcpWiFi> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getBatteriesAll(BatteryDataUsrTcpWiFi.class).entrySet()) {
+        for (Map.Entry<Integer, BatteryDataUsrTcpWiFi> batteryEntry  : this.usrTcpWiFiBatteryRegistry.getBatteriesGolegoAll(BatteryDataUsrTcpWiFi.class).entrySet()) {
             if (batteryEntry.getValue().getErrRecordE1() != null){
                 errorBuilder.append(batteryEntry.getValue().getErrRecordE1().toMsgForBot());
             }
@@ -521,7 +514,7 @@ public class UsrTcpWiFiParseData {
      * 3. Вираховуємо повну довжину пакета: 3 (header) + dataLength + 2 (CRC).
      * 4. Перевіряємо цілісність через CRC16 Modbus.
      */
-    public byte[] parseAndProcessInverterDyey(byte[] buffer) {
+    public byte[] parseAndProcessInverterDyey(byte[] buffer, int port) {
         int currentIndex = 0;
         int lastProcessedIndex = 0;
 
@@ -568,7 +561,7 @@ public class UsrTcpWiFiParseData {
                     try {
                         byte[] payload = new byte[dataLength];
                         System.arraycopy(buffer, startIndex + 3, payload, 0, dataLength);
-                        processInverterDeye(payload);
+                        processInverterDeye(payload, port);
 
                         currentIndex = startIndex + expectedFullLength;
                         lastProcessedIndex = currentIndex;
@@ -818,13 +811,13 @@ public class UsrTcpWiFiParseData {
         return crc;
     }
 
-    private void processInverterDeye(byte[] packet) {
+    private void processInverterDeye(byte[] packet, int port) {
         // 1. Пропускаємо пакети, заповнені однаковими 00 або FF
         int payloadLen = packet.length;
         if (payloadLen <=2 || isGarbagePacket(packet) || payloadLen == 48) {
             return;
         }
-        InverterDataDacha inverterData = this.usrTcpWiFiBatteryRegistry.getInverter(this.usrTcpWiFiProperties.getPortInverterDacha(), InverterDataDacha.class);
+        InverterDataDacha inverterData = this.usrTcpWiFiBatteryRegistry.getInverter(port, InverterDataDacha.class);
 
         log.info("Deye: len: [{}] hex: [{}]", payloadLen, bytesToHex(packet));
         if (payloadLen == 6) {

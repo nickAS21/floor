@@ -181,7 +181,7 @@ public class DataHomeDto {
     // Golego
     public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
-        BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFi = usrTcpWiFiParseData.getBattery(tcpProps.getPortMaster());
+        BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFi = usrTcpWiFiParseData.getBattery(tcpProps.getPortBatMasterGolego());
         Boolean gridRelayCodeGolegoStateOnLine = deviceService.getGridRelayCodeGolegoStateOnLine();
         if (gridRelayCodeGolegoStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeGolegoStateOnLine;
         Boolean gridRelayCodeGolegoStateSwitch =  deviceService.getGridRelayCodeGolegoStateSwitch();
@@ -198,7 +198,7 @@ public class DataHomeDto {
                 int port = portStart + i;
                 if (port == usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego() ) {
                     log.warn("Golego inverter port [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
-                } else if (port > (usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha() + usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDachaCntSlave())) {
+                } else if (usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsInverterDacha().contains(port)) {
                     log.warn("Free Ports [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
                 } else  {
                     BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFiA = usrTcpWiFiParseData.getBattery(port);

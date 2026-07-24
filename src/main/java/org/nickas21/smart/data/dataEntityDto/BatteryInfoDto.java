@@ -25,8 +25,6 @@ import static org.nickas21.smart.util.StringUtils.isBlank;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BatteryInfoDto {
-
-
     String timestamp;
     int port;
     double voltageCurV;

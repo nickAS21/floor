@@ -65,9 +65,9 @@ public class UsrTcpWiFiService {
         for (int i = 0; i < portsCnt; i++) {
             ports[i] = portStart + i;
             if (ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego()) ||
-                    ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha())){
+                    usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsInverterDacha().contains(ports[i])){
                 usrTcpWiFiBatteryRegistry.initInverter(ports[i]);
-            } else if (ports[i] < usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterDacha()) {
+            } else if (ports[i] <= usrTcpWiFiParseData.usrTcpWiFiProperties.getPortBatMasterGolego()) {
                 usrTcpWiFiBatteryRegistry.initBattery(ports[i]);
             }
             lastSeenMap.put(ports[i], System.currentTimeMillis()); // Ініціалізація часу

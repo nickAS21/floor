@@ -34,7 +34,7 @@ public enum InverterInfo {
             LocalDate.of(2026, 5, 4),
             PhaseType.THREE_PHASE,
             true,
-            "240А master: 2*MPPT, PV: 1+1; slave: 2*MPPT, PV: 1+1.",
+            "240А master: 2*MPPT, PV: 2+2; slave: 2*MPPT, PV: 2+2.",
             48,
             LocationType.DACHA
     );
