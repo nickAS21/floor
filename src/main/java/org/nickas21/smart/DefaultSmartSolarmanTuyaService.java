@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.List;
 
+import static org.nickas21.smart.data.dataEntityDto.InverterRole.getRoleByOffset;
 import static org.nickas21.smart.util.HttpUtil.batteryCurrentKey;
 import static org.nickas21.smart.util.HttpUtil.batteryPowerKey;
 import static org.nickas21.smart.util.HttpUtil.batterySocKey;
@@ -42,8 +43,15 @@ import static org.nickas21.smart.util.HttpUtil.gridVoltageL1Key;
 import static org.nickas21.smart.util.HttpUtil.gridVoltageL2Key;
 import static org.nickas21.smart.util.HttpUtil.gridVoltageL3Key;
 import static org.nickas21.smart.util.HttpUtil.homeDailyConsumptionPowerKey;
+import static org.nickas21.smart.util.HttpUtil.invDcCurrentPV1Key;
+import static org.nickas21.smart.util.HttpUtil.invDcCurrentPV2Key;
+import static org.nickas21.smart.util.HttpUtil.invDcPowerPV1Key;
+import static org.nickas21.smart.util.HttpUtil.invDcPowerPV2Key;
+import static org.nickas21.smart.util.HttpUtil.invDcVoltagePV1Key;
+import static org.nickas21.smart.util.HttpUtil.invDcVoltagePV2Key;
 import static org.nickas21.smart.util.HttpUtil.invHMIKey;
 import static org.nickas21.smart.util.HttpUtil.invMAINKey;
+import static org.nickas21.smart.util.HttpUtil.invParallelInformationKey;
 import static org.nickas21.smart.util.HttpUtil.invProtocolVerKey;
 import static org.nickas21.smart.util.HttpUtil.invTempKey;
 import static org.nickas21.smart.util.HttpUtil.productionDailySolarPowerKey;
@@ -287,25 +295,24 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         double totalSellSum = 0, totalBuySum = 0, dailySellSum = 0, dailyBuySum = 0;
 
         // Акумулятори для СЕРЕДНІХ значень
-        double bmsSoc = 0, batterySoc = 0, bmsTemp = 0, invTempSum = 0;
+        double bmsSoc = 0, batterySoc = 0, bmsTemp = 0, invTemp = 0;
         double bmsVolt = 0, batteryVolt = 0;
 
-        int activeDevices = 0;
         long latestTime = 0;
+        String invParallelInformation = null;
 
         for (SolarmanDevice device : this.solarmanStationsService.solarmanStation.getDevices().values()) {
             RealTimeData data = this.solarmanStationsService.getRealTimeData(device.getInverterSn(), device.getInverterId());
             if (data == null || data.getDataList() == null) continue;
 
-            activeDevices++;
             latestTime = Math.max(latestTime, data.getCollectionTime());
             List<RealTimeDataValue> list = data.getDataList();
+            invParallelInformation = getString(list, invParallelInformationKey);
 
             // 1. Сумуємо показники
             totalSolarSum += getDouble(list, totalSolarPowerKey);
             totalHomeSum += getDouble(list, totalHomeConsumptionPowerKey);
             totalGridSum += getDouble(list, totalGridPowerKey);
-            batteryPowerSum += getDouble(list, batteryPowerKey);
             bmsCurrentSum += getDouble(list, bmsCurrentKey);
             batteryCurrentFactSum += getDouble(list, batteryCurrentKey);
             dailyChargeSum += getDouble(list, dailyBatteryChargeKey);
@@ -319,15 +326,18 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             dailyBuySum += getDouble(list, dailyEnergyBuyKey);
 
             // 2. Додаємо для розрахунку середнього
-            invTempSum += getDouble(list, invTempKey);
 
-            // 3. Текстові дані та напругу мережі беремо з першого (Master)
-            if (activeDevices == 1) {
+
+            if (getRoleByOffset(1).equals(invParallelInformation)) {
+                // 3. Текстові дані та напругу мережі беремо з першого (Master)
                 batterySoc = getDouble(list, batterySocKey);
                 batteryVolt = getDouble(list, batteryVoltageKey);
                 bmsTemp = getDouble(list, bmsTempKey);
+                invTemp = getDouble(list, invTempKey);
                 bmsVolt = getDouble(list, bmsVoltageKey);
                 bmsSoc = getDouble(list, bmsSocKey);
+                batteryPowerSum += getDouble(list, batteryPowerKey);
+
                 powerValueRealTimeData.setInverterProtocolVersionValue(getString(list, invProtocolVerKey));
                 powerValueRealTimeData.setInverterMAINValue(getString(list, invMAINKey));
                 powerValueRealTimeData.setInverterHMIValue(getString(list, invHMIKey));
@@ -337,10 +347,33 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                 powerValueRealTimeData.setGridVoltageL1(getDouble(list, gridVoltageL1Key));
                 powerValueRealTimeData.setGridVoltageL2(getDouble(list, gridVoltageL2Key));
                 powerValueRealTimeData.setGridVoltageL3(getDouble(list, gridVoltageL3Key));
+                // 4.1 Solar Panels M1
+                powerValueRealTimeData.setInverterM1ParallelInformationValue(getString(list, invParallelInformationKey));
+                // PV1
+                powerValueRealTimeData.setInverterM1DcVoltagePV1Value(getDouble(list, invDcVoltagePV1Key));
+                powerValueRealTimeData.setInverterM1DcCurrentPV1Value(getDouble(list, invDcCurrentPV1Key));
+                powerValueRealTimeData.setInverterM1DcPowerPV1Value(getDouble(list, invDcPowerPV1Key));
+                // PV2
+                powerValueRealTimeData.setInverterM1DcVoltagePV2Value(getDouble(list, invDcVoltagePV2Key));
+                powerValueRealTimeData.setInverterM1DcCurrentPV2Value(getDouble(list, invDcCurrentPV2Key));
+                powerValueRealTimeData.setInverterM1DcPowerPV2Value(getDouble(list, invDcPowerPV2Key));
+            } else if (getRoleByOffset(2).equals(invParallelInformation)) {
+                batteryPowerSum += getDouble(list, batteryPowerKey);
+
+                // 4.2 Solar Panels S2
+                powerValueRealTimeData.setInverterS2ParallelInformationValue(getString(list, invParallelInformationKey));
+                // PV1
+                powerValueRealTimeData.setInverterS2DcVoltagePV1Value(getDouble(list, invDcVoltagePV1Key));
+                powerValueRealTimeData.setInverterS2DcCurrentPV1Value(getDouble(list, invDcCurrentPV1Key));
+                powerValueRealTimeData.setInverterS2DcPowerPV1Value(getDouble(list, invDcPowerPV1Key));
+                // PV2
+                powerValueRealTimeData.setInverterS2DcVoltagePV2Value(getDouble(list, invDcVoltagePV2Key));
+                powerValueRealTimeData.setInverterS2DcCurrentPV2Value(getDouble(list, invDcCurrentPV2Key));
+                powerValueRealTimeData.setInverterS2DcPowerPV2Value(getDouble(list, invDcPowerPV2Key));
             }
         }
 
-        if (activeDevices == 0) return;
+        if (invParallelInformation == null) return;
 
         // ЗАПИС АГРЕГОВАНИХ ДАНИХ
         powerValueRealTimeData.setCollectionTime(latestTime);
@@ -365,7 +398,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         powerValueRealTimeData.setBmsSocValue(bmsSoc);
         powerValueRealTimeData.setBatterySocValue(batterySoc);
         powerValueRealTimeData.setBmsTempValue(bmsTemp);
-        powerValueRealTimeData.setInverterTempValue(invTempSum / activeDevices);
+        powerValueRealTimeData.setInverterTempValue(invTemp);
         powerValueRealTimeData.setBmsVoltageValue(bmsVolt);
         powerValueRealTimeData.setBatteryVoltageValue(batteryVolt);
 

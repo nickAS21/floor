@@ -21,7 +21,8 @@ public class UsrTcpWiFiDecoders {
     private static final double SOH_LOSS_PER_CYCLE = (double) SOH_DEGRADATION_RANGE / BMS_LIFEPO4_CYCLES_TO_80_SOH;
     public static final byte[] START_SIGN_AA = { (byte) 0xAA, (byte) 0x55 };
     public static final byte[] START_SIGN_5E = { (byte) 0x5E, (byte) 0x10 };
-    public static final byte[] START_SIGN_01_03 = { (byte) 0x01, (byte) 0x03 };
+    // S04/S05 Deye
+    public static final byte[] START_SIGN_S04_01_03 = { (byte) 0x01, (byte) 0x03 };
     private static final int ID_BMS_LEN = 19;
     public static final int ID_BMS_START = 3;
     public static final int ID_BMS_END = ID_BMS_START + ID_BMS_LEN;

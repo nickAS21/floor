@@ -36,6 +36,13 @@ public class HttpUtil {
     public static final String tempSetKey = "temp_set";
     public static final String tempCurrentKey = "temp_current";
     public static final String invProtocolVerKey = "PTCv1";
+    public static final String invParallelInformationKey = "P_INF";
+    public static final String invDcVoltagePV1Key = "DV1";
+    public static final String invDcVoltagePV2Key = "DV2";
+    public static final String invDcCurrentPV1Key = "DC1";
+    public static final String invDcCurrentPV2Key = "DC2";
+    public static final String invDcPowerPV1Key = "DP1";
+    public static final String invDcPowerPV2Key = "DP2";
     public static final String invMAINKey = "MAIN";
     public static final String invHMIKey = "HMI";
     public static final String invTempKey = "AC_T";    // ℃

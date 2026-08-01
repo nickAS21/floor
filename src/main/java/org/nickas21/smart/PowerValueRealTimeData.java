@@ -11,6 +11,20 @@ public class PowerValueRealTimeData {
 
     double totalSolarPower;        // unit W
     String inverterProtocolVersionValue;
+    String inverterM1ParallelInformationValue;
+    double inverterM1DcVoltagePV1Value; // value = 479.70 -> unit = V
+    double inverterM1DcVoltagePV2Value;
+    double inverterM1DcCurrentPV1Value;  // value = 0.20 -> unit = A
+    double inverterM1DcCurrentPV2Value;
+    double inverterM1DcPowerPV1Value;    //  value = 108 -> unit = W
+    double inverterM1DcPowerPV2Value;
+    String inverterS2ParallelInformationValue;
+    double inverterS2DcVoltagePV1Value;
+    double inverterS2DcVoltagePV2Value;
+    double inverterS2DcCurrentPV1Value;
+    double inverterS2DcCurrentPV2Value;
+    double inverterS2DcPowerPV1Value;
+    double inverterS2DcPowerPV2Value;
     String inverterMAINValue;
     String inverterHMIValue;
     double inverterTempValue;   // ℃

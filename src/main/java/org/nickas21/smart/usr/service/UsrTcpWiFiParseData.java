@@ -40,9 +40,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_BMS_END;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.MIN_PACKET_BMS_USR_LENGTH;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.PACKET_DEYE_SERVICE_LENGTH;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_01_03;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_5E;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_AA;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_S04_01_03;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.T_C0;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.T_C1;
 import static org.nickas21.smart.usr.data.UsrTcpWifiCrcUtilities.isValidInverterGolegoCrc;
@@ -96,7 +96,7 @@ public class UsrTcpWiFiParseData {
             return parseAndProcessInverterGolego(buffer);
         }
         else if (usrTcpWiFiProperties.getAllPortsInverterDacha().contains(port)) {
-            return parseAndProcessInverterDyey(buffer, port);
+            return parseAndProcessInverterDyeyS04(buffer, port);
         }
         return new byte[0];
     }
@@ -507,6 +507,7 @@ public class UsrTcpWiFiParseData {
     }
 
     /**
+     * S04
      * BitRate - 9600
      * Логіка для Deye (Modbus RTU):
      * 1. Шукаємо заголовок 01 03.
@@ -514,12 +515,12 @@ public class UsrTcpWiFiParseData {
      * 3. Вираховуємо повну довжину пакета: 3 (header) + dataLength + 2 (CRC).
      * 4. Перевіряємо цілісність через CRC16 Modbus.
      */
-    public byte[] parseAndProcessInverterDyey(byte[] buffer, int port) {
+    public byte[] parseAndProcessInverterDyeyS04(byte[] buffer, int port) {
         int currentIndex = 0;
         int lastProcessedIndex = 0;
 
         while (true) {
-            int startIndex = indexOf(buffer, START_SIGN_01_03, currentIndex);
+            int startIndex = indexOf(buffer, START_SIGN_S04_01_03, currentIndex);
 
             // 1. Якщо маркер не знайдено - перевіряємо наявність мережевого сміття (IP заголовків)
             if (startIndex == -1) {
@@ -537,7 +538,6 @@ public class UsrTcpWiFiParseData {
                 currentIndex = startIndex + 1;
                 continue;
             }
-
             if (startIndex + expectedFullLength <= buffer.length) {
                 // --- НОВА ВАЛІДАЦІЯ ЛАНЦЮЖКА ---
                 boolean isSequenceValid = false;
@@ -550,7 +550,7 @@ public class UsrTcpWiFiParseData {
                     if (startIndex + expectedFullLength + 1 < buffer.length) {
                         byte n1 = buffer[startIndex + expectedFullLength];
                         byte n2 = buffer[startIndex + expectedFullLength + 1];
-                        if (n1 == START_SIGN_01_03[0] && n2 == START_SIGN_01_03[1]) {
+                        if (n1 == START_SIGN_S04_01_03[0] && n2 == START_SIGN_S04_01_03[1]) {
                             isSequenceValid = true;
                         }
                     }
