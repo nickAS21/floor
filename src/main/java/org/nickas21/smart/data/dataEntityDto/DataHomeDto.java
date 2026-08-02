@@ -13,7 +13,6 @@ import org.nickas21.smart.usr.config.PortStatus;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDacha;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDachaAcBatteryBlock106;
-import org.nickas21.smart.usr.entity.dacha.InverterDataDachaBmsBlock16;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDachaDailyTotalBlock118;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDachaOutToHomeBlock8;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
@@ -98,8 +97,9 @@ public class DataHomeDto {
             InverterDataDachaAcBatteryBlock106 batteryBlock106 = inverterMasterData.getInverterDataDachaAcBatteryBlock106();
             this.batterySoc = batteryBlock106.getSoc();
             this.batteryVol = batteryBlock106.getBatteryVoltage();
-            InverterDataDachaBmsBlock16 bmsBlock16 = inverterMasterData.getInverterDataDachaBmsBlock16();
-            this.batteryCurrent = calibrateCurrent(batteryBlock106.getBatteryCurrent(), bmsBlock16.getCurrent());
+//            InverterDataDachaBmsBlock16 bmsBlock16 = inverterMasterData.getInverterDataDachaBmsBlock16();
+//            this.batteryCurrent = calibrateCurrent(batteryBlock106.getBatteryCurrent(), bmsBlock16.getCurrent());
+            this.batteryCurrent = batteryBlock106.getBatteryCurrent();
             this.batteryStatus = resolveBatteryStatus(this.batteryCurrent);
             // 2. Блок Дому (Load) — строго з Мастера
             InverterDataDachaOutToHomeBlock8 outToHomeBlock8 = inverterMasterData.getInverterDataDachaOutToHomeBlock8();

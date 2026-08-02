@@ -136,6 +136,16 @@ public class StringUtils {
     public static int getUint16(byte[] data, int offset) {
         return ((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF);
     }
+
+    public static int getUint16kipPrefix(byte[] data, int offset) {
+        int hi = data[offset] & 0xFF;
+
+        if (hi == 0x00 || hi == 0x20 || hi == 0x40 || hi == 0x80) {
+            return(data[offset + 1] & 0xFF);
+        }
+
+        return (hi << 8) | (data[offset + 1] & 0xFF);
+    }
     public static int getSignedInt(byte[] data, int offset) {
         return (short) (((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF));
     }

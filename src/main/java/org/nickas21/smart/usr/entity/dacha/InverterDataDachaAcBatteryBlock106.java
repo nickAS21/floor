@@ -1,9 +1,13 @@
 package org.nickas21.smart.usr.entity.dacha;
 
 import lombok.Data;
+
 import java.util.Optional;
+
+import static org.nickas21.smart.util.StringUtils.bytesToHex;
 import static org.nickas21.smart.util.StringUtils.getSignedInt;
 import static org.nickas21.smart.util.StringUtils.getUint16;
+import static org.nickas21.smart.util.StringUtils.getUint16kipPrefix;
 
 @Data
 public class InverterDataDachaAcBatteryBlock106 {
@@ -38,8 +42,9 @@ public class InverterDataDachaAcBatteryBlock106 {
                     allValues[i] = String.format("%.2f", batteryVoltage);
                 }
                 case 4 -> {
+                    val = getUint16kipPrefix(data, offset);
                     soc = val;
-                    allValues[i] = String.valueOf(soc);
+                    allValues[i] = String.valueOf(val) + " -> " + bytesToHex(new byte[] { data[offset], data[offset + 1] });
                 }
                 case 8 -> {
                     // batteryPower знаковий

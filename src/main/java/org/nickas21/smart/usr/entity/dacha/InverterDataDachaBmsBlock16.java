@@ -3,8 +3,10 @@ package org.nickas21.smart.usr.entity.dacha;
 import lombok.Data;
 import java.util.Optional;
 
+import static org.nickas21.smart.util.StringUtils.bytesToHex;
 import static org.nickas21.smart.util.StringUtils.getSignedInt;
 import static org.nickas21.smart.util.StringUtils.getUint16;
+import static org.nickas21.smart.util.StringUtils.getUint16kipPrefix;
 
 @Data
 public class InverterDataDachaBmsBlock16 {
@@ -36,16 +38,20 @@ public class InverterDataDachaBmsBlock16 {
                     allValues[i] = String.format("%.2f", dischargeVoltage);
                 }
                 case 4 -> {
+                    val = getUint16kipPrefix(data, offset);;
                     chargeCurrentLimit = val;
-                    allValues[i] = String.valueOf(val);
+//                    allValues[i] = String.valueOf(val);
+                    allValues[i] = String.valueOf(val) + " -> " + bytesToHex(new byte[] { data[offset], data[offset + 1] });
                 }
                 case 6 -> {
                     dischargeCurrentLimit = val;
                     allValues[i] = String.valueOf(val);
                 }
                 case 8 -> {
+                    val = getUint16kipPrefix(data, offset);
                     soc = val;
-                    allValues[i] = String.valueOf(val);
+//                    allValues[i] = String.valueOf(val);
+                    allValues[i] = String.valueOf(val) + " -> " + bytesToHex(new byte[] { data[offset], data[offset + 1] });
                 }
                 case 10 -> {
                     voltage = val * 0.01;
