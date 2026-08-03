@@ -83,52 +83,8 @@ public class DataHomeDto {
 
     // Dacha
     public DataHomeDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
-        UsrTcpWiFiProperties props = usrTcpWiFiParseData.usrTcpWiFiProperties;
-        List<Integer> portsDacha = props.getAllPortsInverterDacha();
-        boolean allPortsActive = portsDacha.stream()
-                .map(usrTcpWiFiService::getStatusByPort)
-                .allMatch(status -> PortStatus.ACTIVE.name().equalsIgnoreCase(status));
-        InverterDataDacha inverterMasterData = null;
-        if (allPortsActive) inverterMasterData = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(props.getPortInverterDacha(), InverterDataDacha.class);
         PowerValueRealTimeData powerValueRealTimeData = solarmanTuyaService.getPowerValueRealTimeData();
-        if (inverterMasterData != null && inverterMasterData.getLastTime().toEpochMilli() != inverterMasterData.getStartTime().toEpochMilli()){
-            this.timestamp = inverterMasterData.getLastTime().toEpochMilli();
-            // 1. Блок Акумулятора (BMS) — строго з Мастера (8900)
-            InverterDataDachaAcBatteryBlock106 batteryBlock106 = inverterMasterData.getInverterDataDachaAcBatteryBlock106();
-            if (batteryBlock106 != null) {
-                this.batterySoc = batteryBlock106.getSoc();
-                this.batteryVol = batteryBlock106.getBatteryVoltage();
-//            InverterDataDachaBmsBlock16 bmsBlock16 = inverterMasterData.getInverterDataDachaBmsBlock16();
-//            this.batteryCurrent = calibrateCurrent(batteryBlock106.getBatteryCurrent(), bmsBlock16.getCurrent());
-                this.batteryCurrent = batteryBlock106.getBatteryCurrent();
-                this.batteryStatus = resolveBatteryStatus(this.batteryCurrent);
-            }
-            // 2. Блок Дому (Load) — строго з Мастера
-            InverterDataDachaOutToHomeBlock8 outToHomeBlock8 = inverterMasterData.getInverterDataDachaOutToHomeBlock8();
-            this.homePower = outToHomeBlock8.getPowerOutTotal();
-            // 3. Подобові лічильники Акумулятора — строго з Мастера
-            InverterDataDachaDailyTotalBlock118 dailyTotalBlock118 = inverterMasterData.getInverterDataDachaDailyTotalBlock118();
-            this.dailyBatteryCharge = dailyTotalBlock118.getDailyBatteryCharge();
-            this.dailyBatteryDischarge = dailyTotalBlock118.getDailyBatteryDischarge();
-            // 4. --- СУМУВАННЯ СОНЦЯ З УСІХ ЛОКАЛЬНИХ ЛОГЕРІВ ---
-            int totalSolarPowerSum = 0;
-            double dailyProductionSolarSum = 0.0;
-            for (Integer port : portsDacha) {
-                InverterDataDacha inv = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(port, InverterDataDacha.class);
-                if (inv != null) {
-                    if (inv.getInverterDataLoadDcBlock80() != null) {
-                        totalSolarPowerSum += inv.getInverterDataLoadDcBlock80().getTotalDcPowerSumPv();
-                    }
-                    if (inv.getInverterDataDachaDailyTotalBlock118() != null) {
-                        dailyProductionSolarSum += inv.getInverterDataDachaDailyTotalBlock118().getDailyProductionSolarPower();
-                    }
-                }
-            }
-            // Записуємо фінальні сумовані значення по сонцю
-            this.solarPower = totalSolarPowerSum;
-            this.dailyProductionSolarPower = dailyProductionSolarSum;
-        }
-        else if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
+        if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
             long ts = powerValueRealTimeData.getCollectionTime() * 1000L;
             long offsetMs = updateTimeStampToUtc(ts, LocationType.DACHA.getZoneId());
             this.timestamp = ts + offsetMs;
@@ -142,6 +98,52 @@ public class DataHomeDto {
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
             this.dailyBatteryCharge = powerValueRealTimeData.getDailyBatteryCharge();
             this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
+        } else {
+            UsrTcpWiFiProperties props = usrTcpWiFiParseData.usrTcpWiFiProperties;
+            List<Integer> portsDacha = props.getAllPortsInverterDacha();
+            boolean allPortsActive = portsDacha.stream()
+                    .map(usrTcpWiFiService::getStatusByPort)
+                    .allMatch(status -> PortStatus.ACTIVE.name().equalsIgnoreCase(status));
+            InverterDataDacha inverterMasterData = null;
+            if (allPortsActive)
+                inverterMasterData = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(props.getPortInverterDacha(), InverterDataDacha.class);
+            if (inverterMasterData != null && inverterMasterData.getLastTime().toEpochMilli() != inverterMasterData.getStartTime().toEpochMilli()) {
+                this.timestamp = inverterMasterData.getLastTime().toEpochMilli();
+                // 1. Блок Акумулятора (BMS) — строго з Мастера (8900)
+                InverterDataDachaAcBatteryBlock106 batteryBlock106 = inverterMasterData.getInverterDataDachaAcBatteryBlock106();
+                if (batteryBlock106 != null) {
+                    this.batterySoc = batteryBlock106.getSoc();
+                    this.batteryVol = batteryBlock106.getBatteryVoltage();
+//            InverterDataDachaBmsBlock16 bmsBlock16 = inverterMasterData.getInverterDataDachaBmsBlock16();
+//            this.batteryCurrent = calibrateCurrent(batteryBlock106.getBatteryCurrent(), bmsBlock16.getCurrent());
+                    this.batteryCurrent = batteryBlock106.getBatteryCurrent();
+                    this.batteryStatus = resolveBatteryStatus(this.batteryCurrent);
+                }
+                // 2. Блок Дому (Load) — строго з Мастера
+                InverterDataDachaOutToHomeBlock8 outToHomeBlock8 = inverterMasterData.getInverterDataDachaOutToHomeBlock8();
+                this.homePower = outToHomeBlock8.getPowerOutTotal();
+                // 3. Подобові лічильники Акумулятора — строго з Мастера
+                InverterDataDachaDailyTotalBlock118 dailyTotalBlock118 = inverterMasterData.getInverterDataDachaDailyTotalBlock118();
+                this.dailyBatteryCharge = dailyTotalBlock118.getDailyBatteryCharge();
+                this.dailyBatteryDischarge = dailyTotalBlock118.getDailyBatteryDischarge();
+                // 4. --- СУМУВАННЯ СОНЦЯ З УСІХ ЛОКАЛЬНИХ ЛОГЕРІВ ---
+                int totalSolarPowerSum = 0;
+                double dailyProductionSolarSum = 0.0;
+                for (Integer port : portsDacha) {
+                    InverterDataDacha inv = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(port, InverterDataDacha.class);
+                    if (inv != null) {
+                        if (inv.getInverterDataLoadDcBlock80() != null) {
+                            totalSolarPowerSum += inv.getInverterDataLoadDcBlock80().getTotalDcPowerSumPv();
+                        }
+                        if (inv.getInverterDataDachaDailyTotalBlock118() != null) {
+                            dailyProductionSolarSum += inv.getInverterDataDachaDailyTotalBlock118().getDailyProductionSolarPower();
+                        }
+                    }
+                }
+                // Записуємо фінальні сумовані значення по сонцю
+                this.solarPower = totalSolarPowerSum;
+                this.dailyProductionSolarPower = dailyProductionSolarSum;
+            }
         }
 
         if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
