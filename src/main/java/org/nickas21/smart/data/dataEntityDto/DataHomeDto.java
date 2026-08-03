@@ -95,12 +95,14 @@ public class DataHomeDto {
             this.timestamp = inverterMasterData.getLastTime().toEpochMilli();
             // 1. Блок Акумулятора (BMS) — строго з Мастера (8900)
             InverterDataDachaAcBatteryBlock106 batteryBlock106 = inverterMasterData.getInverterDataDachaAcBatteryBlock106();
-            this.batterySoc = batteryBlock106.getSoc();
-            this.batteryVol = batteryBlock106.getBatteryVoltage();
+            if (batteryBlock106 != null) {
+                this.batterySoc = batteryBlock106.getSoc();
+                this.batteryVol = batteryBlock106.getBatteryVoltage();
 //            InverterDataDachaBmsBlock16 bmsBlock16 = inverterMasterData.getInverterDataDachaBmsBlock16();
 //            this.batteryCurrent = calibrateCurrent(batteryBlock106.getBatteryCurrent(), bmsBlock16.getCurrent());
-            this.batteryCurrent = batteryBlock106.getBatteryCurrent();
-            this.batteryStatus = resolveBatteryStatus(this.batteryCurrent);
+                this.batteryCurrent = batteryBlock106.getBatteryCurrent();
+                this.batteryStatus = resolveBatteryStatus(this.batteryCurrent);
+            }
             // 2. Блок Дому (Load) — строго з Мастера
             InverterDataDachaOutToHomeBlock8 outToHomeBlock8 = inverterMasterData.getInverterDataDachaOutToHomeBlock8();
             this.homePower = outToHomeBlock8.getPowerOutTotal();

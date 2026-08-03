@@ -38,11 +38,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_BMS_END;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_DEYE_START_SOC_106;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_DEYE_START_SOC_16;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.MIN_PACKET_BMS_USR_LENGTH;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.PACKET_DEYE_SERVICE_LENGTH;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_5E;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_AA;
-import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_S04_01_03;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.START_SIGN_DEYE_01_03;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.T_C0;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiMessageType.T_C1;
 import static org.nickas21.smart.usr.data.UsrTcpWifiCrcUtilities.isValidInverterGolegoCrc;
@@ -53,6 +55,7 @@ import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFaultLogType.E1;
 import static org.nickas21.smart.util.LocationType.GOLEGO;
 import static org.nickas21.smart.util.StringUtils.bytesToHex;
 import static org.nickas21.smart.util.StringUtils.getCurrentTimeString;
+import static org.nickas21.smart.util.StringUtils.getUint16kipPrefix;
 import static org.nickas21.smart.util.StringUtils.intToHex;
 
 @Slf4j
@@ -96,7 +99,7 @@ public class UsrTcpWiFiParseData {
             return parseAndProcessInverterGolego(buffer);
         }
         else if (usrTcpWiFiProperties.getAllPortsInverterDacha().contains(port)) {
-            return parseAndProcessInverterDyeyS04(buffer, port);
+            return parseAndProcessInverterDyey(buffer, port);
         }
         return new byte[0];
     }
@@ -513,14 +516,16 @@ public class UsrTcpWiFiParseData {
      * 1. Шукаємо заголовок 01 03.
      * 2. Читаємо третій байт (dataLength).
      * 3. Вираховуємо повну довжину пакета: 3 (header) + dataLength + 2 (CRC).
-     * 4. Перевіряємо цілісність через CRC16 Modbus.
+     * 4. Перевіряємо валідність специфічних блоків (106 та 16) за SOC <= 100%.
+     *    Якщо перевірка не проходить - зсуваємося на startIndex + 1 і шукаємо далі.
+     * 5. Перевіряємо цілісність та послідовність.
      */
-    public byte[] parseAndProcessInverterDyeyS04(byte[] buffer, int port) {
+    public byte[] parseAndProcessInverterDyey(byte[] buffer, int port) {
         int currentIndex = 0;
         int lastProcessedIndex = 0;
 
         while (true) {
-            int startIndex = indexOf(buffer, START_SIGN_S04_01_03, currentIndex);
+            int startIndex = indexOf(buffer, START_SIGN_DEYE_01_03, currentIndex);
 
             // 1. Якщо маркер не знайдено - перевіряємо наявність мережевого сміття (IP заголовків)
             if (startIndex == -1) {
@@ -538,8 +543,18 @@ public class UsrTcpWiFiParseData {
                 currentIndex = startIndex + 1;
                 continue;
             }
+
             if (startIndex + expectedFullLength <= buffer.length) {
-                // --- НОВА ВАЛІДАЦІЯ ЛАНЦЮЖКА ---
+
+                // --- ВАЛІДАЦІЯ СТРУКТУРИ ТА СТАНУ SOC (БЛОКИ 106 ТА 16) ---
+                if (!isValidDeyeBlockStructure(buffer, startIndex + 3, dataLength)) {
+                    log.warn("Port [{}]: False block start detected at index [{}] (invalid SOC for length {}). Resuming search from index [{}]",
+                            port, startIndex, dataLength, startIndex + 1);
+                    currentIndex = startIndex + 1; // Зсуваємося на +1 від початку хибного блоку
+                    continue;
+                }
+
+                // --- ВАЛІДАЦІЯ ЛАНЦЮЖКА ---
                 boolean isSequenceValid = false;
 
                 // Якщо пакет останній у буфері
@@ -550,7 +565,7 @@ public class UsrTcpWiFiParseData {
                     if (startIndex + expectedFullLength + 1 < buffer.length) {
                         byte n1 = buffer[startIndex + expectedFullLength];
                         byte n2 = buffer[startIndex + expectedFullLength + 1];
-                        if (n1 == START_SIGN_S04_01_03[0] && n2 == START_SIGN_S04_01_03[1]) {
+                        if (n1 == START_SIGN_DEYE_01_03[0] && n2 == START_SIGN_DEYE_01_03[1]) {
                             isSequenceValid = true;
                         }
                     }
@@ -584,6 +599,28 @@ public class UsrTcpWiFiParseData {
         if (lastProcessedIndex >= buffer.length) return new byte[0];
 
         return Arrays.copyOfRange(buffer, lastProcessedIndex, buffer.length);
+    }
+
+    /**
+     * Валідація значень SOC всередині бінарних блоків 106 та 16.
+     * Повертає false, якщо значення SOC перевищує 100% або є від'ємним.
+     */
+    private boolean isValidDeyeBlockStructure(byte[] buffer, int payloadStart, int dataLength) {
+        int relativeOffset = switch (dataLength) {
+            case 106 -> ID_DEYE_START_SOC_106;
+            case 16  -> ID_DEYE_START_SOC_16;
+            default  -> -1;
+        };
+
+        if (relativeOffset != -1) {
+            int socOffset = payloadStart + relativeOffset;
+            if (socOffset + 1 < buffer.length) {
+                int soc = getUint16kipPrefix(buffer, socOffset);
+                return soc >= 0 && soc <= 100;
+            }
+        }
+
+        return true;
     }
 
     /**

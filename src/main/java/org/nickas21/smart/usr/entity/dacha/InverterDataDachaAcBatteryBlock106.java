@@ -93,14 +93,21 @@ public class InverterDataDachaAcBatteryBlock106 {
 
     public static Optional<InverterDataDachaAcBatteryBlock106> of(byte[] data) {
         try {
-            return (data != null && data.length >= 106)
-                    ? Optional.of(new InverterDataDachaAcBatteryBlock106(data))
-                    : Optional.empty();
+            if (data == null || data.length < 106) {
+                return Optional.empty();
+            }
+
+            InverterDataDachaAcBatteryBlock106 block = new InverterDataDachaAcBatteryBlock106(data);
+
+            if (block.getSoc() == null || block.getSoc() > 100) {
+                return Optional.empty();
+            }
+
+            return Optional.of(block);
         } catch (Exception e) {
             return Optional.empty();
         }
     }
-
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
