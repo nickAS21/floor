@@ -9,6 +9,7 @@ public class PowerValueRealTimeData {
 
     Long collectionTime;        // Update real time data
 
+        // solarPanel
     double totalSolarPower;        // unit W
     String inverterProtocolVersionValue;
     String inverterM1ParallelInformationValue;

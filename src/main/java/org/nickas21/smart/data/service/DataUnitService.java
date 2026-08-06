@@ -8,6 +8,7 @@ import org.nickas21.smart.data.dataEntityDto.DataInverterDto;
 import org.nickas21.smart.data.dataEntityDto.DataUnitDto;
 import org.nickas21.smart.data.dataEntityDto.InverterInfo;
 import org.nickas21.smart.data.dataEntityDto.InverterRole;
+import org.nickas21.smart.data.dataEntityDto.SolarPanelInfoDtos;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
@@ -40,17 +41,19 @@ public class DataUnitService {
 
     public DataUnitDto getUnitGolego() {
         List<BatteryInfoDto> batteries = this.getBatteries (GOLEGO);
+        SolarPanelInfoDtos panels = this.getPanels (GOLEGO);
         List<DataDeviceDto> devices = new ArrayList<>();
         Integer portInverterGolego = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
         Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(portInverterGolego).orElse(0L);
         String timestamp =  formatTimestamp(lastTimestamp, datePatternGridStatus);
         String connectionStatus = usrTcpWiFiService.getStatusByPort(portInverterGolego);
         DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterGolego, connectionStatus, InverterInfo.GOLEGO);
-        return new DataUnitDto(batteries, dataInverterDto, devices);
+        return new DataUnitDto(batteries, panels, dataInverterDto, devices);
     }
 
     public DataUnitDto getUnitDacha() {
         List<BatteryInfoDto> batteries = this.getBatteries (DACHA);
+        SolarPanelInfoDtos panels = this.getPanels (DACHA);
         List<DataDeviceDto> devices = new ArrayList<>();
         var props = usrTcpWiFiService.getTcpProps();
         Integer portInverterDacha = props.getPortInverterDacha();
@@ -69,7 +72,7 @@ public class DataUnitService {
         InverterInfo inverterInfoDacha = InverterInfo.DACHA;
         inverterInfoDacha.setModelName("SUN-12K-SG05LP3-EU-SM2:\n" + connectionStatusAll);
         DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterDacha, connectionStatus, inverterInfoDacha);
-        return new DataUnitDto(batteries, dataInverterDto, devices);
+        return new DataUnitDto(batteries, panels, dataInverterDto, devices);
     }
 
     public List<BatteryInfoDto> getBatteries (LocationType location) {
@@ -86,6 +89,15 @@ public class DataUnitService {
             batteries.add(batteryInfoDto);
         }
         return  batteries;
+    }
+
+    public SolarPanelInfoDtos getPanels (LocationType location) {
+        if (DACHA.equals(location)) {
+            if (solarmanTuyaService.getPowerValueRealTimeData() != null && solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() != null) {
+               return new SolarPanelInfoDtos(solarmanTuyaService.getPowerValueRealTimeData());
+            }
+        }
+        return new SolarPanelInfoDtos();
     }
 
 }

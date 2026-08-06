@@ -11,6 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 public class DataUnitDto {
     List<BatteryInfoDto> batteries;
+    SolarPanelInfoDtos panels;
     DataInverterDto inverter;
     List<DataDeviceDto> devices;
 }

@@ -5,6 +5,7 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.data.dataEntityDto.BatteryInfoDto;
 import org.nickas21.smart.data.dataEntityDto.DataHistoryDto;
 import org.nickas21.smart.data.dataEntityDto.DataHomeDto;
+import org.nickas21.smart.data.dataEntityDto.SolarPanelInfoDtos;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
@@ -106,9 +107,10 @@ public class HistoryService {
         try {
             DataHomeDto dachaData = new DataHomeDto(solarmanTuyaService, usrTcpWiFiParseData, tuyaDeviceService, usrTcpWiFiService);
             List<BatteryInfoDto> batteries = this.unitService.getBatteries (DACHA);
+            SolarPanelInfoDtos panels = this.unitService.getPanels (DACHA);
             Integer inverterPort = usrTcpWiFiService.getTcpProps().getPortInverterDacha();
             String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(inverterPort);
-            logWriter.writeToday(LocationType.DACHA, new DataHistoryDto(dachaData, batteries, inverterPort, inverterPortConnectionStatus));
+            logWriter.writeToday(LocationType.DACHA, new DataHistoryDto(dachaData, batteries, panels, inverterPort, inverterPortConnectionStatus));
         } catch (Exception e) {
             log.error("Error writing Dacha logs", e);
         }
@@ -117,9 +119,10 @@ public class HistoryService {
             // Тепер Golego пишеться з тим самим ритмом, що і Dacha
             DataHomeDto golegoData = new DataHomeDto(tuyaDeviceService, usrTcpWiFiParseData, tuyaDeviceService, usrTcpWiFiService);
             List<BatteryInfoDto> batteries = this.unitService.getBatteries(GOLEGO);
+            SolarPanelInfoDtos panels = this.unitService.getPanels (GOLEGO);
             Integer portInverterGolego = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
             String inverterPortConnectionStatus = usrTcpWiFiService.getStatusByPort(portInverterGolego);
-            logWriter.writeToday(LocationType.GOLEGO, new DataHistoryDto(golegoData, batteries, portInverterGolego, inverterPortConnectionStatus));
+            logWriter.writeToday(LocationType.GOLEGO, new DataHistoryDto(golegoData, batteries, panels, portInverterGolego, inverterPortConnectionStatus));
         } catch (Exception e) {
             log.error("Error writing Golego logs", e);
         }
