@@ -24,12 +24,12 @@ public class DataHistoryDto {
     private String inverterPortConnectionStatus;
     private DataHomeDto dataHome;
     private List<BatteryInfoDto> batteries;
-    private SolarPanelInfoDtos panels;
+    private SolarPanelInfoDtos panelInfoDtos;
 
-    public DataHistoryDto(DataHomeDto dataHome, List<BatteryInfoDto> batteries, SolarPanelInfoDtos panels, Integer inverterPort, String inverterPortConnectionStatus) {
+    public DataHistoryDto(DataHomeDto dataHome, List<BatteryInfoDto> batteries, SolarPanelInfoDtos panelInfoDtos, Integer inverterPort, String inverterPortConnectionStatus) {
         this.dataHome = dataHome;
         this.batteries = batteries;
-        this.panels = panels;
+        this.panelInfoDtos = panelInfoDtos;
 
         if (dataHome != null) {
             this.timestamp = dataHome.getTimestamp();

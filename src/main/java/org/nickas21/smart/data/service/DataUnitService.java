@@ -41,19 +41,19 @@ public class DataUnitService {
 
     public DataUnitDto getUnitGolego() {
         List<BatteryInfoDto> batteries = this.getBatteries (GOLEGO);
-        SolarPanelInfoDtos panels = this.getPanels (GOLEGO);
+        SolarPanelInfoDtos panelInfoDtos = this.getPanelInfoDtos(GOLEGO);
         List<DataDeviceDto> devices = new ArrayList<>();
         Integer portInverterGolego = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
         Long lastTimestamp = usrTcpWiFiService.getLastTimeActiveByPort(portInverterGolego).orElse(0L);
         String timestamp =  formatTimestamp(lastTimestamp, datePatternGridStatus);
         String connectionStatus = usrTcpWiFiService.getStatusByPort(portInverterGolego);
         DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterGolego, connectionStatus, InverterInfo.GOLEGO);
-        return new DataUnitDto(batteries, panels, dataInverterDto, devices);
+        return new DataUnitDto(batteries, panelInfoDtos, dataInverterDto, devices);
     }
 
     public DataUnitDto getUnitDacha() {
         List<BatteryInfoDto> batteries = this.getBatteries (DACHA);
-        SolarPanelInfoDtos panels = this.getPanels (DACHA);
+        SolarPanelInfoDtos panelInfoDtos = this.getPanelInfoDtos(DACHA);
         List<DataDeviceDto> devices = new ArrayList<>();
         var props = usrTcpWiFiService.getTcpProps();
         Integer portInverterDacha = props.getPortInverterDacha();
@@ -72,7 +72,7 @@ public class DataUnitService {
         InverterInfo inverterInfoDacha = InverterInfo.DACHA;
         inverterInfoDacha.setModelName("SUN-12K-SG05LP3-EU-SM2:\n" + connectionStatusAll);
         DataInverterDto dataInverterDto = new DataInverterDto(timestamp, portInverterDacha, connectionStatus, inverterInfoDacha);
-        return new DataUnitDto(batteries, panels, dataInverterDto, devices);
+        return new DataUnitDto(batteries, panelInfoDtos, dataInverterDto, devices);
     }
 
     public List<BatteryInfoDto> getBatteries (LocationType location) {
@@ -91,7 +91,7 @@ public class DataUnitService {
         return  batteries;
     }
 
-    public SolarPanelInfoDtos getPanels (LocationType location) {
+    public SolarPanelInfoDtos getPanelInfoDtos(LocationType location) {
         if (DACHA.equals(location)) {
             if (solarmanTuyaService.getPowerValueRealTimeData() != null && solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() != null) {
                return new SolarPanelInfoDtos(solarmanTuyaService.getPowerValueRealTimeData());

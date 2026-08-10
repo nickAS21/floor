@@ -369,6 +369,7 @@ public class AnalyticService {
         analyticDto.setHomePower(dataHomeDto.getHomePower());
         analyticDto.setBmsSoc(dataHomeDto.getBatterySoc());
         analyticDto.setSolarPower(dataHomeDto.getSolarPower());
+        analyticDto.setPanelInfoDtos(dataHomeDto.getPanelInfoDtos());
         analyticDto.setSolarDailyPower(dataHomeDto.getDailyProductionSolarPower());
 
         // 5. Розрахунок дельт та тарифів

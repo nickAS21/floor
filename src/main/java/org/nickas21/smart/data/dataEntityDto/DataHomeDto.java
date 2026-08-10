@@ -57,6 +57,7 @@ public class DataHomeDto {
     String batteriesFault;
 
     double solarPower;
+    SolarPanelInfoDtos panelInfoDtos = null;
     double homePower;
     double gridPower;
     boolean gridStatusRealTimeOnLine;
@@ -93,6 +94,7 @@ public class DataHomeDto {
             this.batteryCurrent = calibrateCurrent(powerValueRealTimeData.getBatteryCurrentValue(), powerValueRealTimeData.getBmsCurrentValue());
             this.batteryStatus = powerValueRealTimeData.getBatteryStatusValue();
             this.solarPower = powerValueRealTimeData.getTotalProductionSolarPower();
+            this.panelInfoDtos =  new SolarPanelInfoDtos(powerValueRealTimeData);
             this.homePower = powerValueRealTimeData.getTotalHomePower();
 
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
@@ -134,6 +136,8 @@ public class DataHomeDto {
                     if (inv != null) {
                         if (inv.getInverterDataLoadDcBlock80() != null) {
                             totalSolarPowerSum += inv.getInverterDataLoadDcBlock80().getTotalDcPowerSumPv();
+//                            inv.getInverterDataLoadDcBlock80().getDcPowerPv1();
+//                            inv.getInverterDataLoadDcBlock80().getDcPowerPv2();
                         }
                         if (inv.getInverterDataDachaDailyTotalBlock118() != null) {
                             dailyProductionSolarSum += inv.getInverterDataDachaDailyTotalBlock118().getDailyProductionSolarPower();
