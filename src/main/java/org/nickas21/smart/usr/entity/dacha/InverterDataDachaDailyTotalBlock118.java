@@ -81,7 +81,7 @@ public class InverterDataDachaDailyTotalBlock118 {
             case 36 -> "Total Discharging Energy(kWh)";
             case 48 -> "Total Energy Sell(kWh)";
             case 58 -> "Daily Production (Active)(kWh)";
-            case 82 -> "Temperature - Inverter(?)";
+            case 82 -> "Temperature - Inverter(S2)";
             default -> String.format("Nothing_%03d", offset);
         };
     }

@@ -61,6 +61,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.nickas21.smart.solarman.BatteryStatus.ALARM;
+import static org.nickas21.smart.solarman.BatteryStatus.CHARGING_50;
 import static org.nickas21.smart.solarman.BatteryStatus.DISCHARGING;
 import static org.nickas21.smart.tuya.constant.TuyaApi.CODE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.COMMANDS;
@@ -120,7 +121,7 @@ public class TuyaDeviceService {
     @Getter
     @Setter
     @Value("${golego.settings.battery_critical_night_soc_charging:95}")
-    private double batteryCriticalNightSocWinterGolego; //95 - для стабільності, 60, 50, 40;
+    private double batteryCriticalNightSocWinterGolego; //95 - для стабільності, 60, 50, 40, 30;
 
     @Getter
     @Setter
@@ -146,6 +147,10 @@ public class TuyaDeviceService {
     @Setter
     @Value("${golego.settings.heater_grid_auto_all_day:false}")
     private boolean heaterGridOnAutoAllDayGolego;
+
+    @Getter
+    @Setter
+    private boolean isAlarmDayGolego;
 
     @Getter
     @Setter
@@ -1126,22 +1131,27 @@ public class TuyaDeviceService {
     /**
      * Auto -> night
      * Always -> only if Relay Golego online
+     * Golego for only day: "on Grid" if < Alarm, after charge 50% - "off Grid"
      */
     public void updateOnOffSwitchRelayGolego(String gridRelayCodeId, double batterySocFromUsr) {
         Device device = this.devices.getDevIds().get(gridRelayCodeId);
         if (device == null || device.currentStateOnLine() == null || !device.currentStateOnLine().getValue()) {
             log.error("Device Relay Golego switch is null... , is offline... and is not update");
-        } else if (device.currentStateOnLine().getValue()) {
+        } else if (device.currentStateOnLine().getValue()  && this.getGridRelayCodeIdGolego().equals(gridRelayCodeId)) {
             boolean paramOnOff = false; // isSwitchRelayAfterNightOff()
             boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
             if (batterySocFromUsr >= 0 && batterySocFromUsr < ALARM.getSoc()) {
-                paramOnOff = this.getGridRelayCodeIdGolego().equals(gridRelayCodeId);
-
+                paramOnOff = this.isAlarmDayGolego = true;
+            } else if (batterySocFromUsr >= 0 && batterySocFromUsr >= CHARGING_50.getSoc() && !nightTariff && this.isAlarmDayGolego) {
+                this.isAlarmDayGolego = false;
+            } else if (batterySocFromUsr >= 0 && batterySocFromUsr < CHARGING_50.getSoc() && this.isAlarmDayGolego) {
+                paramOnOff = true;
             } else if (this.heaterGridOnAutoAllDayGolego) {
                 paramOnOff = this.getGridRelayCodeGolegoStateOnLine();
             } else {
                 if (nightTariff) {  // night: from 23:00 to 6:50 => nightTariff && batterySocFromUsr < this.batteryCriticalNightSocWinterGolego)
                     paramOnOff = batteryCriticalOrHeatNightSwitchRelayGolego(batterySocFromUsr);
+                    this.isAlarmDayGolego = false;
                 } else {
                     this.batteryCriticalOrHeatNightGolego = false;
                 }
