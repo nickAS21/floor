@@ -21,6 +21,9 @@ import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 public class SolarPanelInfoDtos {
     String timestamp;
     Map<String, SolarPanelInfoDto> panels = new ConcurrentHashMap<>();
+    private static String vendor = "LONGi Solar";
+    private static String modelNameOld = "LR4-60HPH-375M";
+    private static String modelNameNew = "LR8-66HGD-620M";
     public SolarPanelInfoDtos(PowerValueRealTimeData powerValueRealTimeData) {
         long timeStamp = powerValueRealTimeData.getCollectionTime() * 1000;
         this.timestamp = formatTimestamp(timeStamp, datePatternGridStatus);
@@ -29,28 +32,40 @@ public class SolarPanelInfoDtos {
                 powerValueRealTimeData.getInverterM1ParallelInformationValue(),
                 powerValueRealTimeData.getInverterM1DcVoltagePV1Value(),
                 powerValueRealTimeData.getInverterM1DcCurrentPV1Value(),
-                powerValueRealTimeData.getInverterM1DcPowerPV1Value()
+                powerValueRealTimeData.getInverterM1DcPowerPV1Value(),
+                vendor,
+                modelNameOld,
+                14
                 );
         SolarPanelInfoDto pv2_m1_SolarPanelInfoDto = new SolarPanelInfoDto(
                 timeStamp, 2,
                 powerValueRealTimeData.getInverterM1ParallelInformationValue(),
                 powerValueRealTimeData.getInverterM1DcVoltagePV2Value(),
                 powerValueRealTimeData.getInverterM1DcCurrentPV2Value(),
-                powerValueRealTimeData.getInverterM1DcPowerPV2Value()
+                powerValueRealTimeData.getInverterM1DcPowerPV2Value(),
+                vendor,
+                modelNameNew,
+                12
         );
         SolarPanelInfoDto pv1_s1_SolarPanelInfoDto = new SolarPanelInfoDto(
                 timeStamp, 1,
                 powerValueRealTimeData.getInverterS2ParallelInformationValue(),
                 powerValueRealTimeData.getInverterS2DcVoltagePV1Value(),
                 powerValueRealTimeData.getInverterS2DcCurrentPV1Value(),
-                powerValueRealTimeData.getInverterS2DcPowerPV1Value()
+                powerValueRealTimeData.getInverterS2DcPowerPV1Value(),
+                vendor,
+                modelNameOld,
+                15
         );
         SolarPanelInfoDto pv2_s1_SolarPanelInfoDto =  new SolarPanelInfoDto(
                 timeStamp, 2,
                 powerValueRealTimeData.getInverterS2ParallelInformationValue(),
                 powerValueRealTimeData.getInverterS2DcVoltagePV2Value(),
                 powerValueRealTimeData.getInverterS2DcCurrentPV2Value(),
-                powerValueRealTimeData.getInverterS2DcPowerPV2Value()
+                powerValueRealTimeData.getInverterS2DcPowerPV2Value(),
+                vendor,
+                modelNameNew,
+                7
         );
 
         panels.put(pv1_m1_SolarPanelInfoDto.getPvKey(), pv1_m1_SolarPanelInfoDto);

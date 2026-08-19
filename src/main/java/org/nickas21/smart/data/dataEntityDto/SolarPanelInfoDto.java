@@ -14,12 +14,17 @@ import lombok.extern.slf4j.Slf4j;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SolarPanelInfoDto {
-    long timeStamp;
-    int pvIndex;
+    Long timeStamp;
+    Integer pvIndex;
     String parallelInfo;
-    double pvVoltageCurV;
-    double pvCurrentCurA;
-    double pvPowerCurW;
+
+    Double pvVoltageCurV;
+    Double pvCurrentCurA;
+    Double pvPowerCurW;
+
+    String vendor;
+    String modelName;
+    Integer panelsCount;
 
     public String getPvKey() {
         return parallelInfo + "_PV" + pvIndex;
