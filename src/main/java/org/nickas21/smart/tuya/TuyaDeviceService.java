@@ -1137,56 +1137,59 @@ public class TuyaDeviceService {
         Device device = this.devices.getDevIds().get(gridRelayCodeId);
         if (device == null || device.currentStateOnLine() == null || !device.currentStateOnLine().getValue()) {
             log.error("Device Relay Golego switch is null... , is offline... and is not update");
-        } else if (device.currentStateOnLine().getValue()  && this.getGridRelayCodeIdGolego().equals(gridRelayCodeId)) {
-            boolean paramOnOff = false; // isSwitchRelayAfterNightOff()
-            boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
+            return;
+        }
+        if (!this.getGridRelayCodeIdGolego().equals(gridRelayCodeId)) {
+            return;
+        }
+
+        boolean paramOnOff = false; // isSwitchRelayAfterNightOff()
+        boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
+        if (this.heaterGridOnAutoAllDayGolego) {
+            paramOnOff = this.getGridRelayCodeGolegoStateOnLine();
+            this.isAlarmDayGolego = false;
+        } else if (nightTariff) {
+            paramOnOff = batteryCriticalOrHeatNightSwitchRelayGolego(batterySocFromUsr);
+            this.isAlarmDayGolego = false;
+        } else {    // Day: !nightTariff
+            this.batteryCriticalOrHeatNightGolego = false;
             if (batterySocFromUsr >= 0 && batterySocFromUsr < ALARM.getSoc()) {
-                paramOnOff = this.isAlarmDayGolego = true;
-            } else if (batterySocFromUsr >= 0 && batterySocFromUsr >= NOT_CHARGING_DAY_MORE_90.getSoc() && !nightTariff && this.isAlarmDayGolego) {
-                this.isAlarmDayGolego = false;
-            } else if (batterySocFromUsr >= 0 && batterySocFromUsr < NOT_CHARGING_DAY_MORE_90.getSoc() && this.isAlarmDayGolego) {
                 paramOnOff = true;
-            } else if (this.heaterGridOnAutoAllDayGolego) {
-                paramOnOff = this.getGridRelayCodeGolegoStateOnLine();
-            } else {
-                if (nightTariff) {  // night: from 23:00 to 6:50 => nightTariff && batterySocFromUsr < this.batteryCriticalNightSocWinterGolego)
-                    paramOnOff = batteryCriticalOrHeatNightSwitchRelayGolego(batterySocFromUsr);
+                this.isAlarmDayGolego = true;
+            } else if (batterySocFromUsr >= 0  && this.isAlarmDayGolego) {
+                if (batterySocFromUsr >= NOT_CHARGING_DAY_MORE_90.getSoc()) {
                     this.isAlarmDayGolego = false;
                 } else {
-                    this.batteryCriticalOrHeatNightGolego = false;
+                    paramOnOff = true;
                 }
             }
+        }
 
-            if (this.heaterGridOnAutoAllDayGolego) {
-                paramOnOff = this.getGridRelayCodeGolegoStateOnLine();
-            }
+        DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
+        if (this.devicesChangeHandleControlGolego) {   // handle and not -> 7-8 (AfterNight)
+            deviceUpdate.setValueNew(deviceUpdate.getValueOld());
+        }
 
-            DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-            if (this.devicesChangeHandleControlGolego) {   // handle and not -> 7-8 (AfterNight)
-                deviceUpdate.setValueNew(deviceUpdate.getValueOld());
-            }
-
-            if (!deviceUpdate.isUpdate()) {
-                log.info("Relay switch: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
-                        device.getName(),
-                        deviceUpdate.getFieldNameValueUpdate(),
-                        deviceUpdate.getValueNew(),
-                        deviceUpdate.getValueOld());
-                return;
-            }
-
-            log.info("Relay switch [{}] updated to [{}], night tariff: [{}].",
+        if (!deviceUpdate.isUpdate()) {
+            log.info("Relay switch: [{}] not Update. [{}] changeValue [{}] currentValue [{}]",
                     device.getName(),
-                    paramOnOff ? "on" : "off",
-                    nightTariff);
-            Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
-            queueUpdate.put(device, deviceUpdate);
-            queueLock.lock();
-            try {
-                updateThermostats(queueUpdate, false);
-            } finally {
-                queueLock.unlock();
-            }
+                    deviceUpdate.getFieldNameValueUpdate(),
+                    deviceUpdate.getValueNew(),
+                    deviceUpdate.getValueOld());
+            return;
+        }
+
+        log.info("Relay switch [{}] updated to [{}], night tariff: [{}].",
+                device.getName(),
+                paramOnOff ? "on" : "off",
+                nightTariff);
+        Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
+        queueUpdate.put(device, deviceUpdate);
+        queueLock.lock();
+        try {
+            updateThermostats(queueUpdate, false);
+        } finally {
+            queueLock.unlock();
         }
     }
 
