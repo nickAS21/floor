@@ -61,6 +61,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.nickas21.smart.solarman.BatteryStatus.ALARM;
+import static org.nickas21.smart.solarman.BatteryStatus.MIN_DISCHARGING_DAY_50;
 import static org.nickas21.smart.solarman.BatteryStatus.DISCHARGING;
 import static org.nickas21.smart.solarman.BatteryStatus.NOT_CHARGING_DAY_MORE_90;
 import static org.nickas21.smart.tuya.constant.TuyaApi.CODE;
@@ -1153,7 +1154,7 @@ public class TuyaDeviceService {
             this.isAlarmDayGolego = false;
         } else {    // Day: !nightTariff
             this.batteryCriticalOrHeatNightGolego = false;
-            if (batterySocFromUsr >= 0 && batterySocFromUsr < ALARM.getSoc()) {
+            if (batterySocFromUsr >= 0 && batterySocFromUsr < MIN_DISCHARGING_DAY_50.getSoc()) {
                 paramOnOff = true;
                 this.isAlarmDayGolego = true;
             } else if (batterySocFromUsr >= 0  && this.isAlarmDayGolego) {
