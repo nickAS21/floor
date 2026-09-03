@@ -61,9 +61,9 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.nickas21.smart.solarman.BatteryStatus.ALARM;
-import static org.nickas21.smart.solarman.BatteryStatus.MIN_DISCHARGING_DAY_50;
+import static org.nickas21.smart.solarman.BatteryStatus.MIN_DISCHARGING_DAY_45;
 import static org.nickas21.smart.solarman.BatteryStatus.DISCHARGING;
-import static org.nickas21.smart.solarman.BatteryStatus.NOT_CHARGING_DAY_MORE_90;
+import static org.nickas21.smart.solarman.BatteryStatus.NOT_CHARGING_DAY_MORE_70;
 import static org.nickas21.smart.tuya.constant.TuyaApi.CODE;
 import static org.nickas21.smart.tuya.constant.TuyaApi.COMMANDS;
 import static org.nickas21.smart.tuya.constant.TuyaApi.GET_DEVICES_ID_URL_PATH;
@@ -1154,11 +1154,11 @@ public class TuyaDeviceService {
             this.isAlarmDayGolego = false;
         } else {    // Day: !nightTariff
             this.batteryCriticalOrHeatNightGolego = false;
-            if (batterySocFromUsr >= 0 && batterySocFromUsr < MIN_DISCHARGING_DAY_50.getSoc()) {
+            if (batterySocFromUsr >= 0 && batterySocFromUsr < MIN_DISCHARGING_DAY_45.getSoc()) {
                 paramOnOff = true;
                 this.isAlarmDayGolego = true;
             } else if (batterySocFromUsr >= 0  && this.isAlarmDayGolego) {
-                if (batterySocFromUsr >= NOT_CHARGING_DAY_MORE_90.getSoc()) {
+                if (batterySocFromUsr >= NOT_CHARGING_DAY_MORE_70.getSoc()) {
                     this.isAlarmDayGolego = false;
                 } else {
                     paramOnOff = true;
