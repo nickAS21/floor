@@ -36,15 +36,15 @@ public class InverterGolegoData32 {
 
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("\n=== INVERTER DECODE 32 (Port: %d) | %s ===\n", port, timeStr));
+        sb.append(String.format("\n=== INVERTER Settings: DECODE 32 (Port: %d) | %s ===\n", port, timeStr));
 
-        sb.append(formatLine(0, hexMap[0], batteryVoltage1, "V (Напруга АКБ)"));
-        sb.append(formatLine(2, hexMap[1], batteryVoltage2, "V (Напруга АКБ)"));
-        sb.append(formatLine(4, hexMap[2], ratedBatteryVoltage, "V Rated Battery Voltage"));
-        sb.append(formatLine(6, hexMap[3], batteryVoltage3, "V (Напруга АКБ)"));
-        sb.append(formatLine(8, hexMap[4], currentCollectionFrequency, "min (Current Collection Frequency"));
-        sb.append(formatLine(10, hexMap[5], batteryEqualizeTimeout, "min (Battery Equalyze Timeout)"));
-        sb.append(formatLine(12, hexMap[6], batteryEqualizeInterval, "day (Battery Equalyze Intervsal)"));
+        sb.append(formatLine(0, hexMap[0], batteryVoltage1, "V (Bulk Charging Voltage)"));
+        sb.append(formatLine(2, hexMap[1], batteryVoltage2, "V (Float Charging Voltage)"));
+        sb.append(formatLine(4, hexMap[2], ratedBatteryVoltage, "Low Battery Cut-off Voltage"));
+        sb.append(formatLine(6, hexMap[3], batteryVoltage3, "V (Battery Equalization  Voltage)"));
+        sb.append(formatLine(8, hexMap[4], currentCollectionFrequency, "min (Battery Equalized Time"));
+        sb.append(formatLine(10, hexMap[5], batteryEqualizeTimeout, "min (Battery Equalized Timeout)"));
+        sb.append(formatLine(12, hexMap[6], batteryEqualizeInterval, "day (Battery Equalized Interval)"));
         sb.append(formatLine(14, hexMap[7], rezerv14, "Rezerv_14"));
         sb.append(formatLine(16, hexMap[8], rezerv16, "Rezerv_16"));
         sb.append(formatLine(18, hexMap[9], rezerv18, "Rezerv_18"));

@@ -8,7 +8,7 @@ public enum BatteryStatus {
     CHARGING_60("Charging", 60.00),            // if more is not charging at night
     MIN_DISCHARGING_DAY_45("Min Discharging normal", 45.00),            // if more is not charging at night
     DISCHARGING("Discharging", 40.00),      //  if less is charging at night and winter
-    ALARM("Alarm", 30.00);                  //  if less is charging all
+    ALARM("Alarm", 25.00);                  //  if less is charging all
 
     @Getter
     private final String type;

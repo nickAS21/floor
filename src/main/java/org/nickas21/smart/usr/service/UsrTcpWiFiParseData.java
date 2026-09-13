@@ -856,7 +856,7 @@ public class UsrTcpWiFiParseData {
         }
         InverterDataDacha inverterData = this.usrTcpWiFiBatteryRegistry.getInverter(port, InverterDataDacha.class);
 
-        log.info("Deye: len: [{}] hex: [{}]", payloadLen, bytesToHex(packet));
+//        log.info("Deye: len: [{}] hex: [{}]", payloadLen, bytesToHex(packet));
         if (payloadLen == 6) {
             long timeMillis = parseDeyeRtcToMillis(packet);
             Instant lastTime = Instant.ofEpochMilli(timeMillis);
@@ -930,45 +930,45 @@ public class UsrTcpWiFiParseData {
     private void parseDeyeInverterOutToHomeBlock8(byte[] data, InverterDataDacha inverterData) {
         InverterDataDachaOutToHomeBlock8.of(data).ifPresent(outBlock -> {
             inverterData.setInverterDataDachaOutToHomeBlock8(outBlock);
-            log.info("\neye OutToHome BLOCK_8:\nLast time: [{}]\nData:\n    {}",
-                    DATE_FORMATTER.format(inverterData.getLastTime()),
-                    outBlock);
+//            log.info("\neye OutToHome BLOCK_8:\nLast time: [{}]\nData:\n    {}",
+//                    DATE_FORMATTER.format(inverterData.getLastTime()),
+//                    outBlock);
         });
     }
 
     private void parseDeyeBmsBlock16(byte[] data, InverterDataDacha inverterData) {
         InverterDataDachaBmsBlock16.of(data).ifPresent(bmsBlock -> {
             inverterData.setInverterDataDachaBmsBlock16(bmsBlock);
-            log.info("\nDeye BMS BLOCK_16:\nLast time: [{}]\nData:\n    {}",
-                    DATE_FORMATTER.format(inverterData.getLastTime()),
-                    bmsBlock);
+//            log.info("\nDeye BMS BLOCK_16:\nLast time: [{}]\nData:\n    {}",
+//                    DATE_FORMATTER.format(inverterData.getLastTime()),
+//                    bmsBlock);
         });
     }
 
     private void parseDeyeLoadDcBlock80(byte[] data, InverterDataDacha inverterData) {
         InverterDataLoadDcBlock80.of(data).ifPresent(loadDcBlock -> {
             inverterData.setInverterDataLoadDcBlock80(loadDcBlock);
-            log.info("\nDeye Load & Dc BLOCK_80:\nLast time: [{}]\nData:\n    {}",
-                    DATE_FORMATTER.format(inverterData.getLastTime()),
-                    loadDcBlock);
+//            log.info("\nDeye Load & Dc BLOCK_80:\nLast time: [{}]\nData:\n    {}",
+//                    DATE_FORMATTER.format(inverterData.getLastTime()),
+//                    loadDcBlock);
         });
     }
 
     private void parseDeyAcBatteryBlock106(byte[] data, InverterDataDacha inverterData) {
         InverterDataDachaAcBatteryBlock106.of(data).ifPresent(acBatteryBlock -> {
             inverterData.setInverterDataDachaAcBatteryBlock106(acBatteryBlock);
-            log.info("\nDeye Ac & Battery BLOCK_106:\nLast time: [{}]\nData:\n    {}",
-                    DATE_FORMATTER.format(inverterData.getLastTime()),
-                    acBatteryBlock);
+//            log.info("\nDeye Ac & Battery BLOCK_106:\nLast time: [{}]\nData:\n    {}",
+//                    DATE_FORMATTER.format(inverterData.getLastTime()),
+//                    acBatteryBlock);
         });
     }
 
     private void parseDeyeDailyInverterDailyTotalBlock118(byte[] data, InverterDataDacha inverterData) {
         InverterDataDachaDailyTotalBlock118.of(data).ifPresent(inverterDailyTotalBlock -> {
             inverterData.setInverterDataDachaDailyTotalBlock118(inverterDailyTotalBlock);
-            log.info("\nDeye Daily & Total & Temp_Inv BLOCK_118:\nLast time: [{}]\nData:\n    {}",
-                    DATE_FORMATTER.format(inverterData.getLastTime()),
-                    inverterDailyTotalBlock);
+//            log.info("\nDeye Daily & Total & Temp_Inv BLOCK_118:\nLast time: [{}]\nData:\n    {}",
+//                    DATE_FORMATTER.format(inverterData.getLastTime()),
+//                    inverterDailyTotalBlock);
         });
     }
 
@@ -999,9 +999,9 @@ public class UsrTcpWiFiParseData {
         }
 
         // 3. Вивід у лог
-        log.info("\nDeye RAW BLOCK_{}:\nLast time: [{}]\nData:\n    {}",
-                payloadLen,
-                DATE_FORMATTER.format(inverterData.getLastTime()),
-                sb);
+//        log.info("\nDeye RAW BLOCK_{}:\nLast time: [{}]\nData:\n    {}",
+//                payloadLen,
+//                DATE_FORMATTER.format(inverterData.getLastTime()),
+//                sb);
     }
 }

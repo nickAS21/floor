@@ -191,6 +191,11 @@ public class DataHomeDto {
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFi = usrTcpWiFiParseData.getBattery(tcpProps.getPortBatMasterGolego());
         Boolean gridRelayCodeGolegoStateOnLine = deviceService.getGridRelayCodeGolegoStateOnLine();
+        // from inverter
+        UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
+        Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
+        InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego, InverterDataGolego.class);
+        log.info("Golego Inverter: entity90 {}; : entity32 {}; ", inverterDataGolego.getInverterGolegoData90(), inverterDataGolego.getInverterGolegoData32());
         if (gridRelayCodeGolegoStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeGolegoStateOnLine;
         Boolean gridRelayCodeGolegoStateSwitch =  deviceService.getGridRelayCodeGolegoStateSwitch();
         if (gridRelayCodeGolegoStateSwitch != null) this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
@@ -231,9 +236,9 @@ public class DataHomeDto {
             this.batterySoc = batteriesActiveCnt == 0 ? 0 : batterySocSum/batteriesActiveCnt;
 
             // from inverter
-            UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
-            Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
-            InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego, InverterDataGolego.class);
+//            UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
+//            Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
+//            InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego, InverterDataGolego.class);
             if (inverterDataGolego != null && inverterDataGolego.getInverterGolegoData90() != null && inverterDataGolego.getInverterGolegoData90().getHexMap().length > 0) {
                 InverterGolegoData90 inverterGolegoData90 = inverterDataGolego.getInverterGolegoData90();
                 this.batteryStatus = inverterGolegoData90.getStatus();
@@ -289,7 +294,8 @@ public class DataHomeDto {
         if (this.batteryStatus!= null && this.batterySoc == 0 && this.batteryVol > 0) {
             this.batterySoc = calculateSocByVoltage(this.batteryVol);
         }
-        log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
+        log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from GolegoData90 soc: [{}] % \n - from dto: [{}]",
+                this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), inverterDataGolego.getInverterGolegoData90().getSoc(), this);
     }
 
 
