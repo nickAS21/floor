@@ -7,8 +7,8 @@ import org.nickas21.smart.usr.config.PortStatus;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_42Data;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_MetaData;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Attributes;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -33,7 +33,12 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static org.nickas21.smart.util.StringUtils.intToHex;
+import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_ADR_01;
+import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID1;
+import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID2_42;
+import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID2_44;
+import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_INFO_HEX;
+import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_VER;
 import static org.nickas21.smart.util.StringUtils.stringToHexDump;
 
 @Slf4j
@@ -100,7 +105,7 @@ public class UsrTcpWiFiService {
                 t.setDaemon(true);
                 t.start();
             }
-            sendInitialStartupRS485Commands();
+//            sendInitialStartupRS485Commands();
             initUpdateTimeoutScheduler();
         } catch (Exception ex) {
             throw new IllegalStateException("USR TCP WiFi Service - Critical error, service failed to start", ex);
@@ -196,28 +201,26 @@ public class UsrTcpWiFiService {
 
     /**
      * Виконує стартовий залп статичних команд:
-     * - 0x44: System Alarms & FET Statuses (UsrTcpWifiRS485_MetaData)
+     * - 0x44: System Alarms & FET Statuses (UsrTcpWifiRS485_Data_GOOTO_Attributes)
      * - 0x51: Manufacturer Info (UsrTcpWifiRS485_51Data)
      * - 0x93: Serial Number (UsrTcpWifiRS485_93Data)
      */
     private void executeStartupSequence(int port) {
         // Створюємо об'єкт метаданих, який буде наповнюватися трьома командами
-        UsrTcpWifiRS485_MetaData metaDataRs485 = new UsrTcpWifiRS485_MetaData();
+        UsrTcpWifiRS485_Data_GOOTO_Attributes metaDataRs485 = new UsrTcpWifiRS485_Data_GOOTO_Attributes();
 
         // Послідовно викликаємо CID2: 0x44, 0x51, 0x93
-        executeRs485Command(port, UsrTcpWifiRS485_MetaData.CMD_CID2_44, metaDataRs485); // Alarms, FETs & Timestamp
-//        executeRs485Command(port, UsrTcpWifiRS485_MetaData.CMD_CID2_4F, metaDataRs485); // Alarms, FETs & Timestamp
-//        executeRs485Command(port, UsrTcpWifiRS485_MetaData.CMD_CID2_51, metaDataRs485); // Manufacturer Info
-//        executeRs485Command(port, UsrTcpWifiRS485_MetaData.CMD_CID2_60, metaDataRs485); // Manufacturer Info
-//        executeRs485Command(port, UsrTcpWifiRS485_MetaData.CMD_CID2_93, metaDataRs485); // Serial Number
+        executeRs485AttributesCommand(port, UsrTcpWifiRS485_Data_GOOTO_Attributes.CMD_CID2_4F, metaDataRs485); // Alarms, FETs & Timestamp
+        executeRs485AttributesCommand(port, UsrTcpWifiRS485_Data_GOOTO_Attributes.CMD_CID2_51, metaDataRs485); // Manufacturer Info
+        executeRs485AttributesCommand(port, UsrTcpWifiRS485_Data_GOOTO_Attributes.CMD_CID2_93, metaDataRs485); // Serial Number
 
         log.info("Port [{}]: Startup metadata sequence completed successfully.", port);
     }
 
     /**
-     * Executes metadata command and routes raw response to UsrTcpWifiRS485_MetaData parser.
+     * Executes metadata command and routes raw response to UsrTcpWifiRS485_Data_GOOTO_Attributes parser.
      */
-    public void executeRs485Command(int port, int cid2, UsrTcpWifiRS485_MetaData metaData) {
+    public void executeRs485AttributesCommand(int port, int cid2, UsrTcpWifiRS485_Data_GOOTO_Attributes metaData) {
         String responseAscii = sendAndReceiveRaw(port, cid2);
 
         if (responseAscii == null) {
@@ -225,19 +228,16 @@ public class UsrTcpWiFiService {
         }
 
         switch (cid2) {
-            case UsrTcpWifiRS485_MetaData.CMD_CID2_44:
-                metaData.parseAndUpdate44(responseAscii, Instant.now());
+//            case UsrTcpWifiRS485_Data_GOOTO_Attributes.CMD_CID2_44:
+//                metaData.parseAndUpdate44(responseAscii);
+//                break;
+            case UsrTcpWifiRS485_Data_GOOTO_Attributes.CMD_CID2_4F:
+                metaData.parseAndUpdate4F(responseAscii, Instant.now());
                 break;
-            case UsrTcpWifiRS485_MetaData.CMD_CID2_4F:
-                metaData.parseAndUpdate4F(responseAscii);
-                break;
-            case UsrTcpWifiRS485_MetaData.CMD_CID2_51:
+            case UsrTcpWifiRS485_Data_GOOTO_Attributes.CMD_CID2_51:
                 metaData.parseAndUpdate51(responseAscii);
                 break;
-            case UsrTcpWifiRS485_MetaData.CMD_CID2_60:
-                metaData.parseAndUpdate60(responseAscii);
-                break;
-            case UsrTcpWifiRS485_MetaData.CMD_CID2_93:
+            case UsrTcpWifiRS485_Data_GOOTO_Attributes.CMD_CID2_93:
                 metaData.parseAndUpdate93(responseAscii);
                 break;
             default:
@@ -246,104 +246,7 @@ public class UsrTcpWiFiService {
         }
     }
 
-    /**
-     * Low-level I/O method that handles raw RS485 Request/Response exchange over TCP socket.
-     * Checks for Pylontech response status RTN code before returning data.
-     *           int adr = 1;
-     *         String command = buildRs485AsciiCommand(adr, cid2);
-     *                 log.info("Command [{}] stringToHexDump Command [{}] execute CID2 [0x{}] adr [{}] - active socket", command, stringToHexDump(command), Integer.toHexString(cid2).toUpperCase(), adr);
-     *         String cid2Str = intToHex(cid2).substring(2);
-     *         command = buildRs485AsciiCommand(cid2Str);
-     */
-//    private String sendAndReceiveRaw(int port, int cid2) {
-//        Socket socket = activeConnections.get(port);
-//        if (socket == null || socket.isClosed() || !socket.isConnected()) {
-//            log.warn("Port [{}]: Cannot execute CID2 0x{} - active socket missing or closed",
-//                    port, Integer.toHexString(cid2).toUpperCase());
-//            return null;
-//        }
-//
-//        // Fixed ADR = 0x01 for Master battery (DIP switches all OFF)
-//        int adr = 1;
-//        String command = buildRs485AsciiCommand(adr, cid2);
-//                log.info("Command [{}] stringToHexDump Command [{}] execute CID2 [0x{}] adr [{}] - active socket", command, stringToHexDump(command), Integer.toHexString(cid2).toUpperCase(), adr);
-//        String cid2Str = intToHex(cid2).substring(2);
-//        command = buildRs485AsciiCommand(cid2Str);
-//        synchronized (socket) {
-//            try {
-//                InputStream in = socket.getInputStream();
-//                OutputStream out = socket.getOutputStream();
-//
-//                // Clear stale input buffer
-//                if (in.available() > 0) {
-//                    in.skip(in.available());
-//                }
-//
-//                // Send ASCII command
-//                out.write(command.getBytes(StandardCharsets.US_ASCII));
-//                out.flush();
-//
-//                socket.setSoTimeout(2000);
-////                byte[] buffer = new byte[512];
-////                int bytesRead = in.read(buffer);
-////
-////                if (bytesRead > 0) {
-////                    String responseAscii = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII).trim();
-//                StringBuilder sb = new StringBuilder();
-//                long startTime = System.currentTimeMillis();
-//                while ((System.currentTimeMillis() - startTime) < 2000) {
-//                    int b = in.read();
-//                    if (b == -1) break;
-//                    char c = (char) b;
-//                    sb.append(c);
-//                    if (c == '\r' || c == '\n') break;
-//                }
-//                String responseAscii = sb.toString().trim();
-//
-//                if (!responseAscii.isEmpty()) {
-//
-//                    log.info("BMS returned strDump [{}]  for CID2 [0x{}]  responseAscii  [{}]", stringToHexDump(responseAscii), Integer.toHexString(cid2).toUpperCase(), responseAscii, Integer.toHexString(cid2).toUpperCase());
-//                    // Base Pylontech ASCII validation (~ header and minimal frame length)
-////                    if (responseAscii.startsWith("~") && responseAscii.length() >= 10) {
-////                        // Check RTN Code at index 7..9
-////                        String rtnHex = responseAscii.substring(7, 9);
-//                    // Якщо прийшло декілька склеєних кадрів (є більше однієї '~'), беремо останній повноцінний кадр
-//                    if (responseAscii.lastIndexOf('~') > 0) {
-//                        responseAscii = responseAscii.substring(responseAscii.lastIndexOf('~'));
-//                    }
-//
-//// Validation (~ header and minimal frame length)
-//                    if (responseAscii.startsWith("~") && responseAscii.length() >= 10) {
-//                        // Check RTN Code at index 7..9
-//                        String rtnHex = responseAscii.substring(7, 9);
-//                        int rtnCode = Integer.parseInt(rtnHex, 16);
-//                        log.info("Port [{}]: BMS returned error for CID2 0x{} -> Code [0x{}]: {}",
-//                                port, Integer.toHexString(cid2).toUpperCase(), rtnHex, getBmsErrorDescription(rtnCode));
-//                        if (rtnCode != 0x00) {
-//                            return null;
-//                        }
-//
-//                        log.debug("Port [{}]: RS485 Response [CID2 0x{}]: SUCCESS", port, Integer.toHexString(cid2).toUpperCase());
-//                        return responseAscii;
-//                    } else {
-//                        log.warn("Port [{}]: Invalid RS485 ASCII frame received for CID2 0x{}: {}",
-//                                port, Integer.toHexString(cid2).toUpperCase(), responseAscii);
-//                    }
-//                }
-//            } catch (SocketTimeoutException e) {
-//                log.warn("Port [{}]: Timeout waiting for RS485 response (CID2 0x{})",
-//                        port, Integer.toHexString(cid2).toUpperCase());
-//            } catch (IOException e) {
-//                log.error("Port [{}]: IO Error on RS485 exchange (CID2 0x{}): {}",
-//                        port, Integer.toHexString(cid2).toUpperCase(), e.getMessage());
-//            } finally {
-//                try {
-//                    socket.setSoTimeout(0);
-//                } catch (IOException ignored) {}
-//            }
-//        }
-//        return null;
-//    }
+
 
     private String sendAndReceiveRaw(int port, int cid2) {
         Socket socket = activeConnections.get(port);
@@ -355,10 +258,7 @@ public class UsrTcpWiFiService {
         }
 
         int adr = 1;
-        String command = buildRs485AsciiCommand(adr, cid2);
-        String cid2Str = intToHex(cid2).substring(2);
-        command = buildRs485AsciiCommand(cid2Str);
-
+        String command = buildRs485AsciiCommand(cid2);
         log.info("Port [{}]: SEND CID2 [0x{}] command [{}] HEX [{}]",
                 port,
                 Integer.toHexString(cid2).toUpperCase(),
@@ -374,7 +274,7 @@ public class UsrTcpWiFiService {
                 // purge_buffer(sock)
                 // =================================================================
 
-                socket.setSoTimeout(50);
+                socket.setSoTimeout(10);
 
                 try {
                     byte[] purgeBuffer = new byte[1024];
@@ -447,14 +347,12 @@ public class UsrTcpWiFiService {
                                 }
                             }
 
-                            for (int i = 0; i < bytesRead; i++) {
-                                if (chunk[i] == '\r' || chunk[i] == '\n') {
-                                    hasEnd = true;
-                                    break;
-                                }
+                            byte lastByte = chunk[bytesRead - 1];
+                            if (lastByte == '\r' || lastByte == '\n') {
+                                hasEnd = true;
                             }
 
-                            if (hasStart && hasEnd) {
+                            if (hasStart && hasEnd && in.available() == 0) {
                                 break;
                             }
                         }
@@ -699,15 +597,17 @@ public class UsrTcpWiFiService {
      * Scheduled polling method for 0x42 telemetry frame.
      */
     public void pollRs485Devices(Integer masterBatPort) {
-        String responseAscii = sendAndReceiveRaw(masterBatPort, UsrTcpWifiRS485_42Data.CMD_CID2_42);
-        if (responseAscii != null) {
-            UsrTcpWifiRS485_42Data data42 = UsrTcpWifiRS485_42Data.parse(responseAscii);
-            if (data42 != null) {
-                usrTcpWiFiBatteryRegistry.updateBatteryData42(masterBatPort, data42);
-                usrTcpWiFiBatteryRegistry
-                        .getBattery(masterBatPort, BatteryDataUsrTcpWiFi.class)
-                        .setLastTime(data42.getTimestamp());
-                log.debug("Port [{}]: Telemetry 0x42 updated and lastTime set to {}", masterBatPort, data42.getTimestamp());
+        BatteryDataUsrTcpWiFi battery = usrTcpWiFiBatteryRegistry.getBattery(masterBatPort, BatteryDataUsrTcpWiFi.class);
+        String responseAsciiCid42 = sendAndReceiveRaw(masterBatPort, CMD_CID2_42);
+        String responseAsciiCid44 = sendAndReceiveRaw(masterBatPort, CMD_CID2_44);
+        if (responseAsciiCid42 != null || responseAsciiCid44  != null) {
+            UsrTcpWifiRS485_Data_GOOTO_Telemetry dataGOOTO_Telemetry = new UsrTcpWifiRS485_Data_GOOTO_Telemetry();
+            boolean parse42Is = dataGOOTO_Telemetry.parse42(responseAsciiCid42);
+            boolean parse44Is = dataGOOTO_Telemetry.parse44(responseAsciiCid44);
+            if (parse42Is || parse44Is) {
+                battery.setRs485_Data_GOOTO_Telemetry(dataGOOTO_Telemetry);
+                battery.setLastTime(dataGOOTO_Telemetry.getTimestamp());
+                log.debug("Port [{}]: Telemetry 0x42/0x44 updated and lastTime set to {}", masterBatPort, dataGOOTO_Telemetry.getTimestamp());
             }
         }
     }
@@ -743,84 +643,70 @@ public class UsrTcpWiFiService {
      * @param cid2 Код команди (0x42, 0x44, 0x4F, 0x51, 0x93, 0x96 тощо)
      * @return Повний ASCII-рядок запиту зі стартовим '~' та кінцевим '\r'
      */
-    public String buildRs485AsciiCommand(int adr, int cid2) {
-        if (cid2 == 0x60) {
-            log.info("HARDCODED COMMAND FOR CID2 [0x60] EXECUTED");
-            return "~201246600000FDAB\r";
-        }
-        int ver = 0x20;  // Версія протоколу 2.0
-        int cid1 = 0x46; // Pylontech Li-ion BMS
-
-        // Базовий заголовок (UPPERCASE)
-        String header = String.format("%02X%02X%02X%02X", ver, adr, cid1, cid2);
-
-        // INFO / LENGTH частина (ТІЛЬКИ UPPERCASE!)
-        String lengthAndInfo;
-
-
-        switch (cid2) {
-            case 0x42: // Analog Telemetry
-            case 0x44: // Alarms / MOSFET Flags
-            case 0x4F: // Protocol Version
-            case 0x51: // Manufacturer / Model
-            case 0x93: // Serial Number
-            case 0x96: // Firmware Version
-                lengthAndInfo = "e00201"; // Маленькі букви e00201!
-                break;
-            default:
-                lengthAndInfo = "0000";
-                break;
+    /**
+     * Канонічний обчислювач LENGTH: LCHKSUM (4 біти) + LENID (12 біт).
+     * @param infoHex Рядок даних INFO (у HEX)
+     * @return 4-символьний HEX-рядок (наприклад, "0000" або "E002")
+     */
+    public static String calculateLengthHex(String infoHex) {
+        if (infoHex == null || infoHex.isBlank()) {
+            return "0000";
         }
 
-        // Тіло кадру для розрахунку суми
-        String rawFrame = header + lengthAndInfo;
+        int infoCharLen = infoHex.trim().length();
+        int lenId = infoCharLen & 0x0FFF;
 
-        // Розрахунок підсумкової контрольної суми CHKCHR (LRC)
-         int sum = 0;
-        for (char c : rawFrame.toCharArray()) {
-            int v = (int) c;
-            sum += v;
-            log.info("'{}' -> {} (0x{})", c, v, Integer.toHexString(v).toUpperCase());
-        }
-        log.info("ASCII SUM = {} (0x{})", sum, Integer.toHexString(sum).toUpperCase());
+        int d1 = (lenId >> 8) & 0x0F;
+        int d2 = (lenId >> 4) & 0x0F;
+        int d3 = lenId & 0x0F;
 
-        int chkchr = (~sum + 1) & 0xFFFF;
+        int lchksum = (~(d1 + d2 + d3) + 1) & 0x0F;
+        int lengthVal = (lchksum << 12) | lenId;
 
-        // Повертаємо кадр (з великими буквами контрольної суми)
-        String result = "~" + rawFrame + String.format("%04X", chkchr) + "\r";
-        log.info("From Command [{}] stringToHexDump rawFrame [{}] execute CID2 [0x{}] adr [{}] chkchrHex [{}] chkchrInt [{}] - active socket", rawFrame, stringToHexDump(rawFrame), Integer.toHexString(cid2).toUpperCase(), adr, String.format("%04X", chkchr), chkchr);
-        return result;
+        return String.format("%04X", lengthVal);
     }
 
-    public static String buildRs485AsciiCommand(String cid2) {
-        String key = cid2.toUpperCase().trim();
-        String adr = "01";
-        switch (key) {
-            case "51":
-            case "51H":
-                return "~20014651e00201FD15\r";
-            case "93":
-            case "93H":
-                return "~20014693e00201FD0F\r";
-            case "96":
-            case "96H":
-                return "~20014696e00201FD0C\r";
-            case "4F":
-            case "4FH":
-                return "~2001464Fe00201FD01\r";
-//            case "42":
-//            case "42H":
-//                return "~20014642e00201FD9F\r";
-//            case "44":
-//            case "44H":
-//                return "~20014644e00201FD9D\r";
-            case "60":
-            case "60H":
-                String hex60 = "7E323031323436363030303030464441420D";
-                return "~2001464Fe00201FD01\r";
-            default:
-                // Дефолтний хардкод, якщо передано щось інше
-                return "~20" + adr + "46" + cid2 + "e00201FD15\r";
+    /**
+     * Обчислення контрольної суми CHKSUM за сумою ASCII-кодів символів тіла кадру.
+     */
+    public static String calculateChecksum(String cmdBody) {
+        int asciiSum = 0;
+        for (char c : cmdBody.toCharArray()) {
+            asciiSum += c;
         }
+        int chk = (~asciiSum + 1) & 0xFFFF;
+        return String.format("%04X", chk);
+    }
+
+    /**
+     * Генерація канонічної ASCII RS485 команди для Pylontech/GOOTO BMS.
+     *
+     *  adr     Адреса BMS (якщо <= 0, адреса вибирається автоматично: 12 для 0x60.., 01 для інших)
+     * @param cid2    Код команди (0x42, 0x44, 0x51, 0x60, 0x93, 0x96 тощо)
+     * infoHex Блок даних (за замовчуванням порожній "", або "01", "12" за потреби)
+     * @return Готовий ASCII-рядок для сокета з '~' та '\r'
+     */
+    public String buildRs485AsciiCommand(int cid2) {
+        // Авто-корекція адреси: 60-ті команди йдуть на 12 (0x0C), решта за замовчуванням на 01
+        int finalAdr = CMD_ADR_01;
+        String info = CMD_INFO_HEX;
+        String lengthHex = calculateLengthHex(info);
+
+        // Формуємо тіло кадру (VER + ADR + CID1 + CID2 + LENGTH + INFO)
+        String body = String.format("%02X%02X%02X%02X%s%s", CMD_VER, finalAdr, CMD_CID1, cid2, lengthHex, info);
+
+        // Обчислюємо CHKSUM
+        String chksumHex = calculateChecksum(body);
+
+        String fullCommand = "~" + body + chksumHex + "\r";
+
+        log.info("Built RS485 Cmd: CID2 [0x{}] | ADR [{}] | Body [{}] | CHKSUM [{}] | Full [{}]",
+                Integer.toHexString(cid2).toUpperCase(),
+                String.format("%02X", finalAdr),
+                body,
+                chksumHex,
+                fullCommand.trim());
+
+        return fullCommand;
     }
 }

@@ -12,10 +12,9 @@ import java.util.Arrays;
 @Slf4j
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class UsrTcpWifiRS485_MetaData {
+public class UsrTcpWifiRS485_Data_GOOTO_Attributes {
 
     // CID2 Constants
-    public static final int CMD_CID2_44 = 0x44;
     public static final int CMD_CID2_4F = 0x4F;
     public static final int CMD_CID2_51 = 0x51;
     public static final int CMD_CID2_60 = 0x60;
@@ -47,14 +46,14 @@ public class UsrTcpWifiRS485_MetaData {
     //   PARSERS
     // -------------------------------------------------------------
 
-    public void parseAndUpdate44(String asciiFrame, Instant requestTimestamp) {
+    public void parseAndUpdate44(String asciiFrame) {
         try {
             if (asciiFrame == null || asciiFrame.isEmpty()) {
                 return;
             }
 
             this.payloadBytesCur = asciiFrame.getBytes(StandardCharsets.US_ASCII);
-            this.timestamp = requestTimestamp;
+
 
             String[] frames = asciiFrame.split("(?=~)");
 
@@ -82,11 +81,12 @@ public class UsrTcpWifiRS485_MetaData {
 //            }
 
         } catch (Exception e) {
-            log.error("Failed to parse RS485 0x44 frame: {}", asciiFrame, e);
+            log.error("Failed to parse42 RS485 0x44 frame: {}", asciiFrame, e);
         }
     }
 
-    public void parseAndUpdate4F(String asciiFrame) {
+    public void parseAndUpdate4F(String asciiFrame, Instant requestTimestamp) {
+        this.timestamp = requestTimestamp;
         this.protocolVersion = hexAsciiToString(asciiFrame);
     }
 
@@ -101,7 +101,7 @@ public class UsrTcpWifiRS485_MetaData {
                 this.systemName = fullInfo;
             }
         } catch (Exception e) {
-            log.error("Failed to parse RS485 0x60 frame: {}", asciiFrame, e);
+            log.error("Failed to parse42 RS485 0x60 frame: {}", asciiFrame, e);
         }
     }
 

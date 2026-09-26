@@ -7,8 +7,8 @@ import org.nickas21.smart.usr.entity.InverterDataBase;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDacha;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_42Data;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_MetaData;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Attributes;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -82,20 +82,20 @@ public class UsrTcpWiFiBatteryRegistry {
     /**
      * Оновлення динамічної телеметрії RS485 (0x42)
      */
-    public void updateBatteryData42(int port, UsrTcpWifiRS485_42Data data42) {
+    public void updateBatteryDataGOOTO_Telemetry(int port, UsrTcpWifiRS485_Data_GOOTO_Telemetry dataGOOTO_Telemetry) {
         BatteryDataUsrTcpWiFi batteryData = getBattery(port, BatteryDataUsrTcpWiFi.class);
         synchronized (batteryData) {
-            batteryData.setRs485_42Data(data42);
+            batteryData.setRs485_Data_GOOTO_Telemetry(dataGOOTO_Telemetry);
         }
     }
 
     /**
      * Оновлення стартових метаданих RS485
      */
-    public void updateBatteryMetaData(int port, UsrTcpWifiRS485_MetaData metaData) {
+    public void updateBatteryDataGOOTO_Attributes(int port, UsrTcpWifiRS485_Data_GOOTO_Attributes metaData) {
         BatteryDataUsrTcpWiFi batteryData = getBattery(port, BatteryDataUsrTcpWiFi.class);
         synchronized (batteryData) {
-            batteryData.setRs485_MetaData(metaData);
+            batteryData.setRs485_Data_GOOTO_Attributes(metaData);
         }
     }
 }

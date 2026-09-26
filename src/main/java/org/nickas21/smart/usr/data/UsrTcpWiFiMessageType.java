@@ -8,7 +8,7 @@ import java.util.Map;
 @Getter
 public enum UsrTcpWiFiMessageType {
 
-    //  no parse
+    //  no parse42
     T_A2((byte) 0xA2, "BMS Version A2",1),
     T_D0((byte) 0xD0, "BMS Id Ident D0",1),
     T_21((byte) 0x21, "BMS Version 21",1),

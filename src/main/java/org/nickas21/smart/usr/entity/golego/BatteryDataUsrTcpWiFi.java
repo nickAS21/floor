@@ -18,8 +18,8 @@ public class BatteryDataUsrTcpWiFi extends BatteryDataBase {
     // --- Отримані дані ---
     private UsrTcpWifiC0Data c0Data;         // Поточний пакет C0 (Загальний стан)
     private UsrTcpWifiC1Data c1Data;         // Поточний отриманий пакет C1 (Стан комірок)
-    private UsrTcpWifiRS485_42Data rs485_42Data;         // Поточний отриманий пакет rs485_42 телеметрія вся)
-    private UsrTcpWifiRS485_MetaData rs485_MetaData;         // Поточний отриманий пакет rs485_44 Поля статусу та алармів 0x44H)
+    private UsrTcpWifiRS485_Data_GOOTO_Telemetry rs485_Data_GOOTO_Telemetry;         // Поточний отриманий пакет rs485_42 телеметрія вся)
+    private UsrTcpWifiRS485_Data_GOOTO_Attributes rs485_Data_GOOTO_Attributes;         // Поточний отриманий пакет rs485_44 Поля статусу та алармів 0x44H)
     private UsrTcpWiFiPacketRecordError errRecordE1;
     private UsrTcpWiFiPacketRecordError errRecordB1;
 
@@ -27,7 +27,7 @@ public class BatteryDataUsrTcpWiFi extends BatteryDataBase {
         super(port);
         this.c0Data = new UsrTcpWifiC0Data();
         this.c1Data = new UsrTcpWifiC1Data();
-        this.rs485_42Data = new  UsrTcpWifiRS485_42Data();
-        this.rs485_MetaData = new UsrTcpWifiRS485_MetaData();
+        this.rs485_Data_GOOTO_Telemetry = new UsrTcpWifiRS485_Data_GOOTO_Telemetry();
+        this.rs485_Data_GOOTO_Attributes = new UsrTcpWifiRS485_Data_GOOTO_Attributes();
     }
 }

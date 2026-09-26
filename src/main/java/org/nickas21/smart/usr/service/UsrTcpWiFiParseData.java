@@ -90,7 +90,7 @@ public class UsrTcpWiFiParseData {
         this.usrTcpWiFiBatteryRegistry = usrTcpWiFiBatteryRegistry;
     }
 
-    // ------------------ parse & process (core) ------------------
+    // ------------------ parse42 & process (core) ------------------
     protected byte[] parseAndProcessData(byte[] buffer, int port) {
         if (buffer == null || buffer.length == 0) return buffer;
         if (port == (usrTcpWiFiProperties.getPortBatMasterGolego())) {
@@ -292,7 +292,7 @@ public class UsrTcpWiFiParseData {
     }
 
     private boolean validationPacket(byte[] packet, byte[] startSign, UsrTcpWiFiMessageType msgType) {
-        if (msgType.getGroupBms() == 1){    // not parse
+        if (msgType.getGroupBms() == 1){    // not parse42
             return false;
         }
         if (packet.length < MIN_PACKET_BMS_USR_LENGTH) {
@@ -903,7 +903,7 @@ public class UsrTcpWiFiParseData {
             return dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
 
         } catch (Exception e) {
-            log.error("Failed to parse RTC bytes to millis: " + e.getMessage());
+            log.error("Failed to parse42 RTC bytes to millis: " + e.getMessage());
             return 0L;
         }
     }

@@ -40,7 +40,7 @@ public class DataTemperatureDto {
                 return Double.parseDouble((String) value);
             }
         } catch (Exception e) {
-            log.warn("Cannot parse key {}: {}", key, e.getMessage());
+            log.warn("Cannot parse42 key {}: {}", key, e.getMessage());
         }
         return 0.0;
     }

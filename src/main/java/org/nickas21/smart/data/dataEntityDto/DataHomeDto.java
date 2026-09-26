@@ -19,7 +19,7 @@ import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
 import org.nickas21.smart.usr.entity.golego.InverterGolegoData90;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_42Data;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
@@ -225,10 +225,10 @@ public class DataHomeDto {
                                 batteriesNoActive.add(port);
                             }
 
-                        } else if (batteryDataUsrTcpWiFiA.getRs485_42Data() != null && batteryDataUsrTcpWiFiA.getRs485_42Data().getTimestamp() != null) {
-                            batteryCurrentAll += batteryDataUsrTcpWiFiA.getRs485_42Data().getCurrentCurA();
-                            if (batteryDataUsrTcpWiFiA.getRs485_42Data().getSocPercent() != 0 && PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
-                                batterySocSum += batteryDataUsrTcpWiFiA.getRs485_42Data().getSocPercent();
+                        } else if (batteryDataUsrTcpWiFiA.getRs485_Data_GOOTO_Telemetry() != null && batteryDataUsrTcpWiFiA.getRs485_Data_GOOTO_Telemetry().getTimestamp() != null) {
+                            batteryCurrentAll += batteryDataUsrTcpWiFiA.getRs485_Data_GOOTO_Telemetry().getCurrentCurA();
+                            if (batteryDataUsrTcpWiFiA.getRs485_Data_GOOTO_Telemetry().getSocPercent() != 0 && PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
+                                batterySocSum += batteryDataUsrTcpWiFiA.getRs485_Data_GOOTO_Telemetry().getSocPercent();
                                 batteriesActiveCnt++;
                             } else {
                                 batteriesNoActive.add(port);
@@ -240,7 +240,7 @@ public class DataHomeDto {
             }
             log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
             UsrTcpWifiC0Data c0Data = batteryDataUsrTcpWiFi.getC0Data();
-            UsrTcpWifiRS485_42Data data42 = batteryDataUsrTcpWiFi.getRs485_42Data();
+            UsrTcpWifiRS485_Data_GOOTO_Telemetry data42 = batteryDataUsrTcpWiFi.getRs485_Data_GOOTO_Telemetry();
             if (c0Data != null && c0Data.getTimestamp() != null) {
                 long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli()/1000L, LocationType.GOLEGO.getZoneId());
                 this.timestamp = c0Data.getTimestamp().toEpochMilli() + offsetMs;

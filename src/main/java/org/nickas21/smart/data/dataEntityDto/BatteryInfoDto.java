@@ -9,7 +9,7 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC1Data;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_42Data;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 
 import java.util.Map;
@@ -99,13 +99,13 @@ public class BatteryInfoDto {
             this.cellVoltagesV = c1Data.getCellVoltagesV();
         }
 
-        UsrTcpWifiRS485_42Data data42 = batteryData.getRs485_42Data();
+        UsrTcpWifiRS485_Data_GOOTO_Telemetry data42 = batteryData.getRs485_Data_GOOTO_Telemetry();
         if (data42 != null && data42.getTimestamp() != null) {
             this.timestamp = formatTimestamp(data42.getTimestamp().toEpochMilli(), datePatternGridStatus);
             this.currentCurA = data42.getCurrentCurA();
             this.socPercent = data42.getSocPercent();
             this.bmsStatusStr = data42.getBmsStatusStr();
-            this.errorInfoDataHex =  intToHex(data42.getErrorInfoData());
+            this.errorInfoDataHex =  data42.getErrorInfoDataHex();
             this.errorOutput = data42.getErrorOutput();
             this.connectionStatus = usrTcpWiFiService.getStatusByPort(this.port);
         }
