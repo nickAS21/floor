@@ -104,9 +104,10 @@ usr:
   tcp:
     port-start: "${USR_CLIENT_PORT_START:8891}"
     ports-cnt: "${USR_CLIENT_BATTERIES_CNT:14}"
-    port-bat-master-golego: "${USR_CLIENT_PORT_MASTER:8894}"
+    port-bat-master-golego: "${USR_CLIENT_PORT_MASTER:8891}"
     port-inverter-golego: "${USR_CLIENT_PORT_INVERTER_GOLEGO:8899}"
     port-inverter-dacha: "${USR_CLIENT_PORT_INVERTER_DACHA:8900}"
+    port-bat-master-dacha: "${USR_CLIENT_PORT_MASTER_DACHA:8902}"
     monitor-inactivity-time-out: "${MONITOR_ACTIVITY_TIME_OUT:1200000}"
     margin-ms: "${MARGIN_MS:1200000}"
     check-rate: "${CHECK_RATE:60000}"

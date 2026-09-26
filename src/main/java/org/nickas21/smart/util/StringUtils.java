@@ -149,5 +149,20 @@ public class StringUtils {
     public static int getSignedInt(byte[] data, int offset) {
         return (short) (((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF));
     }
+
+    /**
+     * Перетворює ASCII-рядок у форматирований HEX-рядок для детального логування.
+     * Приклад: "~2001" -> "7E 32 30 30 31"
+     */
+    public static String stringToHexDump(String input) {
+        if (input == null || input.isEmpty()) {
+            return "<EMPTY>";
+        }
+        StringBuilder hexBuilder = new StringBuilder();
+        for (char c : input.toCharArray()) {
+            hexBuilder.append(String.format("%02X ", (int) c));
+        }
+        return hexBuilder.toString().trim();
+    }
 }
 

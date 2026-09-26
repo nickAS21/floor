@@ -93,8 +93,8 @@ public class UsrTcpWiFiParseData {
     // ------------------ parse & process (core) ------------------
     protected byte[] parseAndProcessData(byte[] buffer, int port) {
         if (buffer == null || buffer.length == 0) return buffer;
-        if (port <= (usrTcpWiFiProperties.getPortBatMasterGolego())) {
-            return parseAndProcessBmsGolego(buffer, port);
+        if (port == (usrTcpWiFiProperties.getPortBatMasterGolego())) {
+            return parseAndProcessBmsGolegoGbl2_45(buffer, port);
         } else if (port == (usrTcpWiFiProperties.getPortInverterGolego())) {
             return parseAndProcessInverterGolego(buffer);
         }
@@ -104,7 +104,7 @@ public class UsrTcpWiFiParseData {
         return new byte[0];
     }
 
-    protected byte[] parseAndProcessBmsGolego(byte[] buffer, int port) {
+    protected byte[] parseAndProcessBmsGolegoGbl2_45(byte[] buffer, int port) {
         int currentIndex = 0;
         int endIndex = -1;
         List<byte[]> packets = new ArrayList<>();

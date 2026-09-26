@@ -19,6 +19,7 @@ import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
 import org.nickas21.smart.usr.entity.golego.InverterGolegoData90;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_42Data;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
@@ -200,7 +201,6 @@ public class DataHomeDto {
         Boolean gridRelayCodeGolegoStateSwitch =  deviceService.getGridRelayCodeGolegoStateSwitch();
         if (gridRelayCodeGolegoStateSwitch != null) this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
         if (batteryDataUsrTcpWiFi != null) {
-            UsrTcpWifiC0Data c0Data = batteryDataUsrTcpWiFi.getC0Data();
             int portStart = tcpProps.getPortStart();
             int portsCnt = tcpProps.getPortsCnt();
             double batteryCurrentAll = 0;
@@ -215,23 +215,38 @@ public class DataHomeDto {
                     log.warn("Free Ports [{}]: is -> [{}]", port, usrTcpWiFiService.getStatusByPort(port));
                 } else  {
                     BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFiA = usrTcpWiFiParseData.getBattery(port);
-                    if (batteryDataUsrTcpWiFiA != null && batteryDataUsrTcpWiFiA.getC0Data() != null) {
-                        batteryCurrentAll += batteryDataUsrTcpWiFiA.getC0Data().getCurrentCurA();
-                        if (batteryDataUsrTcpWiFiA.getC0Data().getSocPercent() != 0 &&  PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
-                            batterySocSum += batteryDataUsrTcpWiFiA.getC0Data().getSocPercent();
-                            batteriesActiveCnt++;
-                        } else {
-                            batteriesNoActive.add(port);
+                    if (batteryDataUsrTcpWiFiA != null) {
+                        if (batteryDataUsrTcpWiFiA.getC0Data() != null && batteryDataUsrTcpWiFiA.getC0Data().getTimestamp() != null) {
+                            batteryCurrentAll += batteryDataUsrTcpWiFiA.getC0Data().getCurrentCurA();
+                            if (batteryDataUsrTcpWiFiA.getC0Data().getSocPercent() != 0 &&  PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
+                                batterySocSum += batteryDataUsrTcpWiFiA.getC0Data().getSocPercent();
+                                batteriesActiveCnt++;
+                            } else {
+                                batteriesNoActive.add(port);
+                            }
+
+                        } else if (batteryDataUsrTcpWiFiA.getRs485_42Data() != null && batteryDataUsrTcpWiFiA.getRs485_42Data().getTimestamp() != null) {
+                            batteryCurrentAll += batteryDataUsrTcpWiFiA.getRs485_42Data().getCurrentCurA();
+                            if (batteryDataUsrTcpWiFiA.getRs485_42Data().getSocPercent() != 0 && PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
+                                batterySocSum += batteryDataUsrTcpWiFiA.getRs485_42Data().getSocPercent();
+                                batteriesActiveCnt++;
+                            } else {
+                                batteriesNoActive.add(port);
+                            }
                         }
                     }
                 }
 
             }
             log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
-
-            if (c0Data.getTimestamp() != null) {
+            UsrTcpWifiC0Data c0Data = batteryDataUsrTcpWiFi.getC0Data();
+            UsrTcpWifiRS485_42Data data42 = batteryDataUsrTcpWiFi.getRs485_42Data();
+            if (c0Data != null && c0Data.getTimestamp() != null) {
                 long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli()/1000L, LocationType.GOLEGO.getZoneId());
                 this.timestamp = c0Data.getTimestamp().toEpochMilli() + offsetMs;
+            } else if (data42 != null && data42.getTimestamp() != null) {
+                long offsetMs42 = updateTimeStampToUtc(data42.getTimestamp().toEpochMilli()/1000L, LocationType.GOLEGO.getZoneId());
+                this.timestamp = data42.getTimestamp().toEpochMilli() + offsetMs42;
             }
             this.batterySoc = batteriesActiveCnt == 0 ? 0 : batterySocSum/batteriesActiveCnt;
 
@@ -239,16 +254,27 @@ public class DataHomeDto {
 //            UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
 //            Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
 //            InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego, InverterDataGolego.class);
-            if (inverterDataGolego != null && inverterDataGolego.getInverterGolegoData90() != null && inverterDataGolego.getInverterGolegoData90().getHexMap().length > 0) {
+            if (inverterDataGolego.getInverterGolegoData90() != null && inverterDataGolego.getInverterGolegoData90().getHexMap().length > 0) {
                 InverterGolegoData90 inverterGolegoData90 = inverterDataGolego.getInverterGolegoData90();
                 this.batteryStatus = inverterGolegoData90.getStatus();
                 this.batteryVol = inverterGolegoData90.getBatteryVoltage();
                 this.batteryCurrent = inverterGolegoData90.getBatteryCurrent();
                 this.homePower = inverterGolegoData90.getLoadOutputActivePower();
                 this.gridVoltageLs.put(1, inverterGolegoData90.getAcInputVoltage());
-            } else {
+            } else if (c0Data != null && c0Data.getTimestamp() != null) {
                 this.batteryStatus = c0Data.getBmsStatusStr();
                 this.batteryVol = c0Data.getVoltageCurV();
+                this.batteryCurrent = Math.round(batteryCurrentAll * 100.0) / 100.0;
+                 if (this.batteryCurrent == 0 && this.gridPower == 0) {
+                    this.homePower = 0;
+                } else if (this.batteryCurrent < 0) {
+                    this.homePower = (this.batteryVol * Math.abs(this.batteryCurrent)) - golegoInverterPowerDefault;
+                } else {
+                    this.homePower = this.golegoPowerDefault;
+                }
+            } else if (data42 != null && data42.getTimestamp() != null) {
+                this.batteryStatus = data42.getBmsStatusStr();
+                this.batteryVol = data42.getVoltageCurV();
                 this.batteryCurrent = Math.round(batteryCurrentAll * 100.0) / 100.0;
                  if (this.batteryCurrent == 0 && this.gridPower == 0) {
                     this.homePower = 0;
@@ -295,44 +321,42 @@ public class DataHomeDto {
             this.batterySoc = calculateSocByVoltage(this.batteryVol);
         }
         log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from GolegoData90 soc: [{}] % \n - from dto: [{}]",
-                this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), inverterDataGolego.getInverterGolegoData90().getSoc(), this);
+                this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), inverterDataGolego.getInverterGolegoData90()== null ? "null" : inverterDataGolego.getInverterGolegoData90().getSoc(), this);
     }
 
+    /**
+     * Розрахунок SOC (%) на основі напруги (V) для 48V збірки (16S).
+     * @param batteryVol вхідна напруга в вольтах
+     * @return State of Charge (SOC) від 0.0 до 100.0
+     */
+    public static double calculateSocByVoltage(Double batteryVol) {
+        if (batteryVol == null) return 0.0;
+        if (batteryVol >= 58.4) return 100.0;
+        if (batteryVol <= 40.0) return 0.0;
 
+        // Працюємо виключно з об'єктом Integer
+        Integer mv = (int) (batteryVol * 1000);
 
-        /**
-         * Розрахунок SOC (%) на основі напруги (V) для 48V збірки (16S).
-         * @param batteryVol вхідна напруга в вольтах
-         * @return State of Charge (SOC) від 0.0 до 100.0
-         */
-        public static double calculateSocByVoltage(Double batteryVol) {
-            if (batteryVol == null) return 0.0;
-            if (batteryVol >= 58.4) return 100.0;
-            if (batteryVol <= 40.0) return 0.0;
+        return switch (mv) {
+            // Чистий об'єктний тип Integer + Guard (when)
+            case Integer v when v >= 54000 -> {
+                double k = (100.0 - 99.0) / (58.4 - 54.0);
+                yield 99.0 + k * (batteryVol - 54.0);
+            }
 
-            // Працюємо виключно з об'єктом Integer
-            Integer mv = (int) (batteryVol * 1000);
+            // Чистий об'єктний тип Integer + Guard (when)
+            case Integer v when v >= 50400 -> {
+                double k = (99.0 - 14.0) / (54.0 - 50.4);
+                yield 14.0 + k * (batteryVol - 50.4);
+            }
 
-            return switch (mv) {
-                // Чистий об'єктний тип Integer + Guard (when)
-                case Integer v when v >= 54000 -> {
-                    double k = (100.0 - 99.0) / (58.4 - 54.0);
-                    yield 99.0 + k * (batteryVol - 54.0);
-                }
-
-                // Чистий об'єктний тип Integer + Guard (when)
-                case Integer v when v >= 50400 -> {
-                    double k = (99.0 - 14.0) / (54.0 - 50.4);
-                    yield 14.0 + k * (batteryVol - 50.4);
-                }
-
-                // Обов'язковий дефолт для обробки решти значень Integer та null-безпеки
-                default -> {
-                    double k = (14.0 - 0.0) / (50.4 - 40.0);
-                    yield 0.0 + k * (batteryVol - 40.0);
-                }
-            };
-        }
+            // Обов'язковий дефолт для обробки решти значень Integer та null-безпеки
+            default -> {
+                double k = (14.0 - 0.0) / (50.4 - 40.0);
+                yield 0.0 + k * (batteryVol - 40.0);
+            }
+        };
+    }
 
 
     public static synchronized List<DataAnalyticDto> updateTimeStampToUtc(List<DataAnalyticDto> incomingLocalPoints) {

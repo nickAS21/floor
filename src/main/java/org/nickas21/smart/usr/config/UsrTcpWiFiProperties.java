@@ -12,10 +12,11 @@ public class UsrTcpWiFiProperties {
 
     private Integer portStart = 8891;
     private Integer portsCnt = 14;
-    private Integer portBatMasterGolego = 8894;
+    private Integer portBatMasterGolego = 8891;
     private Integer portInverterGolego = 8899;
     private Integer portInverterDacha = 8900;
-    private Integer portInverterDachaCntSlave = 1;
+    private Integer portBatMasterDacha = 8902;
+    private Integer portInverterDachaCntSlave = 3;
 
     public List<Integer> getAllPortsInverterDacha() {
         return IntStream.rangeClosed(0, portInverterDachaCntSlave)

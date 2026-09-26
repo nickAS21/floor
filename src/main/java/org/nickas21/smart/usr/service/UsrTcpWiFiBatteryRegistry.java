@@ -7,6 +7,8 @@ import org.nickas21.smart.usr.entity.InverterDataBase;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDacha;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_42Data;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_MetaData;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -75,5 +77,25 @@ public class UsrTcpWiFiBatteryRegistry {
 
     public Map<Integer, InverterDataBase> getInvertersAll() {
         return Collections.unmodifiableMap(inverters);
+    }
+
+    /**
+     * Оновлення динамічної телеметрії RS485 (0x42)
+     */
+    public void updateBatteryData42(int port, UsrTcpWifiRS485_42Data data42) {
+        BatteryDataUsrTcpWiFi batteryData = getBattery(port, BatteryDataUsrTcpWiFi.class);
+        synchronized (batteryData) {
+            batteryData.setRs485_42Data(data42);
+        }
+    }
+
+    /**
+     * Оновлення стартових метаданих RS485
+     */
+    public void updateBatteryMetaData(int port, UsrTcpWifiRS485_MetaData metaData) {
+        BatteryDataUsrTcpWiFi batteryData = getBattery(port, BatteryDataUsrTcpWiFi.class);
+        synchronized (batteryData) {
+            batteryData.setRs485_MetaData(metaData);
+        }
     }
 }

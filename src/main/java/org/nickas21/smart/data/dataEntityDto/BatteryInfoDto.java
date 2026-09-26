@@ -9,6 +9,7 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC1Data;
+import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_42Data;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 
 import java.util.Map;
@@ -41,7 +42,7 @@ public class BatteryInfoDto {
     Integer maxCellIdx;
     Map<Integer, Float> cellVoltagesV;
 
-    // Dacha akkum
+    // Dacha akum
     public BatteryInfoDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, UsrTcpWiFiService usrTcpWiFiService){
         if (solarmanTuyaService.getPowerValueRealTimeData() != null && solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() != null) {
             long timeStamp = solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() * 1000;
@@ -56,6 +57,7 @@ public class BatteryInfoDto {
         }
     }
 
+    // Golego akum
     public BatteryInfoDto(Map.Entry<Integer, BatteryDataUsrTcpWiFi> usrTcpWiFiBatteryEntry, UsrTcpWiFiService usrTcpWiFiService){
         this.port = usrTcpWiFiBatteryEntry.getKey();
         BatteryDataUsrTcpWiFi batteryData = usrTcpWiFiBatteryEntry.getValue();
@@ -95,6 +97,17 @@ public class BatteryInfoDto {
             this.maxCellIdx =  c1Data.getMaxCellV() == null ? -1 : c1Data.getMaxCellV().get(keyIdx).asInt();
             this.connectionStatus = usrTcpWiFiService.getStatusByPort(this.port);
             this.cellVoltagesV = c1Data.getCellVoltagesV();
+        }
+
+        UsrTcpWifiRS485_42Data data42 = batteryData.getRs485_42Data();
+        if (data42 != null && data42.getTimestamp() != null) {
+            this.timestamp = formatTimestamp(data42.getTimestamp().toEpochMilli(), datePatternGridStatus);
+            this.currentCurA = data42.getCurrentCurA();
+            this.socPercent = data42.getSocPercent();
+            this.bmsStatusStr = data42.getBmsStatusStr();
+            this.errorInfoDataHex =  intToHex(data42.getErrorInfoData());
+            this.errorOutput = data42.getErrorOutput();
+            this.connectionStatus = usrTcpWiFiService.getStatusByPort(this.port);
         }
     }
 }
