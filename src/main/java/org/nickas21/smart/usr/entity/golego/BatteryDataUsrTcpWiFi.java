@@ -4,6 +4,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.nickas21.smart.usr.data.UsrTcpWiFiMessageType;
 import org.nickas21.smart.usr.entity.BatteryDataBase;
+import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Attributes;
+import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecordError;
 
 import java.util.Map;

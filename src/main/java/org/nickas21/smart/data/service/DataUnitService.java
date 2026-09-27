@@ -85,8 +85,15 @@ public class DataUnitService {
             }
             return batteries;
         } else if (DACHA.equals(location)) {
-            BatteryInfoDto batteryInfoDto = new BatteryInfoDto(this.solarmanTuyaService, this.usrTcpWiFiService);
-            batteries.add(batteryInfoDto);
+            Map<Integer, BatteryDataUsrTcpWiFi> batteriesAll = this.usrTcpWiFiBatteryRegistry.getBatteriesDachaAll(BatteryDataUsrTcpWiFi.class);
+            for (Map.Entry<Integer, BatteryDataUsrTcpWiFi> entry : batteriesAll.entrySet()) {
+                BatteryInfoDto batteryInfoDto =  new BatteryInfoDto(entry, this.usrTcpWiFiService);
+                if (!usrTcpWiFiService.getTcpProps().getPortBatMasterDacha().equals(entry.getKey()) && batteryInfoDto.getTimestamp() == null) {
+                    batteryInfoDto = new BatteryInfoDto(this.solarmanTuyaService, this.usrTcpWiFiService);
+                    batteryInfoDto.setPort(entry.getKey());
+                }
+                batteries.add(batteryInfoDto);
+            }
         }
         return  batteries;
     }

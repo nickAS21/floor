@@ -15,12 +15,20 @@ public class UsrTcpWiFiProperties {
     private Integer portBatMasterGolego = 8891;
     private Integer portInverterGolego = 8899;
     private Integer portInverterDacha = 8900;
+    private Integer portInverterDachaCount = 2;
     private Integer portBatMasterDacha = 8902;
-    private Integer portInverterDachaCntSlave = 3;
+    private Integer portBatDachaCount = 3;
 
     public List<Integer> getAllPortsInverterDacha() {
-        return IntStream.rangeClosed(0, portInverterDachaCntSlave)
+        return IntStream.range(0, portInverterDachaCount)
                 .map(i -> portInverterDacha + i)
+                .boxed()
+                .toList();
+    }
+
+    public List<Integer> getAllPortsBatDacha() {
+        return IntStream.range(0, portBatDachaCount)
+                .map(i -> portBatMasterDacha + i)
                 .boxed()
                 .toList();
     }

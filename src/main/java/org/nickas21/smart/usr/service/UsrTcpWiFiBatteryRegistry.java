@@ -7,11 +7,12 @@ import org.nickas21.smart.usr.entity.InverterDataBase;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDacha;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Attributes;
+import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Attributes;
+import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -51,8 +52,24 @@ public class UsrTcpWiFiBatteryRegistry {
     }
 
     public <T extends BatteryDataBase> Map<Integer, T> getBatteriesGolegoAll(Class<T> clazz) {
+        Integer targetPort = usrTcpWiFiProperties.getPortBatMasterGolego();
         return batteries.entrySet().stream()
                 .filter(entry -> clazz.isInstance(entry.getValue()))
+                .filter(entry -> targetPort.equals(entry.getValue().getPort())) // Фільтр за портом
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(
+                                Map.Entry::getKey,
+                                entry -> clazz.cast(entry.getValue())
+                        ),
+                        Collections::unmodifiableMap
+                ));
+    }
+
+    public <T extends BatteryDataBase> Map<Integer, T> getBatteriesDachaAll(Class<T> clazz) {
+        List<Integer> targetPorts =  usrTcpWiFiProperties.getAllPortsBatDacha();
+        return batteries.entrySet().stream()
+                .filter(entry -> clazz.isInstance(entry.getValue()))
+                .filter(entry -> targetPorts.contains(entry.getValue().getPort())) // Фільтр за портом
                 .collect(Collectors.collectingAndThen(
                         Collectors.toMap(
                                 Map.Entry::getKey,

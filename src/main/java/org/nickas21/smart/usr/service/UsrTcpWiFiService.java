@@ -6,9 +6,9 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.usr.config.PortStatus;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
+import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Attributes;
+import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Attributes;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,15 +30,18 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_ADR_01;
-import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID1;
-import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID2_42;
-import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID2_44;
-import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_INFO_HEX;
-import static org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_VER;
+import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_ADR_01;
+import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID1;
+import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID2_42;
+import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID2_44;
+import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_INFO_HEX;
+import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_VER;
 import static org.nickas21.smart.util.StringUtils.stringToHexDump;
 
 @Slf4j
@@ -87,7 +90,8 @@ public class UsrTcpWiFiService {
             if (ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego()) ||
                     usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsInverterDacha().contains(ports[i])){
                 usrTcpWiFiBatteryRegistry.initInverter(ports[i]);
-            } else if (ports[i] <= usrTcpWiFiParseData.usrTcpWiFiProperties.getPortBatMasterGolego()) {
+            } else if (ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortBatMasterGolego()) ||
+                    usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsBatDacha().contains(ports[i])) {
                 usrTcpWiFiBatteryRegistry.initBattery(ports[i]);
             }
             lastSeenMap.put(ports[i], System.currentTimeMillis()); // Ініціалізація часу
@@ -106,7 +110,7 @@ public class UsrTcpWiFiService {
                 t.start();
             }
 //            sendInitialStartupRS485Commands();
-            initUpdateTimeoutScheduler();
+            initUpdateTimeoutSchedulerRs485();
         } catch (Exception ex) {
             throw new IllegalStateException("USR TCP WiFi Service - Critical error, service failed to start", ex);
         }
@@ -257,9 +261,9 @@ public class UsrTcpWiFiService {
             return null;
         }
 
-        int adr = 1;
         String command = buildRs485AsciiCommand(cid2);
-        log.info("Port [{}]: SEND CID2 [0x{}] command [{}] HEX [{}]",
+        // TODO only debug
+        log.info("Port [{}]: SEND CID2 [0x{}] command [{}] HEX_SEND CID2 [{}]",
                 port,
                 Integer.toHexString(cid2).toUpperCase(),
                 command,
@@ -370,8 +374,8 @@ public class UsrTcpWiFiService {
                 }
 
                 String responseAscii = buffer.toString(StandardCharsets.US_ASCII);
-
-                log.info("Port [{}]: RAW BMS response CID2 [0x{}], bytes [{}], HEX [{}], ASCII [{}]",
+                // TODO only debug
+                log.info("Port [{}]: RAW BMS response CID2 [0x{}], bytes [{}], HEX_response_CID2 [{}], ASCII [{}]",
                         port,
                         Integer.toHexString(cid2).toUpperCase(),
                         buffer.size(),
@@ -412,18 +416,32 @@ public class UsrTcpWiFiService {
         };
     }
 
-    public void initUpdateTimeoutScheduler() {
-        this.schedulerRs485 = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+    public void initUpdateTimeoutSchedulerRs485() {
+        // 2. Отримуємо значення періоду з дефолтом 140 секунд
+        Long timeoutSec = this.defaultSmartSolarmanTuyaService.getTimeoutSecUpdate();
+        long period = (timeoutSec != null && timeoutSec > 0) ? timeoutSec : 140L;
+
+        // 3. Створюємо SingleThreadScheduledExecutor
+        this.schedulerRs485 = Executors.newSingleThreadScheduledExecutor();
+
+        // 4. Запускаємо з initialDelay = 0 (перший виклик миттєво)
         this.schedulerRs485.scheduleAtFixedRate(
-                this::onSchedulerTick42,
-                0,
-                this.defaultSmartSolarmanTuyaService.getTimeoutSecUpdate() == null ? 140L : this.defaultSmartSolarmanTuyaService.getTimeoutSecUpdate(),
-                java.util.concurrent.TimeUnit.SECONDS
+                () -> {
+                    try {
+                        onSchedulerTicGOOTO_Telemetry();
+                    } catch (Throwable t) {
+                        // ОБОВ'ЯЗКОВО логуємо помилку, щоб шедулер не вмирав
+                        log.error("Error occurred in RS485 GOOTO Telemetry scheduler tic", t);
+                    }
+                },
+                0L, // 0L -> перший запуск одразу
+                period, // далі через кожні 'period' секунд
+                TimeUnit.SECONDS
         );
     }
 
-    private void onSchedulerTick42() {
-//        pollRs485Devices(usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterGolego());
+    private void onSchedulerTicGOOTO_Telemetry() {
+        pollRs485Devices(usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterGolego());
         pollRs485Devices(usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterDacha());
     }
 
@@ -480,8 +498,23 @@ public class UsrTcpWiFiService {
         portStatusMap.put(port, PortStatus.ACTIVE);
 
         // Battery ports: не читаємо сокет, тільки тримаємо з'єднання
-        if (port == usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterGolego()
-                || port == usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterDacha()) {
+        if (usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterGolego().equals(port)
+                || usrTcpWiFiParseData.getUsrTcpWiFiProperties().getAllPortsBatDacha().contains(port)) {
+            // TODO - only debug
+            log.debug("Port [{}]: Socket registered, starting initial RS485 poll", port);
+
+            CompletableFuture.runAsync(() -> {
+                // TODO - only debug
+                log.debug("Port [{}]: Initial RS485 poll START", port);
+
+                try {
+                    pollRs485Devices(port);
+                    // TODO - only debug
+                    log.debug("Port [{}]: Initial RS485 poll END", port);
+                } catch (Throwable t) {
+                    log.error("Port [{}]: Initial RS485 poll FAILED", port, t);
+                }
+            });
 
             try {
                 while (!conn.isClosed()) {
@@ -491,6 +524,7 @@ public class UsrTcpWiFiService {
                 Thread.currentThread().interrupt();
             } finally {
                 activeConnections.remove(port);
+                log.info("Port [{}]: Socket removed from activeConnections", port);
             }
             return;
         }
@@ -596,20 +630,71 @@ public class UsrTcpWiFiService {
     /**
      * Scheduled polling method for 0x42 telemetry frame.
      */
-    public void pollRs485Devices(Integer masterBatPort) {
-        BatteryDataUsrTcpWiFi battery = usrTcpWiFiBatteryRegistry.getBattery(masterBatPort, BatteryDataUsrTcpWiFi.class);
-        String responseAsciiCid42 = sendAndReceiveRaw(masterBatPort, CMD_CID2_42);
-        String responseAsciiCid44 = sendAndReceiveRaw(masterBatPort, CMD_CID2_44);
-        if (responseAsciiCid42 != null || responseAsciiCid44  != null) {
-            UsrTcpWifiRS485_Data_GOOTO_Telemetry dataGOOTO_Telemetry = new UsrTcpWifiRS485_Data_GOOTO_Telemetry();
-            boolean parse42Is = dataGOOTO_Telemetry.parse42(responseAsciiCid42);
-            boolean parse44Is = dataGOOTO_Telemetry.parse44(responseAsciiCid44);
-            if (parse42Is || parse44Is) {
-                battery.setRs485_Data_GOOTO_Telemetry(dataGOOTO_Telemetry);
-                battery.setLastTime(dataGOOTO_Telemetry.getTimestamp());
-                log.debug("Port [{}]: Telemetry 0x42/0x44 updated and lastTime set to {}", masterBatPort, dataGOOTO_Telemetry.getTimestamp());
+    public void pollRs485Devices(Integer batPort) {
+        BatteryDataUsrTcpWiFi battery = usrTcpWiFiBatteryRegistry.getBattery(batPort, BatteryDataUsrTcpWiFi.class);
+        if (battery == null) {
+            log.warn("Port [{}]: Battery registry returned null", batPort);
+            return;
+        }
+
+        // Беремо існуючу телеметрію або створюємо нову, якщо це перший запуск
+        UsrTcpWifiRS485_Data_GOOTO_Telemetry telemetry = battery.getRs485_Data_GOOTO_Telemetry();
+        if (telemetry == null) {
+            telemetry = new UsrTcpWifiRS485_Data_GOOTO_Telemetry();
+        }
+
+        // =========================================================================
+        // 1. КРОК 1: Запит кадру 0x42 (до 3 спроб у разі помилки)
+        // =========================================================================
+        boolean parse42Success = false;
+
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            String responseAsciiCid42 = sendAndReceiveRaw(batPort, CMD_CID2_42);
+            if (responseAsciiCid42 != null) {
+                parse42Success = telemetry.parse42(responseAsciiCid42);
+                if (parse42Success) {
+                    log.info("Port [{}]: CID2 0x42 parsed successfully on attempt {}", batPort, attempt);
+                    break; // Успішно! Виходимо з циклу повторів
+                }
+            }
+
+            log.warn("Port [{}]: Failed to read/parse CID2 0x42 (attempt {}/3)", batPort, attempt);
+            try {
+                Thread.sleep(100); // Невелика затримка перед повторною спробою
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
             }
         }
+
+        // Якщо за 3 спроби 0x42 так і не розпарсився — перериваємо опитування
+        if (!parse42Success) {
+            log.error("Port [{}]: CID2 0x42 failed after 3 attempts. Aborting telemetry update.", batPort);
+            return;
+        }
+
+        // =========================================================================
+        // 2. КРОК 2: Запит кадру 0x44 (одна спроба)
+        // =========================================================================
+        String responseAsciiCid44 = sendAndReceiveRaw(batPort, CMD_CID2_44);
+        if (responseAsciiCid44 != null) {
+            boolean parse44Success = telemetry.parse44(responseAsciiCid44);
+            if (parse44Success) {
+                log.info("Port [{}]: CID2 0x44 parsed successfully", batPort);
+            } else {
+                log.warn("Port [{}]: CID2 0x44 parse failed. Keeping previous 0x44 alarm state.", batPort);
+            }
+        } else {
+            log.warn("Port [{}]: CID2 0x44 response is null. Keeping previous 0x44 alarm state.", batPort);
+        }
+
+        // =========================================================================
+        // 3. КРОК 3: Фінальне збереження та оновлення часу
+        // =========================================================================
+        telemetry.setTimestamp(Instant.now());
+        battery.setRs485_Data_GOOTO_Telemetry(telemetry);
+        battery.setLastTime(telemetry.getTimestamp());
+
+        log.info("Port [{}]: Telemetry updated successfully at {}", batPort, telemetry.getTimestamp());
     }
 
     public boolean sendRs485Command(int port, String asciiCommand) {
@@ -699,8 +784,8 @@ public class UsrTcpWiFiService {
         String chksumHex = calculateChecksum(body);
 
         String fullCommand = "~" + body + chksumHex + "\r";
-
-        log.info("Built RS485 Cmd: CID2 [0x{}] | ADR [{}] | Body [{}] | CHKSUM [{}] | Full [{}]",
+        // TODO only debug
+        log.debug("Built RS485 Cmd: CID2 [0x{}] | ADR [{}] | Body [{}] | CHKSUM [{}] | Full [{}]",
                 Integer.toHexString(cid2).toUpperCase(),
                 String.format("%02X", finalAdr),
                 body,

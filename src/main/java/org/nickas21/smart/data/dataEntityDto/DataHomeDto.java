@@ -19,7 +19,7 @@ import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
 import org.nickas21.smart.usr.entity.golego.InverterGolegoData90;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
+import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
@@ -101,6 +101,14 @@ public class DataHomeDto {
             this.dailyProductionSolarPower = powerValueRealTimeData.getDailyProductionSolarPower();
             this.dailyBatteryCharge = powerValueRealTimeData.getDailyBatteryCharge();
             this.dailyBatteryDischarge = powerValueRealTimeData.getDailyBatteryDischarge();
+
+            this.gridPower = powerValueRealTimeData.getTotalGridPower();
+            this.dailyGridPower = powerValueRealTimeData.getDailyEnergyBuy();
+            double dailyCommonConsumptionPower = this.gridPower + this.dailyProductionSolarPower;
+            this.dailyConsumptionPower = dailyCommonConsumptionPower - this.dailyBatteryCharge;
+            this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
+            this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
+            this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());
         } else {
             UsrTcpWiFiProperties props = usrTcpWiFiParseData.usrTcpWiFiProperties;
             List<Integer> portsDacha = props.getAllPortsInverterDacha();
@@ -151,15 +159,6 @@ public class DataHomeDto {
             }
         }
 
-        if (powerValueRealTimeData != null && powerValueRealTimeData.getCollectionTime() != null) {
-            this.gridPower = powerValueRealTimeData.getTotalGridPower();
-            this.dailyGridPower = powerValueRealTimeData.getDailyEnergyBuy();
-            double dailyCommonConsumptionPower = this.gridPower + this.dailyProductionSolarPower;
-            this.dailyConsumptionPower = dailyCommonConsumptionPower - this.dailyBatteryCharge;
-            this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
-            this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
-            this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());
-        }
 
         DataTemperatureDto temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutDacha);
         if (temperatureDto != null) {

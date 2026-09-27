@@ -1,4 +1,4 @@
-package org.nickas21.smart.usr.entity.golego;
+package org.nickas21.smart.usr.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;

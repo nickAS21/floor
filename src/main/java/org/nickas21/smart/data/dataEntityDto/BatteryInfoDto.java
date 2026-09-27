@@ -9,7 +9,7 @@ import org.nickas21.smart.DefaultSmartSolarmanTuyaService;
 import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC1Data;
-import org.nickas21.smart.usr.entity.golego.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
+import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
 
 import java.util.Map;
@@ -36,11 +36,12 @@ public class BatteryInfoDto {
     String errorInfoDataHex;
     String errorOutput;
     String connectionStatus;
-    // Metadata for front
+    Integer cyclesCount;
     Double deltaMv; // in V critical if > 0,110 V
     Integer minCellIdx;
     Integer maxCellIdx;
     Map<Integer, Float> cellVoltagesV;
+    double sohPercent = 100.0;
 
     // Dacha akum
     public BatteryInfoDto(DefaultSmartSolarmanTuyaService solarmanTuyaService, UsrTcpWiFiService usrTcpWiFiService){
@@ -57,11 +58,11 @@ public class BatteryInfoDto {
         }
     }
 
-    // Golego akum
+    // Usr Golego/ GOOTO akum
     public BatteryInfoDto(Map.Entry<Integer, BatteryDataUsrTcpWiFi> usrTcpWiFiBatteryEntry, UsrTcpWiFiService usrTcpWiFiService){
         this.port = usrTcpWiFiBatteryEntry.getKey();
         BatteryDataUsrTcpWiFi batteryData = usrTcpWiFiBatteryEntry.getValue();
-
+        // Usr Golego
         UsrTcpWifiC0Data c0Data = batteryData.getC0Data();
         if (c0Data != null && c0Data.getTimestamp() != null) {
             this.timestamp = formatTimestamp(c0Data.getTimestamp().toEpochMilli(), datePatternGridStatus);
@@ -98,16 +99,40 @@ public class BatteryInfoDto {
             this.connectionStatus = usrTcpWiFiService.getStatusByPort(this.port);
             this.cellVoltagesV = c1Data.getCellVoltagesV();
         }
-
-        UsrTcpWifiRS485_Data_GOOTO_Telemetry data42 = batteryData.getRs485_Data_GOOTO_Telemetry();
-        if (data42 != null && data42.getTimestamp() != null) {
-            this.timestamp = formatTimestamp(data42.getTimestamp().toEpochMilli(), datePatternGridStatus);
-            this.currentCurA = data42.getCurrentCurA();
-            this.socPercent = data42.getSocPercent();
-            this.bmsStatusStr = data42.getBmsStatusStr();
-            this.errorInfoDataHex =  data42.getErrorInfoDataHex();
-            this.errorOutput = data42.getErrorOutput();
+        // Bat GOOTO
+        UsrTcpWifiRS485_Data_GOOTO_Telemetry dataGOOTO_Telemetry = batteryData.getRs485_Data_GOOTO_Telemetry();
+        if (dataGOOTO_Telemetry != null && dataGOOTO_Telemetry.getTimestamp() != null) {
+            this.timestamp = formatTimestamp(dataGOOTO_Telemetry.getTimestamp().toEpochMilli(), datePatternGridStatus);
+            this.currentCurA = dataGOOTO_Telemetry.getCurrentCurA();
+            this.voltageCurV = dataGOOTO_Telemetry.getVoltageCurV();
+            this.socPercent = dataGOOTO_Telemetry.getSocPercent();
+            this.bmsStatusStr = dataGOOTO_Telemetry.getBmsStatusStr();
             this.connectionStatus = usrTcpWiFiService.getStatusByPort(this.port);
+            this.cyclesCount = dataGOOTO_Telemetry.getCyclesCount();
+            this.sohPercent = dataGOOTO_Telemetry.getSohPercent();
+            if ((this.bmsTempValue == null || this.bmsTempValue == 0) && dataGOOTO_Telemetry.getBmsTempValue() != null) {
+                this.bmsTempValue = dataGOOTO_Telemetry.getBmsTempValue();
+            }
+
+            if (this.voltageCurV == 0 && dataGOOTO_Telemetry.getCellVoltagesV() != null) {
+                this.voltageCurV = dataGOOTO_Telemetry.getCellVoltagesV().values().stream()
+                        .mapToDouble(Float::doubleValue)
+                        .sum();
+            }
+
+            this.minCellIdx =  dataGOOTO_Telemetry.getMinCellV() == null ? -1 :  dataGOOTO_Telemetry.getMinCellV().get(keyIdx).asInt();
+            this.maxCellIdx =  dataGOOTO_Telemetry.getMaxCellV() == null ? -1 : dataGOOTO_Telemetry.getMaxCellV().get(keyIdx).asInt();
+
+
+            if (isBlank(this.errorInfoDataHex)){
+                this.errorInfoDataHex =  dataGOOTO_Telemetry.getErrorInfoDataHex();
+            }
+            if (isBlank(this.errorOutput) ){
+                this.errorOutput =  dataGOOTO_Telemetry.getErrorOutput();
+            }
+
+            this.deltaMv = dataGOOTO_Telemetry.getDeltaMv() / 1000.0;  // this.deltaMv in V Critical > 0.100 V
+            this.cellVoltagesV = dataGOOTO_Telemetry.getCellVoltagesV();
         }
     }
 }

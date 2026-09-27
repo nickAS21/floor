@@ -1,17 +1,25 @@
-package org.nickas21.smart.usr.entity.golego;
+package org.nickas21.smart.usr.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.usr.data.UsrWifiBmsBatteryStatus;
+import org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds;
 import org.nickas21.smart.usr.io.UsrTcpWiFiPacketRecord;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyIdx;
+import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyVoltage;
+import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.getBalanceStatus;
+import static org.nickas21.smart.util.JacksonUtil.newObjectNode;
 import static org.nickas21.smart.util.StringUtils.isNotBlank;
 
 @Slf4j
@@ -28,17 +36,25 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
 
     // Поля телеметрії 0x42H
     private Integer numCells;
-    private List<Double> cellVoltages = new ArrayList<>();
-    private List<Double> temperatures = new ArrayList<>();
+    private Map<Integer, Float> cellVoltagesV = new HashMap<>();
+    private Float sumCellsV;
+    private int deltaMv;
+    private JsonNode minCellV;
+    private JsonNode maxCellV;
+    private Integer minCellIdx;
+    private Integer maxCellIdx;
+    private UsrTcpWifiBalanceThresholds balanceS;
+    private Map<Integer, Float> temperatures = new HashMap<>();
+    private Double bmsTempValue;
 
     private double socPercent;       // Розрахований SOC (%)
-    private double sohPercent;       // SOH (%)
+    private double sohPercent = 100.0;       // SOH (%)
 
     private double currentCurA;      // Струм (А)
     private double voltageCurV;      // Загальна напруга (В)
     private double remainAh;         // Залишкова ємність (Ah)
     private double fullAh;           // Повна актуальна ємність (Ah)
-    private double designAh;         // Базова (паспортна) ємність (Ah)
+    private double designAh = 300.0;         // Базова (паспортна) ємність (Ah)
     private Integer cyclesCount;     // Цикли
 
     // Статуси BMS
@@ -46,8 +62,8 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
     private String bmsStatusStr = UsrWifiBmsBatteryStatus.UNKNOWN.getStatus();
 
     // --- Поля помилок та алармів ---
-    private String errorInfoDataHex;   // Код помилки  весь payload в Hex якщо є хоть одна помилка і == "0x0000" - якщо все чисто
-    private String errorOutput;      // Текстовий опис помилки
+    private String errorInfoDataHex;   // Код помилки: "0x0000" якщо все чисто, або код аларму (наприклад, "0x0001")
+    private String errorOutput;      // Текстовий опис помилок/алармів
 
     private Instant timestamp;
     private byte[] payloadBytesCur;
@@ -67,56 +83,36 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
 
     /**
      * Parses raw Pylontech RS485 0x42 ASCII response frame directly into entity.
-     * ~22014A84E00201FD22
-     * ~2001460070720001100CEF...
-     * ~22024A84E00202FD20
-     * ~ 20 01 46 00 70 72 ...
-     *   │  │  │  │
-     *   │  │  │  └─ RTN = 00 → NORMAL
-     *   │  │  └──── CID1 = 46
-     *   │  └─────── ADR = 01
-     *   └────────── VER = 20
      */
     public boolean parse42(String asciiFrame42) {
         try {
-            String dataFrame = validateFindFrame (asciiFrame42);
+            String dataFrame = validateFindFrame(asciiFrame42);
             if (dataFrame == null) {
-                log.warn("RS485 0x42 NORMAL response frame not found in: {}", asciiFrame42);
+                log.warn("RS485 0x42 BAD valid response frame not found in: {}", asciiFrame42.split("(?=~)"));
                 return false;
             }
 
-            // ---------------------------------------------------------
-            // Parse INFO Payload according to Pylontech ASCII Standard
-            // ---------------------------------------------------------
-
-            // 1. Parse LENGTH (4 HEX chars at indices 9..13)
+            // 1. Parse LENGTH
             String lenHex = dataFrame.substring(9, 13);
-
-            // LenID mask (0x7072 & 0x0FFF -> 0x072 = 114 ASCII chars / 57 bytes)
             int infoCharCount = Integer.parseInt(lenHex, 16) & 0x0FFF;
 
-            // Чиста вирізка INFO: початок з 13, довжина infoCharCount
             int payloadStart = 13;
-            String payload = dataFrame.substring(payloadStart, payloadStart + infoCharCount);
             if (payloadStart >= dataFrame.length()) {
                 log.warn("Payload missing in RS485 0x42 frame: {}", dataFrame);
                 return false;
             }
+            String payload = dataFrame.substring(payloadStart, payloadStart + infoCharCount);
 
-            // 2. Cell Voltages (16S)
-            // Python equivalent: num_cells = int(payload[4:6], 16)
+            // 2. Cell Voltages
             if (payload.length() < 6) return false;
             this.numCells = Integer.parseInt(payload.substring(4, 6), 16);
 
             int cellsStart = 6;
-            this.cellVoltages = new ArrayList<>();
-
             for (int i = 0; i < this.numCells; i++) {
                 int pos = cellsStart + i * 4;
                 if (pos + 4 > payload.length()) break;
-
                 int mV = Integer.parseInt(payload.substring(pos, pos + 4), 16);
-                this.cellVoltages.add(mV / 1000.0);
+                this.cellVoltagesV.put(i + 1, mV / 1000.0f);
             }
 
             // 3. Temperature Sensors
@@ -125,16 +121,17 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
             if (tempsCountPos + 2 <= payload.length()) {
                 int numTemps = Integer.parseInt(payload.substring(tempsCountPos, tempsCountPos + 2), 16);
                 int tempsStart = tempsCountPos + 2;
-
-                this.temperatures = new ArrayList<>();
-
                 for (int i = 0; i < numTemps; i++) {
                     int pos = tempsStart + i * 4;
                     if (pos + 4 > payload.length()) break;
 
                     int deciKelvin = Integer.parseInt(payload.substring(pos, pos + 4), 16);
-                    double celsius = Math.round(((deciKelvin - 2731) / 10.0) * 10.0) / 10.0;
-                    this.temperatures.add(celsius);
+                    float celsius = Math.round(deciKelvin - 2731) / 10.0f;
+                    this.temperatures.put(i + 1, celsius);
+                }
+                if (this.temperatures != null && !this.temperatures.isEmpty()) {
+                    Float temp1 = this.temperatures.get(1);
+                    this.bmsTempValue = (temp1 != null) ? temp1.doubleValue() : 0;
                 }
 
                 // 4. Analog Tail (Current, Total Voltage, Capacities, Cycles)
@@ -192,11 +189,18 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
                     this.socPercent = Math.min(100.0, Math.max(0.0, (this.remainAh / this.fullAh) * 100.0));
                 }
 
-                this.designAh = 300.0;
                 if (this.fullAh > 0) {
-                    this.sohPercent = Math.round((this.fullAh / 300.0) * 10000.0) / 100.0;
+                    double calculatedSoh = (this.fullAh / this.designAh) * 100.0;
+                    // Обмежуємо максимум 100% та округлюємо до 2 знаків після коми
+                    this.sohPercent = Math.min(100.0, Math.round(calculatedSoh * 100.0) / 100.0);
                 }
             }
+
+            this.sumCellsV = computeSumCellsV();
+            this.minCellV = computeMinCell();
+            this.maxCellV = computeMaxCell();
+            this.deltaMv = computeDeltaMv();
+            this.balanceS = computeBalanceStatus();
 
             this.timestamp = Instant.now();
             this.payloadBytesCur = dataFrame.getBytes(StandardCharsets.US_ASCII);
@@ -217,7 +221,7 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
                 return false;
             }
 
-            // 1. Вирізка LENGTH & INFO
+            // 1. Вирізаємо INFO Payload
             String lenHex = dataFrame.substring(9, 13);
             int infoCharCount = Integer.parseInt(lenHex, 16) & 0x0FFF;
 
@@ -227,63 +231,85 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
                 return false;
             }
             String payload = dataFrame.substring(payloadStart, payloadStart + infoCharCount);
+            if (payload.length() < 6) return false;
 
-            if (payload.length() < 4) return false;
+            // -----------------------------------------------------------------
+            // Побайтний розбір payload (1 байт = 2 HEX символи)
+            // -----------------------------------------------------------------
 
-            // 2. Кількість комірок та їх аларми (1 byte count + N bytes alarms)
-            int numCells44 = Integer.parseInt(payload.substring(2, 4), 16);
+            // Байти 0..1: Flag & Pack Index (наприклад, "0001")
             int pos = 4;
 
+            // Байт 2: Кількість комірок (наприклад, "10" -> 16)
+            int numCells44 = Integer.parseInt(payload.substring(pos, pos + 2), 16);
+            pos += 2;
+
+            // Байти 3 .. 3 + numCells44: Аларми комірок (16 байт)
             this.cellAlarms = new ArrayList<>();
             for (int i = 0; i < numCells44; i++) {
                 if (pos + 2 > payload.length()) break;
                 int alarmCode = Integer.parseInt(payload.substring(pos, pos + 2), 16);
-                this.cellAlarms.add(alarmCode);
+                this.tempAlarms.add(alarmCode);
+
                 pos += 2;
             }
 
-            // 3. Кількість датчиків температури та їх аларми
+            // Байт 19: Кількість датчиків температури (наприклад, "04" -> 4)
             if (pos + 2 <= payload.length()) {
                 int numTemps44 = Integer.parseInt(payload.substring(pos, pos + 2), 16);
                 pos += 2;
 
+                // Байти 20..23: Аларми датчиків температури (4 байти)
                 this.tempAlarms = new ArrayList<>();
                 for (int i = 0; i < numTemps44; i++) {
                     if (pos + 2 > payload.length()) break;
                     int alarmCode = Integer.parseInt(payload.substring(pos, pos + 2), 16);
-                    this.tempAlarms.add(alarmCode);
+                    // TODO: Verify GOTO RS485 0x44 temperature alarm code 0x02.
+                    // Currently 0x02 appears on Temp #2 without an actual temperature alarm.
+                    if (alarmCode != 0x02) {
+                        this.tempAlarms.add(alarmCode);
+                    }
                     pos += 2;
                 }
             }
 
-            // 4. Загальні аларми (Струм заряду, Напруга паку, Струм розряду)
+            // Байт 24: Загальний аларм струму заряду
             if (pos + 2 <= payload.length()) {
                 this.chargeCurrentAlarm = Integer.parseInt(payload.substring(pos, pos + 2), 16);
                 pos += 2;
             }
+            // Байт 25: Загальний аларм напруги
             if (pos + 2 <= payload.length()) {
                 this.totalVoltageAlarm = Integer.parseInt(payload.substring(pos, pos + 2), 16);
                 pos += 2;
             }
+            // Байт 26: Загальний аларм струму розряду
             if (pos + 2 <= payload.length()) {
                 this.dischargeCurrentAlarm = Integer.parseInt(payload.substring(pos, pos + 2), 16);
                 pos += 2;
             }
 
-            // 5. Системні прапори та стан MOSFET
+            // Байт 27 (Резервний) - пропускаємо
+            if (pos + 2 <= payload.length()) {
+                pos += 2;
+            }
+
+            // Байт 28: Системні прапори роботи BMS (наприклад, 0x0E)
             if (pos + 2 <= payload.length()) {
                 this.systemStatusFlags = Integer.parseInt(payload.substring(pos, pos + 2), 16);
                 pos += 2;
             }
 
+            // Байт 29: Ключі MOSFET (0x00 = Charge & Discharge Enabled)
             if (pos + 2 <= payload.length()) {
                 int mosfetFlags = Integer.parseInt(payload.substring(pos, pos + 2), 16);
-                // За специфікацією: біт 0 - Charge FET, біт 1 - Discharge FET
                 this.chargeMosfetEnabled = (mosfetFlags & 0x01) == 0;
                 this.dischargeMosfetEnabled = (mosfetFlags & 0x02) == 0;
             }
 
-            // 6. Формування errorOutput, errorInfoDataHex та errorInfoData
+            // -----------------------------------------------------------------
+            // Формування висновку: шукаємо ТІЛЬКИ байти алармів, які > 0
+            // -----------------------------------------------------------------
             List<String> activeAlarms = new ArrayList<>();
 
             if (this.cellAlarms != null) {
@@ -314,11 +340,30 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
                 activeAlarms.add(String.format("Discharge Overcurrent (0x%02X)", this.dischargeCurrentAlarm));
             }
 
+                // 7. Фінальне встановлення статусу помилок
             if (activeAlarms.isEmpty()) {
                 this.errorInfoDataHex = "0x0000";
-                 this.errorOutput = null;
+                this.errorOutput = null;
             } else {
-                this.errorInfoDataHex = payload;
+                // Якщо аларми ДІЙСНО є в розпарсеному кадрі:
+                int firstAlarmCode = 0;
+
+                for (int code : this.cellAlarms) {
+                    if (code > 0) { firstAlarmCode = code; break; }
+                }
+                if (firstAlarmCode == 0) {
+                    for (int code : this.tempAlarms) {
+                        if (code > 0) { firstAlarmCode = code; break; }
+                    }
+                }
+                if (firstAlarmCode == 0) {
+                    if (this.chargeCurrentAlarm > 0) firstAlarmCode = this.chargeCurrentAlarm;
+                    else if (this.totalVoltageAlarm > 0) firstAlarmCode = this.totalVoltageAlarm;
+                    else if (this.dischargeCurrentAlarm > 0) firstAlarmCode = this.dischargeCurrentAlarm;
+                }
+
+                // Якщо з якихось причин код 0, виводимо 0x0000, а не видумуємо 1 чи 2!
+                this.errorInfoDataHex = (firstAlarmCode > 0) ? String.format("0x%04X", firstAlarmCode) : "0x0000";
                 this.errorOutput = String.join("; ", activeAlarms);
             }
 
@@ -333,73 +378,19 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
         }
     }
 
-
-    /**
-     * Маппінг коду помилки у текстовий опис
-     */
-    /**
-     * Розширений маппінг кодів помилок, статусів та захистів BMS (Pylontech / Daren / GOOTO)
-     */
-    private String decodeErrorCode(int code) {
-        return switch (code) {
-            case 0x0000 -> "Normal (No Error)";
-
-            // --- Системні відповіді RTN / Заперечення протоколу ---
-            case 0x0001 -> "VER Error / Protocol Version Invalid (0x0001)";
-            case 0x0002 -> "CHKSUM Error / Checksum Invalid (0x0002)";
-            case 0x0003 -> "LCHKSUM Error / Length Checksum Invalid (0x0003)";
-            case 0x0004 -> "CID2 Invalid / Command Not Supported (0x0004)";
-            case 0x0005 -> "Command Format Error (0x0005)";
-            case 0x0006 -> "INFO Data Invalid / Parameter Error (0x0006)";
-
-            // --- Захисти по напрузі (System & Cell) ---
-            case 0x1001 -> "System Overvoltage Protection (0x1001)";
-            case 0x1002 -> "System Undervoltage Protection (0x1002)";
-            case 0x2007 -> "Cell Overvoltage Protection (0x2007)";
-            case 0x2008 -> "Cell Undervoltage Protection (0x2008)";
-            case 0x2009 -> "Cell High Voltage Warning (0x2009)";
-            case 0x200A -> "Cell Low Voltage Warning (0x200A)";
-
-            // --- Захисти по струму (Current) ---
-            case 0x1007 -> "Charge Overcurrent Protection (0x1007)";
-            case 0x1008 -> "Discharge Overcurrent Protection (0x1008)";
-            case 0x1009 -> "Charge Overcurrent Warning (0x1009)";
-            case 0x100A -> "Discharge Overcurrent Warning (0x100A)";
-            case 0x100B -> "Short Circuit Protection / КЗ (0x100B)";
-
-            // --- Захисти по температурі (Temperatures) ---
-            case 0x2001 -> "Charge Over Temperature Protection (0x2001)";
-            case 0x2002 -> "Charge Under Temperature Protection (0x2002)";
-            case 0x2003 -> "Discharge Over Temperature Protection (0x2003)";
-            case 0x2004 -> "Discharge Under Temperature Protection (0x2004)";
-            case 0x2005 -> "MOSFET Over Temperature Protection (0x2005)";
-            case 0x2006 -> "Environment Over Temperature Protection (0x2006)";
-
-            // --- Апаратні та системні збої (Hardware & Sensor Faults) ---
-            case 0x3001 -> "Cell Voltage Sensor Error / Break (0x3001)";
-            case 0x3002 -> "Temperature Sensor Error / Break (0x3002)";
-            case 0x3003 -> "Current Sensor Failure (0x3003)";
-            case 0x3004 -> "Charge MOSFET Failure (0x3004)";
-            case 0x3005 -> "Discharge MOSFET Failure (0x3005)";
-            case 0x3006 -> "EEPROM / Memory Fault (0x3006)";
-            case 0x3007 -> "Severe Differential Voltage / Unbalance (0x3007)";
-
-            default -> String.format("Protection Code 0x%04X (%d)", code, code);
-        };
-    }
-
-    public String decodeBmsGOOTO_InfoPayload(String output) {
+//    public String decodeBmsGOOTO_InfoPayload(String output) {
+    public String decodeBmsGOOTO_InfoPayload() {
         try {
             StringBuilder sb = new StringBuilder();
             sb.append("\n\n--- DETAILS DECODE RS485 42 ---\n")
-                    .append(output).append("\n")
+//                    .append(output).append("\n")
                     .append("#  | Name             | Value\n")
                     .append("---|------------------|------------\n")
                     .append(String.format("1  | Total Voltage (V)| %.2f V\n", this.voltageCurV))
                     .append(String.format("2  | Current (A)      | %.2f A\n", this.currentCurA))
                     .append(String.format("3  | Status Code      | %d (%s)\n", this.bmsStatus, this.bmsStatusStr))
-                    .append(String.format("4  | Error Info       | 0x%04X (%d) -> %s\n",
-                            this.errorInfoDataHex != null ? this.errorInfoDataHex : 0,
+                    .append(String.format("4  | Error Info       | %s -> %s\n",
+                            this.errorInfoDataHex != null ? this.errorInfoDataHex : "0x0000",
                             this.errorOutput != null ? this.errorOutput : "N/A"))
                     .append(String.format("5  | SOC (%%)          | %.1f %%\n", this.socPercent))
                     .append(String.format("6  | SOH (%%)          | %.1f %%\n", this.sohPercent))
@@ -411,9 +402,9 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
                     .append("------------------------------------------------\n")
                     .append("CELL VOLTAGES:\n");
 
-            if (this.cellVoltages != null) {
-                for (int i = 0; i < this.cellVoltages.size(); i++) {
-                    sb.append(String.format("Cell %02d | %.3f V\n", i + 1, this.cellVoltages.get(i)));
+            if (this.cellVoltagesV != null) {
+                for (int i = 0; i < this.cellVoltagesV.size(); i++) {
+                    sb.append(String.format("Cell %02d | %.3f V\n", i + 1, this.cellVoltagesV.get(i + 1)));
                 }
             }
 
@@ -422,7 +413,7 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
 
             if (this.temperatures != null) {
                 for (int i = 0; i < this.temperatures.size(); i++) {
-                    sb.append(String.format("Temp %d  | %.1f °C\n", i + 1, this.temperatures.get(i)));
+                    sb.append(String.format("Temp %d  | %.1f °C\n", i + 1, this.temperatures.get(i + 1)));
                 }
             }
 
@@ -450,9 +441,8 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
     }
 
     private String validateFindFrame(String asciiFrames) {
-        // Split concatenated stream by SOI ('~') to find valid 0x42 response
         String dataFrame = null;
-        if (isNotBlank (asciiFrames)) {
+        if (isNotBlank(asciiFrames)) {
             for (String frame : asciiFrames.split("(?=~)")) {
                 frame = frame.trim();
 
@@ -460,8 +450,6 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
                     continue;
                 }
 
-                // Validation of header: SOI(~) VER(20) ADR(01) CID1(46) RTN(00)
-                // Indices:              0      1-2     3-4     5-6     7-8
                 if (frame.startsWith("~20")
                         && "01".equals(frame.substring(3, 5))
                         && "46".equals(frame.substring(5, 7))
@@ -473,5 +461,53 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
             }
         }
         return dataFrame;
+    }
+
+    // -----------------------------
+    //   CALCULATION METHODS
+    // -----------------------------
+    private Float computeSumCellsV() {
+        return this.cellVoltagesV.isEmpty() ? null :
+                (float) this.cellVoltagesV.values().stream()
+                        .mapToDouble(Float::doubleValue)
+                        .sum();
+    }
+
+    private JsonNode computeMinCell() {
+        if (cellVoltagesV.isEmpty()) return null;
+
+        var minEntry = this.cellVoltagesV.entrySet().stream()
+                .min(Map.Entry.comparingByValue())
+                .orElseThrow();
+
+        return newObjectNode()
+                .put(keyIdx, minEntry.getKey())
+                .put(keyVoltage, minEntry.getValue());
+    }
+
+    private JsonNode computeMaxCell() {
+        if (this.cellVoltagesV.isEmpty()) return null;
+
+        var maxEntry = this.cellVoltagesV.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .orElseThrow();
+
+        return newObjectNode()
+                .put(keyIdx, maxEntry.getKey())
+                .put(keyVoltage, maxEntry.getValue());
+    }
+
+    private int computeDeltaMv() {
+        if (this.minCellV == null || this.maxCellV == null) return -1;
+
+        float minV = this.minCellV.get(keyVoltage).floatValue();
+        float maxV = this.maxCellV.get(keyVoltage).floatValue();
+
+        return (int) ((maxV - minV) * 1000);
+    }
+
+    private UsrTcpWifiBalanceThresholds computeBalanceStatus() {
+        if (this.deltaMv < 0) return null;
+        return getBalanceStatus(this.deltaMv);
     }
 }
