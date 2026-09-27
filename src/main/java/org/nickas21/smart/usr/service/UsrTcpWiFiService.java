@@ -94,7 +94,7 @@ public class UsrTcpWiFiService {
                     usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsBatDacha().contains(ports[i])) {
                 usrTcpWiFiBatteryRegistry.initBattery(ports[i]);
             }
-            lastSeenMap.put(ports[i], System.currentTimeMillis()); // Ініціалізація часу
+            portStatusMap.put(ports[i], PortStatus.STANDBY);
         }
         log.info("USR TCP WiFi ports initialized: start={}, ports={}", portStart, Arrays.toString(ports));
         try {
@@ -120,38 +120,42 @@ public class UsrTcpWiFiService {
     public void monitorInactivity() {
         long now = System.currentTimeMillis();
 
-        // Значення з вашого UsrTcpWiFiProperties
-        long timeoutStandby = tcpProps.getMonitorInactivityTimeOut(); // 1200000 (20 хв)
-        long timeoutOffline = tcpProps.getMarginMs();                 // 3660000 (61 хв)
+        long timeoutStandby = tcpProps.getMonitorInactivityTimeOut(); // 20 хв
+        long timeoutOffline = tcpProps.getMarginMs();                  // 61 хв
 
-        lastSeenMap.forEach((port, lastSeen) -> {
-            long diff = now - lastSeen;
+        // Проходимо по всіх зареєстрованих портах, а не тільки по тих, де є lastSeen
+        for (Integer port :portStatusMap.keySet()) {
+            Long lastSeen = lastSeenMap.get(port);
             PortStatus currentStatus = portStatusMap.getOrDefault(port, PortStatus.OFFLINE);
 
+            // ЯКЩО ДАНИХ ЩЕ НЕ БУЛО ВЗАГАЛІ (Тільки запуск):
+            if (lastSeen == null || lastSeen == 0L) {
+                // Залиште статус як є або ініціалізуйте поточним часом при першому підключенні
+                continue;
+            }
+
+            long diff = now - lastSeen;
+
             if (diff < timeoutStandby) {
-                // ПОРТ АКТИВНИЙ
                 if (currentStatus != PortStatus.ACTIVE) {
                     log.info("Порт {}: Стан змінено на ACTIVE", port);
                     portStatusMap.put(port, PortStatus.ACTIVE);
                 }
             }
-            else if (diff >= timeoutStandby && diff < timeoutOffline) {
-                // ПОРТ УМОВНО АКТИВНИЙ (STANDBY)
+            else if (diff < timeoutOffline) { // Скорочена умова
                 if (currentStatus != PortStatus.STANDBY) {
-                    log.warn("Порт {}: Немає даних {} хв. Стан STANDBY. Скидаємо сокет...", port, diff/60000);
+                    log.warn("Порт {}: Немає даних {} хв. Стан STANDBY. Скидаємо сокет...", port, diff / 60000);
                     portStatusMap.put(port, PortStatus.STANDBY);
-                    forceCloseSocket(port); // Закриваємо для реконнекту
+                    forceCloseSocket(port);
                 }
             }
             else {
-                // ПОРТ АБСОЛЮТНО НЕ АКТИВНИЙ (OFFLINE)
                 if (currentStatus != PortStatus.OFFLINE) {
                     log.error("Порт {}: OFFLINE (> 60 хв). Керування приладами ЗАБОРОНЕНО!", port);
                     portStatusMap.put(port, PortStatus.OFFLINE);
-                    // Тут викликати метод вимкнення критичних реле
                 }
             }
-        });
+        }
     }
 
     /**
@@ -473,6 +477,8 @@ public class UsrTcpWiFiService {
             serverSockets.add(server);
             while (true) {
                 try (Socket conn = server.accept()) {
+                    lastSeenMap.put(port, System.currentTimeMillis());
+                    portStatusMap.put(port, PortStatus.ACTIVE);
                     handleConnection(conn, port);
                 } catch (SocketException se) {
                     // For close socket with cleanup()
