@@ -1085,6 +1085,7 @@ public class TuyaDeviceService {
         }
         return null;
     }
+
     public Boolean getGridRelayCodeDachaStateSwitch() {
         if (this.getGridRelayCodeIdDacha() != null) {
             Device gridDevice = this.devices.getDevIds().get(this.getGridRelayCodeIdDacha());
