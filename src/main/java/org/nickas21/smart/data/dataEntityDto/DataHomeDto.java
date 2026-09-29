@@ -239,13 +239,13 @@ public class DataHomeDto {
             }
             log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
             UsrTcpWifiC0Data c0Data = batteryDataUsrTcpWiFi.getC0Data();
-            UsrTcpWifiRS485_Data_GOOTO_Telemetry data42 = batteryDataUsrTcpWiFi.getRs485_Data_GOOTO_Telemetry();
+            UsrTcpWifiRS485_Data_GOOTO_Telemetry dataGOOTOTelemetry = batteryDataUsrTcpWiFi.getRs485_Data_GOOTO_Telemetry();
             if (c0Data != null && c0Data.getTimestamp() != null) {
                 long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli()/1000L, LocationType.GOLEGO.getZoneId());
                 this.timestamp = c0Data.getTimestamp().toEpochMilli() + offsetMs;
-            } else if (data42 != null && data42.getTimestamp() != null) {
-                long offsetMs42 = updateTimeStampToUtc(data42.getTimestamp().toEpochMilli()/1000L, LocationType.GOLEGO.getZoneId());
-                this.timestamp = data42.getTimestamp().toEpochMilli() + offsetMs42;
+            } else if (dataGOOTOTelemetry != null && dataGOOTOTelemetry.getTimestamp() != null) {
+                long offsetMs42 = updateTimeStampToUtc(dataGOOTOTelemetry.getTimestamp().toEpochMilli()/1000L, LocationType.GOLEGO.getZoneId());
+                this.timestamp = dataGOOTOTelemetry.getTimestamp().toEpochMilli() + offsetMs42;
             }
             this.batterySoc = batteriesActiveCnt == 0 ? 0 : batterySocSum/batteriesActiveCnt;
 
@@ -271,10 +271,12 @@ public class DataHomeDto {
                 } else {
                     this.homePower = this.golegoPowerDefault;
                 }
-            } else if (data42 != null && data42.getTimestamp() != null) {
-                this.batteryStatus = data42.getBmsStatusStr();
-                this.batteryVol = data42.getVoltageCurV();
+            }
+            if (dataGOOTOTelemetry != null && dataGOOTOTelemetry.getTimestamp() != null) {
+                this.batteryStatus = dataGOOTOTelemetry.getBmsStatusStr();
+                this.batteryVol = dataGOOTOTelemetry.getVoltageCurV();
                 this.batteryCurrent = Math.round(batteryCurrentAll * 100.0) / 100.0;
+                this.batterySoc = dataGOOTOTelemetry.getSocPercent();
                  if (this.batteryCurrent == 0 && this.gridPower == 0) {
                     this.homePower = 0;
                 } else if (this.batteryCurrent < 0) {

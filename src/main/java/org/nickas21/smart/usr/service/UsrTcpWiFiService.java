@@ -116,21 +116,18 @@ public class UsrTcpWiFiService {
         }
     }
 
-    @Scheduled(fixedRateString = "${usr.tcp.check-rate:60000}") // Перевірка кожні 1 хвилин
+    @Scheduled(fixedRateString = "${usr.tcp.check-rate:60000}")
     public void monitorInactivity() {
-        long now = System.currentTimeMillis();
+        long now = Instant.now().toEpochMilli();
 
         long timeoutStandby = tcpProps.getMonitorInactivityTimeOut(); // 20 хв
         long timeoutOffline = tcpProps.getMarginMs();                  // 61 хв
 
-        // Проходимо по всіх зареєстрованих портах, а не тільки по тих, де є lastSeen
-        for (Integer port :portStatusMap.keySet()) {
+        for (Integer port : portStatusMap.keySet()) {
             Long lastSeen = lastSeenMap.get(port);
             PortStatus currentStatus = portStatusMap.getOrDefault(port, PortStatus.OFFLINE);
 
-            // ЯКЩО ДАНИХ ЩЕ НЕ БУЛО ВЗАГАЛІ (Тільки запуск):
             if (lastSeen == null || lastSeen == 0L) {
-                // Залиште статус як є або ініціалізуйте поточним часом при першому підключенні
                 continue;
             }
 
@@ -142,17 +139,18 @@ public class UsrTcpWiFiService {
                     portStatusMap.put(port, PortStatus.ACTIVE);
                 }
             }
-            else if (diff < timeoutOffline) { // Скорочена умова
+            else if (diff < timeoutOffline) {
                 if (currentStatus != PortStatus.STANDBY) {
-                    log.warn("Порт {}: Немає даних {} хв. Стан STANDBY. Скидаємо сокет...", port, diff / 60000);
+                    log.warn("Порт {}: Немає даних {} хв. Стан STANDBY.", port, diff / 60000);
                     portStatusMap.put(port, PortStatus.STANDBY);
-                    forceCloseSocket(port);
+                    // ❌ forceCloseSocket(port) ТУТ ВІДСУТНІЙ! Сокет живе.
                 }
             }
             else {
                 if (currentStatus != PortStatus.OFFLINE) {
                     log.error("Порт {}: OFFLINE (> 60 хв). Керування приладами ЗАБОРОНЕНО!", port);
                     portStatusMap.put(port, PortStatus.OFFLINE);
+                    forceCloseSocket(port); // ✅ Примусовий реконнект ТІЛЬКИ у глибокому OFFLINE
                 }
             }
         }
@@ -279,23 +277,16 @@ public class UsrTcpWiFiService {
                 OutputStream out = socket.getOutputStream();
 
                 // =================================================================
-                // purge_buffer(sock)
+                // purge_buffer(sock) — МИТТЄВЕ ОЧИЩЕННЯ СМІТТЯ БЕЗ БЛОКУВАННЯ
                 // =================================================================
-
-                socket.setSoTimeout(10);
-
                 try {
-                    byte[] purgeBuffer = new byte[1024];
-
-                    while (true) {
-                        int bytesRead = in.read(purgeBuffer);
-
-                        if (bytesRead <= 0) {
-                            break;
-                        }
+                    int availableBytes = in.available();
+                    if (availableBytes > 0) {
+                        long skipped = in.skip(availableBytes);
+                        log.debug("Port [{}]: Purged {} stale bytes from socket buffer", port, skipped);
                     }
-                } catch (SocketTimeoutException ignored) {
-                    // Expected: no more stale data in the socket.
+                } catch (IOException e) {
+                    log.warn("Port [{}]: Failed to purge stale socket buffer: {}", port, e.getMessage());
                 }
 
                 // =================================================================
@@ -438,7 +429,7 @@ public class UsrTcpWiFiService {
                         log.error("Error occurred in RS485 GOOTO Telemetry scheduler tic", t);
                     }
                 },
-                0L, // 0L -> перший запуск одразу
+                10L, // 10 секунд паузи при старті сервісу
                 period, // далі через кожні 'period' секунд
                 TimeUnit.SECONDS
         );
@@ -450,7 +441,7 @@ public class UsrTcpWiFiService {
     }
 
     public void forceCloseSocket(int port) {
-        Socket conn = activeConnections.get(port);
+        Socket conn = activeConnections.remove(port);
         if (conn != null && !conn.isClosed()) {
             try {
                 conn.close();
@@ -543,6 +534,11 @@ public class UsrTcpWiFiService {
 
             while ((read = in.read(readBuf)) != -1) {
                 if (read > 0) {
+                    // TODO only debug
+                    log.info("Port [{}]: RECEIVED {} bytes from inverter, HEX [{}]",
+                            port,
+                            read,
+                            stringToHexDump(new String(readBuf, 0, read, StandardCharsets.US_ASCII)));
                     // ПРАВИЛО 1: Оновлюємо час АКТИВНОСТІ завжди, коли прийшли байти
                     lastSeenMap.put(port, System.currentTimeMillis());
                     portStatusMap.put(port, PortStatus.ACTIVE);
@@ -602,7 +598,7 @@ public class UsrTcpWiFiService {
         }
     }
 
-    // Метод 1: Для основної системи (по порту)
+    // Метод 1: Для основної системи від інвертора (по порту)
     public String getStatusByPort(Integer port) {
         return portStatusMap.getOrDefault(port, PortStatus.OFFLINE).name();
     }
@@ -613,19 +609,20 @@ public class UsrTcpWiFiService {
 
     // Метод 2: Для дачі (по часу та SOC)
     public String calculateStatus(Long lastUpdateTimestamp, Long soc) {
+        // Якщо немає часу оновлення або SOC порожній / дорівнює 0 — це однозначно OFFLINE
         if (lastUpdateTimestamp == null || soc == null || soc <= 0) {
             return PortStatus.OFFLINE.name();
         }
 
         long diff = System.currentTimeMillis() - lastUpdateTimestamp;
+        long timeoutMs = tcpProps.getMonitorInactivityTimeOut(); // 20 хв (1200000 ms)
 
-        // Використовуємо ваші константи: 20 хв та 61 хв
-        if (diff < tcpProps.getMonitorInactivityTimeOut()) {
-            return PortStatus.ACTIVE.name();
+        if (diff < timeoutMs) {
+            return PortStatus.ACTIVE_INVERTER.name(); // Отримуємо дані через інвертор
         } else if (diff < tcpProps.getMarginMs()) {
-            return PortStatus.STANDBY.name();
+            return PortStatus.STANDBY.name();         // Затримка оновлення (20-61 хв)
         } else {
-            return PortStatus.OFFLINE.name();
+            return PortStatus.OFFLINE.name();         // Немає даних > 61 хв
         }
     }
 
@@ -696,7 +693,10 @@ public class UsrTcpWiFiService {
         // =========================================================================
         // 3. КРОК 3: Фінальне збереження та оновлення часу
         // =========================================================================
-        telemetry.setTimestamp(Instant.now());
+        Instant currentInstant = Instant.now();
+        lastSeenMap.put(batPort, currentInstant.toEpochMilli());
+        portStatusMap.put(batPort, PortStatus.ACTIVE);
+        telemetry.setTimestamp(currentInstant);
         battery.setRs485_Data_GOOTO_Telemetry(telemetry);
         battery.setLastTime(telemetry.getTimestamp());
 

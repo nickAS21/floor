@@ -20,7 +20,7 @@ import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyIdx;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.keyVoltage;
 import static org.nickas21.smart.usr.data.fault.UsrTcpWifiBalanceThresholds.getBalanceStatus;
 import static org.nickas21.smart.util.JacksonUtil.newObjectNode;
-import static org.nickas21.smart.util.StringUtils.isNotBlank;
+import static org.nickas21.smart.util.StringUtils.isBlank;
 
 @Slf4j
 @Data
@@ -33,6 +33,7 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
     public static final int CMD_CID2_44 = 0x44;
     public static final int CMD_ADR_01 = 0x01;
     public static final String CMD_INFO_HEX = "";
+    public static final int PAYLOAD_START = 13;
 
     // Поля телеметрії 0x42H
     private Integer numCells;
@@ -95,19 +96,14 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
             // 1. Parse LENGTH
             String lenHex = dataFrame.substring(9, 13);
             int infoCharCount = Integer.parseInt(lenHex, 16) & 0x0FFF;
-
-            int payloadStart = 13;
-            if (payloadStart >= dataFrame.length()) {
-                log.warn("Payload missing in RS485 0x42 frame: {}", dataFrame);
-                return false;
-            }
-            String payload = dataFrame.substring(payloadStart, payloadStart + infoCharCount);
+            String payload = dataFrame.substring(PAYLOAD_START, PAYLOAD_START + infoCharCount);
 
             // 2. Cell Voltages
             if (payload.length() < 6) return false;
             this.numCells = Integer.parseInt(payload.substring(4, 6), 16);
 
             int cellsStart = 6;
+            this.cellVoltagesV.clear();
             for (int i = 0; i < this.numCells; i++) {
                 int pos = cellsStart + i * 4;
                 if (pos + 4 > payload.length()) break;
@@ -117,7 +113,7 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
 
             // 3. Temperature Sensors
             int tempsCountPos = cellsStart + this.numCells * 4;
-
+            this.temperatures.clear();
             if (tempsCountPos + 2 <= payload.length()) {
                 int numTemps = Integer.parseInt(payload.substring(tempsCountPos, tempsCountPos + 2), 16);
                 int tempsStart = tempsCountPos + 2;
@@ -224,13 +220,7 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
             // 1. Вирізаємо INFO Payload
             String lenHex = dataFrame.substring(9, 13);
             int infoCharCount = Integer.parseInt(lenHex, 16) & 0x0FFF;
-
-            int payloadStart = 13;
-            if (payloadStart + infoCharCount > dataFrame.length()) {
-                log.warn("Payload overflow in RS485 0x44 frame: {}", dataFrame);
-                return false;
-            }
-            String payload = dataFrame.substring(payloadStart, payloadStart + infoCharCount);
+            String payload = dataFrame.substring(PAYLOAD_START, PAYLOAD_START + infoCharCount);
             if (payload.length() < 6) return false;
 
             // -----------------------------------------------------------------
@@ -249,7 +239,7 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
             for (int i = 0; i < numCells44; i++) {
                 if (pos + 2 > payload.length()) break;
                 int alarmCode = Integer.parseInt(payload.substring(pos, pos + 2), 16);
-                this.tempAlarms.add(alarmCode);
+                this.cellAlarms.add(alarmCode);
 
                 pos += 2;
             }
@@ -441,26 +431,51 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
     }
 
     private String validateFindFrame(String asciiFrames) {
-        String dataFrame = null;
-        if (isNotBlank(asciiFrames)) {
-            for (String frame : asciiFrames.split("(?=~)")) {
-                frame = frame.trim();
+        if (isBlank(asciiFrames)) {
+            return null;
+        }
 
-                if (frame.length() < 13 || !frame.startsWith("~")) {
-                    continue;
-                }
+        // Розбиваємо вихідний потік по стартовому символу '~'
+        String[] chunks = asciiFrames.split("(?=~)");
 
-                if (frame.startsWith("~20")
-                        && "01".equals(frame.substring(3, 5))
-                        && "46".equals(frame.substring(5, 7))
-                        && "00".equals(frame.substring(7, 9))) {
+        for (String chunk : chunks) {
+            String frame = chunk.trim();
 
-                    dataFrame = frame;
-                    break;
+            // 1. Відсікаємо занадто короткі шматки, сміття без '~' та біті символи FFFD
+            if (frame.length() < PAYLOAD_START || !frame.startsWith("~") || frame.contains("\uFFFD")) {
+                continue;
+            }
+
+            // 2. Ізолюємо перший закінчений рядок до '\r' або '\n'
+            int endIdx = frame.indexOf('\r');
+            if (endIdx != -1) {
+                frame = frame.substring(0, endIdx).trim();
+            }
+
+            // 3. Перевіряємо заголовки Pylontech (VER=20, ADR=01, CID1=46, RTN=00)
+            if (frame.startsWith("~20")
+                    && "01".equals(frame.substring(3, 5))
+                    && "46".equals(frame.substring(5, 7))
+                    && "00".equals(frame.substring(7, 9))) {
+
+                try {
+                    // 4. Перевіряємо завальний обсяг INFO payload
+                    String lenHex = frame.substring(9, 13);
+                    int infoCharCount = Integer.parseInt(lenHex, 16) & 0x0FFF;
+                    // ВАЛІДАЦІЯ МЕЖ: Переконуємося, що заявлена довжина реально є у кадрі
+                    if (PAYLOAD_START + infoCharCount <= frame.length()) {
+                        return frame; // Кадр ідеальний!
+                    } else {
+                        log.warn("RS485 frame payload overflow: expected {}, actual len {}",
+                                PAYLOAD_START + infoCharCount, frame.length());
+                    }
+                } catch (Exception ignored) {
+                    // Помилка парсингу LEN_HEX -> пропускаємо битий шматок
                 }
             }
         }
-        return dataFrame;
+
+        return null;
     }
 
     // -----------------------------
