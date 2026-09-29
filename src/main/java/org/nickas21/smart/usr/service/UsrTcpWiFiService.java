@@ -42,7 +42,7 @@ import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry
 import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_CID2_44;
 import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_INFO_HEX;
 import static org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry.CMD_VER;
-import static org.nickas21.smart.util.StringUtils.stringToHexDump;
+import static org.nickas21.smart.util.StringUtils.bytesToHexDump;
 
 @Slf4j
 @Service
@@ -269,7 +269,7 @@ public class UsrTcpWiFiService {
                 port,
                 Integer.toHexString(cid2).toUpperCase(),
                 command,
-                stringToHexDump(command));
+                bytesToHexDump(command.getBytes(StandardCharsets.US_ASCII)));
 
         synchronized (socket) {
             try {
@@ -368,13 +368,14 @@ public class UsrTcpWiFiService {
                     return null;
                 }
 
-                String responseAscii = buffer.toString(StandardCharsets.US_ASCII);
+                byte[] rawBytes = buffer.toByteArray();
+                String responseAscii =  new String(rawBytes, StandardCharsets.US_ASCII);
                 // TODO only debug
                 log.info("Port [{}]: RAW BMS response CID2 [0x{}], bytes [{}], HEX_response_CID2 [{}], ASCII [{}]",
                         port,
                         Integer.toHexString(cid2).toUpperCase(),
-                        buffer.size(),
-                        stringToHexDump(responseAscii),
+                        rawBytes.length,
+                        bytesToHexDump(rawBytes),
                         responseAscii);
 
                 return responseAscii;
@@ -538,7 +539,7 @@ public class UsrTcpWiFiService {
                     log.info("Port [{}]: RECEIVED {} bytes from inverter, HEX [{}]",
                             port,
                             read,
-                            stringToHexDump(new String(readBuf, 0, read, StandardCharsets.US_ASCII)));
+                            bytesToHexDump(readBuf, read));
                     // ПРАВИЛО 1: Оновлюємо час АКТИВНОСТІ завжди, коли прийшли байти
                     lastSeenMap.put(port, System.currentTimeMillis());
                     portStatusMap.put(port, PortStatus.ACTIVE);

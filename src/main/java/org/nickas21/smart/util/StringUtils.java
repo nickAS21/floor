@@ -154,15 +154,19 @@ public class StringUtils {
      * Перетворює ASCII-рядок у форматирований HEX-рядок для детального логування.
      * Приклад: "~2001" -> "7E 32 30 30 31"
      */
-    public static String stringToHexDump(String input) {
-        if (input == null || input.isEmpty()) {
-            return "<EMPTY>";
+    public static String bytesToHexDump(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) return "<EMPTY>";
+        return bytesToHexDump(bytes, bytes.length);
+    }
+
+    public static String bytesToHexDump(byte[] bytes, int length) {
+        if (bytes == null || length <= 0) return "";
+        int limit = Math.min(bytes.length, length);
+        StringBuilder sb = new StringBuilder(limit * 3);
+        for (int i = 0; i < limit; i++) {
+            sb.append(String.format("%02X ", bytes[i]));
         }
-        StringBuilder hexBuilder = new StringBuilder();
-        for (char c : input.toCharArray()) {
-            hexBuilder.append(String.format("%02X ", (int) c));
-        }
-        return hexBuilder.toString().trim();
+        return sb.toString().trim();
     }
 }
 
