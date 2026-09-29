@@ -38,6 +38,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -180,7 +181,8 @@ public class UsrTcpWiFiParseData {
                         decodeTypeC0_C1(msgType, packet, port);
                     } else {
                         // Групи 2 та 5 (T_00, T_02, T_05 тощо), які пройшли валідацію
-                        log.info("Port [{}]: Received service packet Type: [{}],\n Hex: [{}]",
+                        // TODO onlu debug
+                        log.debug("Port [{}]: Received service packet Type: [{}],\n Hex: [{}]",
                                 port, msgType.name(), bytesToHex(packet));
                     }
                 }
@@ -335,12 +337,11 @@ public class UsrTcpWiFiParseData {
                     }
 
                     Instant timestamp = getInstantFromString(timestampStr, datePatternGridStatus, LocationType.GOLEGO.getZoneId());
-
                     StringBuilder out = new StringBuilder();
-                    out.append(String.format("- BMS status %s\n", batInfoDto.getBmsStatusStr()));
-                    out.append(String.format("- Voltage: %.2f V\n", batInfoDto.getVoltageCurV()));
-                    out.append(String.format("- Current: %.2f A\n", batInfoDto.getCurrentCurA()));
-                    out.append(String.format("- Cells delta: %.3f V\n", batInfoDto.getDeltaMv() / 1000.0));
+                    out.append(String.format(Locale.US, "- BMS status [%s]\n", batInfoDto.getBmsStatusStr()));
+                    out.append(String.format(Locale.US, "- Voltage: [%.2f V]\n", batInfoDto.getVoltageCurV()));
+                    out.append(String.format(Locale.US, "- Current: [%.2f A]\n", batInfoDto.getCurrentCurA()));
+                    out.append(String.format(Locale.US, "- Cells delta: [%.3f V]\n", batInfoDto.getDeltaMv() / 1000.0));
 
                     String bmsErrors = null;
                     StringBuilder errorBuilder = getStringBuilderGolegoError(dataUnitService);

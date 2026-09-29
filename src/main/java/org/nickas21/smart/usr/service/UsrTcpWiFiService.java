@@ -265,7 +265,7 @@ public class UsrTcpWiFiService {
 
         String command = buildRs485AsciiCommand(cid2);
         // TODO only debug
-        log.info("Port [{}]: SEND CID2 [0x{}] command [{}] HEX_SEND CID2 [{}]",
+        log.debug("Port [{}]: SEND CID2 [0x{}] command [{}] HEX_SEND CID2 [{}]",
                 port,
                 Integer.toHexString(cid2).toUpperCase(),
                 command,
@@ -371,7 +371,7 @@ public class UsrTcpWiFiService {
                 byte[] rawBytes = buffer.toByteArray();
                 String responseAscii =  new String(rawBytes, StandardCharsets.US_ASCII);
                 // TODO only debug
-                log.info("Port [{}]: RAW BMS response CID2 [0x{}], bytes [{}], HEX_response_CID2 [{}], ASCII [{}]",
+                log.debug("Port [{}]: RAW BMS response CID2 [0x{}], bytes [{}], HEX_response_CID2 [{}], ASCII [{}]",
                         port,
                         Integer.toHexString(cid2).toUpperCase(),
                         rawBytes.length,
@@ -536,7 +536,7 @@ public class UsrTcpWiFiService {
             while ((read = in.read(readBuf)) != -1) {
                 if (read > 0) {
                     // TODO only debug
-                    log.info("Port [{}]: RECEIVED {} bytes from inverter, HEX [{}]",
+                    log.debug("Port [{}]: RECEIVED {} bytes from inverter, HEX [{}]",
                             port,
                             read,
                             bytesToHexDump(readBuf, read));
@@ -657,7 +657,8 @@ public class UsrTcpWiFiService {
             if (responseAsciiCid42 != null) {
                 parse42Success = telemetry.parse42(responseAsciiCid42);
                 if (parse42Success) {
-                    log.info("Port [{}]: CID2 0x42 parsed successfully on attempt {}", batPort, attempt);
+                    // TODO only debug
+                    log.debug("Port [{}]: CID2 0x42 parsed successfully on attempt {}", batPort, attempt);
                     break; // Успішно! Виходимо з циклу повторів
                 }
             }
@@ -683,12 +684,15 @@ public class UsrTcpWiFiService {
         if (responseAsciiCid44 != null) {
             boolean parse44Success = telemetry.parse44(responseAsciiCid44);
             if (parse44Success) {
-                log.info("Port [{}]: CID2 0x44 parsed successfully", batPort);
+                // TODO only debug
+                log.debug("Port [{}]: CID2 0x44 parsed successfully", batPort);
             } else {
-                log.warn("Port [{}]: CID2 0x44 parse failed. Keeping previous 0x44 alarm state.", batPort);
+                // TODO only debug
+                log.debug("Port [{}]: CID2 0x44 parse failed. Keeping previous 0x44 alarm state.", batPort);
             }
         } else {
-            log.warn("Port [{}]: CID2 0x44 response is null. Keeping previous 0x44 alarm state.", batPort);
+            // TODO only debug
+            log.debug("Port [{}]: CID2 0x44 response is null. Keeping previous 0x44 alarm state.", batPort);
         }
 
         // =========================================================================
@@ -700,8 +704,8 @@ public class UsrTcpWiFiService {
         telemetry.setTimestamp(currentInstant);
         battery.setRs485_Data_GOOTO_Telemetry(telemetry);
         battery.setLastTime(telemetry.getTimestamp());
-
-        log.info("Port [{}]: Telemetry updated successfully at {}", batPort, telemetry.getTimestamp());
+        // TODO only debug
+        log.debug("Port [{}]: Telemetry updated successfully at {}", batPort, telemetry.getTimestamp());
     }
 
     public boolean sendRs485Command(int port, String asciiCommand) {

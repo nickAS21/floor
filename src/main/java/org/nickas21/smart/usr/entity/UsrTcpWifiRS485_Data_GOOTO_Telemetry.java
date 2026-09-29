@@ -89,7 +89,8 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
         try {
             String dataFrame = validateFindFrame(asciiFrame42);
             if (dataFrame == null) {
-                log.warn("RS485 0x42 BAD valid response frame not found in: {}", asciiFrame42.split("(?=~)"));
+                // TODO onle debug
+                log.debug("RS485 0x42 BAD valid response frame not found in: {}", asciiFrame42.split("(?=~)"));
                 return false;
             }
 
@@ -180,15 +181,16 @@ public class UsrTcpWifiRS485_Data_GOOTO_Telemetry {
                     this.cyclesCount = Integer.parseInt(rawCycHex, 16);
                 }
 
-                // SOC & SOH Calculations
-                if (this.fullAh > 0 && this.remainAh > 0) {
-                    this.socPercent = Math.min(100.0, Math.max(0.0, (this.remainAh / this.fullAh) * 100.0));
+                // SOC Calculation
+                if (this.fullAh > 0 && this.remainAh >= 0) {
+                    double rawSoc = Math.clamp((this.remainAh / this.fullAh) * 100.0, 0.0, 100.0);
+                    this.socPercent = Math.round(rawSoc * 100.0) / 100.0;
                 }
 
-                if (this.fullAh > 0) {
-                    double calculatedSoh = (this.fullAh / this.designAh) * 100.0;
-                    // Обмежуємо максимум 100% та округлюємо до 2 знаків після коми
-                    this.sohPercent = Math.min(100.0, Math.round(calculatedSoh * 100.0) / 100.0);
+                // SOH Calculation
+                if (this.designAh > 0 && this.fullAh >= 0) {
+                    double rawSoh = Math.clamp((this.fullAh / this.designAh) * 100.0, 0.0, 100.0);
+                    this.sohPercent = Math.round(rawSoh * 100.0) / 100.0;
                 }
             }
 

@@ -260,7 +260,8 @@ public class DataHomeDto {
         InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego, InverterDataGolego.class);
         if (inverterDataGolego != null) {
             InverterGolegoData90 inverterGolegoData90 = inverterDataGolego.getInverterGolegoData90();
-            log.info("Golego Inverter: entity90 {}; : entity32 {}; ", inverterGolegoData90, inverterDataGolego.getInverterGolegoData32());
+            // TODO only debug
+            log.debug("Golego Inverter: entity90 {}; : entity32 {}; ", inverterGolegoData90, inverterDataGolego.getInverterGolegoData32());
 
             if (inverterGolegoData90 != null) {
                 // Потужність навантаження з інвертора (бо BMS її напряму не міряє)
