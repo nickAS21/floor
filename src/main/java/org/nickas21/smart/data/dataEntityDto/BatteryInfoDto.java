@@ -26,18 +26,18 @@ import static org.nickas21.smart.util.StringUtils.isBlank;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BatteryInfoDto {
-    String timestamp;
-    int port;
-    double voltageCurV;
-    double currentCurA;
-    double socPercent;
+    protected String timestamp;
+    protected int port;
+    protected double voltageCurV;
+    protected double currentCurA;
+    protected double socPercent;
     Double bmsTempValue;
     String bmsStatusStr;
     String errorInfoDataHex;
-    String errorOutput;
-    String connectionStatus;
+    protected String errorOutput;
+    protected String connectionStatus;
     Integer cyclesCount;
-    Double deltaMv; // in V critical if > 0,110 V
+    protected Double deltaMv; // in V critical if > 0,110 V
     Integer minCellIdx;
     Integer maxCellIdx;
     Map<Integer, Float> cellVoltagesV;

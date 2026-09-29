@@ -3,7 +3,10 @@ package org.nickas21.smart.usr.service;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.nickas21.smart.data.dataEntityDto.BatteryInfoDto;
 import org.nickas21.smart.data.dataEntityDto.DataErrorInfoDto;
+import org.nickas21.smart.data.service.DataUnitService;
+import org.nickas21.smart.usr.config.PortStatus;
 import org.nickas21.smart.usr.config.UsrTcpLogsWiFiProperties;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
 import org.nickas21.smart.usr.data.InvertorGolegoDecoders;
@@ -24,6 +27,7 @@ import org.nickas21.smart.usr.entity.golego.UsrTcpWiFiBmsSummary;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC1Data;
 import org.nickas21.smart.usr.io.UsrTcpWiFiLogWriter;
+import org.nickas21.smart.util.LocationType;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -37,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.datePatternGridStatus;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_BMS_END;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_DEYE_START_SOC_106;
 import static org.nickas21.smart.usr.data.UsrTcpWiFiDecoders.ID_DEYE_START_SOC_16;
@@ -55,6 +60,7 @@ import static org.nickas21.smart.usr.data.fault.UsrTcpWifiFaultLogType.E1;
 import static org.nickas21.smart.util.LocationType.GOLEGO;
 import static org.nickas21.smart.util.StringUtils.bytesToHex;
 import static org.nickas21.smart.util.StringUtils.getCurrentTimeString;
+import static org.nickas21.smart.util.StringUtils.getInstantFromString;
 import static org.nickas21.smart.util.StringUtils.getUint16kipPrefix;
 import static org.nickas21.smart.util.StringUtils.intToHex;
 
@@ -312,44 +318,48 @@ public class UsrTcpWiFiParseData {
         }
         return true;
     }
+    public UsrTcpWiFiBmsSummary getBmsGolegoSummary(DataUnitService dataUnitService) {
+        List<BatteryInfoDto> batteries = dataUnitService.getBatteries(GOLEGO);
+        try {
+            int masterPort = usrTcpWiFiProperties.getPortBatMasterGolego();
 
-    public UsrTcpWiFiBmsSummary getBmsSummary(int portMaster){
-        BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFi = this.getBattery(portMaster);
-        if (batteryDataUsrTcpWiFi != null) {
-            UsrTcpWifiC0Data c0Data = batteryDataUsrTcpWiFi.getC0Data();
-            UsrTcpWifiC1Data c1Data = batteryDataUsrTcpWiFi.getC1Data();
-            String bmsErrors = null;
-            if (c0Data.getTimestamp() == null || c1Data.getTimestamp() == null) return null;
-            try {
-                double batteryCurrentAll = 0;
-                double batterySocMax = c0Data.getSocPercent();
-                for (int i = 0; i < this.usrTcpWiFiProperties.getPortsCnt(); i++) {
-                    int portOut = this.usrTcpWiFiProperties.getPortStart() + i;
-                    BatteryDataUsrTcpWiFi batteryDataUsrTcpWiFiA = this.getBattery(portOut);
-                    if (batteryDataUsrTcpWiFiA != null && batteryDataUsrTcpWiFiA.getC0Data() != null) {
-                        log.warn("port [{}] batteryCurrent [{}] soc [{}]", portOut, batteryDataUsrTcpWiFiA.getC0Data().getCurrentCurA(), batteryDataUsrTcpWiFiA.getC0Data().getSocPercent());
-                        batteryCurrentAll += batteryDataUsrTcpWiFiA.getC0Data().getCurrentCurA();
-                        // TODO - 8894 - 20% this is bad then only master
-                        batterySocMax = batteryDataUsrTcpWiFiA.getC0Data().getSocPercent() != 0 ? Math.max(batterySocMax, batteryDataUsrTcpWiFiA.getC0Data().getSocPercent()) : batterySocMax;
+            for (BatteryInfoDto batInfoDto : batteries) {
+                // Оскільки батарея одна — шукаємо саме Master-порт у статусі ACTIVE
+                if (batInfoDto.getPort() == masterPort
+                        && PortStatus.ACTIVE.name().equals(batInfoDto.getConnectionStatus())) {
+
+                    String timestampStr = batInfoDto.getTimestamp();
+                    if (timestampStr == null) {
+                        log.warn("Master battery on port {} has no timestamp", masterPort);
+                        return null;
                     }
-                }
 
-                StringBuilder out = new StringBuilder();
-                out.append(String.format("- BMS status %s\n", c0Data.getBmsStatusStr()));
-                out.append(String.format("- Voltage: %.2f V\n", c0Data.getVoltageCurV()));
-                out.append(String.format("- Current: %.2f A\n", batteryCurrentAll));
-                out.append(String.format("- Cells delta: %.3f V\n", c1Data.getDeltaMv() / 1000.0));
-                StringBuilder errorBuilder = getStringBuilderError();
-                if (!errorBuilder.toString().isEmpty()) {
-                    bmsErrors = (String.format("Error info Data:\n%s", errorBuilder));
+                    Instant timestamp = getInstantFromString(timestampStr, datePatternGridStatus, LocationType.GOLEGO.getZoneId());
+
+                    StringBuilder out = new StringBuilder();
+                    out.append(String.format("- BMS status %s\n", batInfoDto.getBmsStatusStr()));
+                    out.append(String.format("- Voltage: %.2f V\n", batInfoDto.getVoltageCurV()));
+                    out.append(String.format("- Current: %.2f A\n", batInfoDto.getCurrentCurA()));
+                    out.append(String.format("- Cells delta: %.3f V\n", batInfoDto.getDeltaMv() / 1000.0));
+
+                    String bmsErrors = null;
+                    StringBuilder errorBuilder = getStringBuilderGolegoError(dataUnitService);
+                    if (!errorBuilder.isEmpty()) {
+                        bmsErrors = String.format("Error info Data:\n%s", errorBuilder);
+                    }
+
+                    return new UsrTcpWiFiBmsSummary(timestamp, batInfoDto.getSocPercent(), bmsErrors, out.toString());
                 }
-                return new UsrTcpWiFiBmsSummary(c0Data.getTimestamp(), batterySocMax, bmsErrors, out.toString());
-            } catch (Exception e) {
-                log.error("CRITICAL DECODE ERROR C0", e);
-                return null;
             }
-        } else {
-            log.error("Check the data on port {} it is not in use. Size BatteryRegistry {}", portMaster, this.usrTcpWiFiBatteryRegistry.getBatteriesGolegoAll(BatteryDataUsrTcpWiFi.class).size());
+
+            log.warn("No active master battery found for port {}", masterPort);
+            return null;
+
+        } catch (Exception e) {
+            log.error("Error generating BMS Golego summary for port {}. Battery Registry size: {}",
+                    usrTcpWiFiProperties.getPortBatMasterGolego(),
+                    this.usrTcpWiFiBatteryRegistry.getBatteriesGolegoAll(BatteryDataUsrTcpWiFi.class).size(),
+                    e);
             return null;
         }
     }
@@ -365,8 +375,16 @@ public class UsrTcpWiFiParseData {
             if (batteryEntry.getValue().getErrRecordE1() != null){
                 errorBuilder.append(batteryEntry.getValue().getErrRecordE1().toMsgForBot());
             }
-            if (batteryEntry.getValue().getErrRecordB1() != null){
-                errorBuilder.append(batteryEntry.getValue().getErrRecordB1().toMsgForBot());
+        }
+        return errorBuilder;
+    }
+
+    @NotNull
+    private StringBuilder getStringBuilderGolegoError(DataUnitService dataUnitService) {
+        StringBuilder errorBuilder = new StringBuilder();
+        for (BatteryInfoDto batInfoDto : dataUnitService.getBatteries(GOLEGO)) {
+            if (batInfoDto.getErrorOutput() != null){
+                errorBuilder.append(batInfoDto.getErrorOutput());
             }
         }
         return errorBuilder;

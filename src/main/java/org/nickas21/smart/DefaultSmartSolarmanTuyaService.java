@@ -3,6 +3,7 @@ package org.nickas21.smart;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.nickas21.smart.data.service.DataUnitService;
 import org.nickas21.smart.solarman.BatteryStatus;
 import org.nickas21.smart.solarman.Seasons;
 import org.nickas21.smart.solarman.SolarmanDevice;
@@ -103,6 +104,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     @Autowired
     @Lazy
     UsrTcpWiFiParseData usrTcpWiFiParseData;
+    @Autowired
+    @Lazy
+    DataUnitService dataUnitService;
 
     public DefaultSmartSolarmanTuyaService(SolarmanStationsService solarmanStationsService, TuyaDeviceService tuyaDeviceService) {
         this.solarmanStationsService = solarmanStationsService;
@@ -125,7 +129,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     public void setBmsSocCur() {
         try {
             updatePowerValue();
-            UsrTcpWiFiBmsSummary usrBmsSummary = usrTcpWiFiParseData.getBmsSummary(tcpProps.getPortBatMasterGolego());
+            UsrTcpWiFiBmsSummary golegoBmsSummary = usrTcpWiFiParseData.getBmsGolegoSummary(this.dataUnitService);
             double batCurNew = powerValueRealTimeData.getBatteryCurrentValue();
             double batVolNew = powerValueRealTimeData.getBatteryVoltageValue();
             double bmsVolNew = powerValueRealTimeData.getBmsVoltageValue();
@@ -133,7 +137,7 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
             double bmsTempNew = powerValueRealTimeData.getBmsTempValue();
             double invTempNew = powerValueRealTimeData.getInverterTempValue();
             double batterySocNew = powerValueRealTimeData.getBatterySocValue();
-            double batterySocUsr = usrBmsSummary == null ? -1: usrBmsSummary.socPercent();
+            double batterySocUsr = golegoBmsSummary == null ? -1: golegoBmsSummary.socPercent();
             double batterySocMin = getBatSocMin();
             double batteryPowerNew = powerValueRealTimeData.getBatteryPowerValue();
             String batteryStatusNew = powerValueRealTimeData.getBatteryStatusValue();
@@ -160,14 +164,15 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
             log.info("""
                             \nCurrent data:
-                            Current Dacha real time data: [{}], -Update Dacha real time data: [{}],
+                            Current Dacha real time data: [{}],
+                            -Update Dacha real time data: [{}],
                             -batSocLast: [{} %], -batSocNew: [{} %], -deltaBmsSoc: [{} %], -batterySocMin: [{} %],
                             -batteryStatus: [{}], -batteryPower: [{} W], -batVolNew: [{} V], -batCurrentNew: [{} A],  -bmsVolNew: [{} V], -bmsCurrentNew: [{} A], -BMS Temperature: [{}  grad C] -Invetrer Temperature: [{}  grad C]
                             -solarPower: [{} W], consumptionPower: [{} W], stationPower: [{} W],
                             -batteryDailyCharge: [{} kWh], -batteryDailyDischarge: [{} kWh],
                             -relayStatus: [{}], -gridStatusSolarman: [{}], -gridDachaStatusRealTime: [{}], -dailyBuy:[{} kWh], -dailySell: [{} kWh],
                             -AC (inverter) Temperature:  [{} grad C].
-                            - usrBmsSummary:
+                            Current Golego real time data (GolegoBmsSummary):
                             -- Update Golego real time data: [{}],
                             -- batSocLast: [{} %],
                             -- gridGolegoStatusRealTime: [{}],
@@ -199,12 +204,12 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
                     powerValueRealTimeData.getDailyEnergyBuy(),
                     powerValueRealTimeData.getDailyEnergySell(),
                     powerValueRealTimeData.getInverterTempValue(),
-                    usrBmsSummary == null ? "null" : toLocaleTimeString(usrBmsSummary.timestamp().toEpochMilli()),
-                    usrBmsSummary == null ? 0 : usrBmsSummary.socPercent(),
+                    golegoBmsSummary == null ? "null" : toLocaleTimeString(golegoBmsSummary.timestamp().toEpochMilli()),
+                    golegoBmsSummary == null ? 0 : golegoBmsSummary.socPercent(),
                     tuyaDeviceService.getGridRelayCodeGolegoStateOnLine(),
-                    usrBmsSummary == null ? "null" : usrBmsSummary.bmsSummary());
+                    golegoBmsSummary == null ? "null" : golegoBmsSummary.bmsSummary());
             tuyaDeviceService.sendDachaGolegoBatteryChargeRemaining(batVolNew, batCurNew, bmsVolNew, bmsCurNew, bmsTempNew, invTempNew,
-                    batterySocNew, batteryPowerNew, batteryStatusNew, usrBmsSummary);
+                    batterySocNew, batteryPowerNew, batteryStatusNew, golegoBmsSummary);
             if (isDay) {
                 isUpdateToMinAfterIsDayFalse = false;
                 if (this.batterySocCur > 0) {

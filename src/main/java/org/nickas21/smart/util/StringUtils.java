@@ -103,6 +103,16 @@ public class StringUtils {
                 .format(DateTimeFormatter.ofPattern(pattern));
     }
 
+    public static Instant getInstantFromString(String timestampStr, String datePattern, ZoneId zoneId) {
+        if (timestampStr == null || "null".equalsIgnoreCase(timestampStr) || timestampStr.isBlank()) {
+            return null;
+        }
+        DateTimeFormatter formatter = DateTimeFormatter
+                .ofPattern(datePattern)
+                .withZone(zoneId);
+        return Instant.from(formatter.parse(timestampStr));
+    }
+
     public static String getCurrentTimeString(Instant now) {
         DateTimeFormatter f = DateTimeFormatter.ofPattern(datePattern);
         return "[" + f.format(now.atZone(ZoneId.systemDefault())) + "]";
