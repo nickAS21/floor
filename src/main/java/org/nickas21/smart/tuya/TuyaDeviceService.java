@@ -1141,10 +1141,6 @@ public class TuyaDeviceService {
             log.error("Device Relay Golego switch is null... , is offline... and is not update");
             return;
         }
-        if (!this.getGridRelayCodeIdGolego().equals(gridRelayCodeId)) {
-            return;
-        }
-
         boolean paramOnOff = false; // isSwitchRelayAfterNightOff()
         boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
         if (this.heaterGridOnAutoAllDayGolego) {

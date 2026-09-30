@@ -662,8 +662,8 @@ public class UsrTcpWiFiService {
                     break; // Успішно! Виходимо з циклу повторів
                 }
             }
-
-            log.warn("Port [{}]: Failed to read/parse CID2 0x42 (attempt {}/3)", batPort, attempt);
+            // TODO only debug
+            log.debug("Port [{}]: Failed to read/parse CID2 0x42 (attempt {}/3)", batPort, attempt);
             try {
                 Thread.sleep(100); // Невелика затримка перед повторною спробою
             } catch (InterruptedException ignored) {
