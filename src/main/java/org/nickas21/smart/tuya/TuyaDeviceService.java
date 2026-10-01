@@ -1126,45 +1126,62 @@ public class TuyaDeviceService {
      */
     public void updateOnOfSwitchRelay(double batterySocFromSolarman, double batterySocFromUsr, double totalGridPower) {
         this.updateSwitchReleayDachaAndThermostatFirstFloor(batterySocFromSolarman, totalGridPower);
-        this.updateOnOffSwitchRelayGolego(this.getGridRelayCodeIdGolego(), batterySocFromUsr);
-        this.updateOnOffSwitchRelayGolego(this.getBoilerRelayCodeIdGolego(), batterySocFromUsr);
+        boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
+        this.updateOnOffSwitchGridRelayGolego(batterySocFromUsr, nightTariff);
+        this.updateOnOffSwitchBoilerRelayGolego(nightTariff);
     }
 
     /**
      * Auto -> night
-     * Always -> only if Relay Golego online
      * Golego for only day: "on Grid" if < Alarm, after charge 50% - "off Grid"
      */
-    public void updateOnOffSwitchRelayGolego(String gridRelayCodeId, double batterySocFromUsr) {
-        Device device = this.devices.getDevIds().get(gridRelayCodeId);
-        if (device == null || device.currentStateOnLine() == null || !device.currentStateOnLine().getValue()) {
-            log.error("Device Relay Golego switch is null... , is offline... and is not update");
-            return;
-        }
-        boolean paramOnOff = false; // isSwitchRelayAfterNightOff()
-        boolean nightTariff = isNightTariff(hourNightTariffStartDopGolego, minutesNightTariffStartDopGolego);
+    public void updateOnOffSwitchGridRelayGolego(double batterySocFromUsr, boolean nightTariff) {
+        String relayCodeId = this.getGridRelayCodeIdGolego();
+        boolean desiredState = calculateGridDesiredState(batterySocFromUsr, nightTariff);
+        processRelayUpdate(relayCodeId, desiredState, nightTariff);
+    }
+
+    /**
+     * Auto -> night
+     */
+    public void updateOnOffSwitchBoilerRelayGolego(boolean nightTariff) {
+        String relayCodeId = this.getBoilerRelayCodeIdGolego();
+        processRelayUpdate(relayCodeId, nightTariff, nightTariff);
+    }
+
+    private boolean calculateGridDesiredState(double batterySocFromUsr, boolean nightTariff) {
         if (this.heaterGridOnAutoAllDayGolego) {
-            paramOnOff = this.getGridRelayCodeGolegoStateOnLine();
             this.isAlarmDayGolego = false;
+            return this.getGridRelayCodeGolegoStateOnLine();
         } else if (nightTariff) {
-            paramOnOff = batteryCriticalOrHeatNightSwitchRelayGolego(batterySocFromUsr);
             this.isAlarmDayGolego = false;
-        } else {    // Day: !nightTariff
+            return batteryCriticalOrHeatNightSwitchRelayGolego(batterySocFromUsr);
+        } else { // Day: !nightTariff
             this.batteryCriticalOrHeatNightGolego = false;
             if (batterySocFromUsr >= 0 && batterySocFromUsr < MIN_DISCHARGING_DAY_45.getSoc()) {
-                paramOnOff = true;
                 this.isAlarmDayGolego = true;
-            } else if (batterySocFromUsr >= 0  && this.isAlarmDayGolego) {
+                return true;
+            } else if (batterySocFromUsr >= 0 && this.isAlarmDayGolego) {
                 if (batterySocFromUsr >= NOT_CHARGING_DAY_MORE_70.getSoc()) {
                     this.isAlarmDayGolego = false;
+                    return false;
                 } else {
-                    paramOnOff = true;
+                    return true;
                 }
             }
+            return false;
+        }
+    }
+
+    private void processRelayUpdate(String relayCodeId, boolean desiredState, boolean nightTariff) {
+        Device device = this.devices.getDevIds().get(relayCodeId);
+        if (device == null || device.currentStateOnLine() == null || !device.currentStateOnLine().getValue()) {
+            log.error("Device Relay Golego switch [{}] is null or offline... update skipped.", relayCodeId);
+            return;
         }
 
-        DeviceUpdate deviceUpdate = getDeviceUpdate(paramOnOff, device);
-        if (this.devicesChangeHandleControlGolego) {   // handle and not -> 7-8 (AfterNight)
+        DeviceUpdate deviceUpdate = getDeviceUpdate(desiredState, device);
+        if (this.devicesChangeHandleControlGolego) { // Ручне керування
             deviceUpdate.setValueNew(deviceUpdate.getValueOld());
         }
 
@@ -1177,12 +1194,15 @@ public class TuyaDeviceService {
             return;
         }
 
+        boolean finalState = Boolean.TRUE.equals(deviceUpdate.getValueNewAsBoolean());
         log.info("Relay switch [{}] updated to [{}], night tariff: [{}].",
                 device.getName(),
-                paramOnOff ? "on" : "off",
+                finalState ? "on" : "off",
                 nightTariff);
+
         Map<Device, DeviceUpdate> queueUpdate = new ConcurrentHashMap<>();
         queueUpdate.put(device, deviceUpdate);
+
         queueLock.lock();
         try {
             updateThermostats(queueUpdate, false);

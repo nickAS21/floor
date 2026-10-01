@@ -16,12 +16,24 @@ public class DeviceUpdate {
     public boolean isUpdate() {
         if (valueNew == null) {
             return false;
-        } else if (valueOld == null) {
-            return true;
-        } else {
-            Object valNew = valueNew instanceof BooleanNode ? ((BooleanNode) valueNew).asBoolean() : valueNew;
-            Object valOld = valueOld instanceof BooleanNode ? ((BooleanNode) valueOld).asBoolean() : valueOld;
-            return !valNew.equals(valOld);
         }
+        if (valueOld == null) {
+            return true;
+        }
+        Object valNew = unwrapValue(valueNew);
+        Object valOld = unwrapValue(valueOld);
+        return !valNew.equals(valOld);
+    }
+
+    public Boolean getValueNewAsBoolean() {
+        Object unwrapped = unwrapValue(valueNew);
+        return unwrapped instanceof Boolean ? (Boolean) unwrapped : null;
+    }
+
+    private Object unwrapValue(Object val) {
+        if (val instanceof BooleanNode) {
+            return ((BooleanNode) val).asBoolean();
+        }
+        return val;
     }
 }
