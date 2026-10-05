@@ -386,6 +386,11 @@ public class UsrTcpWiFiService {
                         Integer.toHexString(cid2).toUpperCase(),
                         e.getMessage(),
                         e);
+                if (e instanceof SocketException
+                        && "Broken pipe".equalsIgnoreCase(e.getMessage())) {
+                    log.warn("Port [{}]: Broken pipe. Forcing socket reconnect.", port);
+                    forceCloseSocket(port);
+                }
 
                 return null;
 
@@ -494,6 +499,7 @@ public class UsrTcpWiFiService {
         activeConnections.put(port, conn);
         lastSeenMap.put(port, System.currentTimeMillis());
         portStatusMap.put(port, PortStatus.ACTIVE);
+        log.info("Порт {}: Новий сокет підключено.", port);
 
         // Battery ports: не читаємо сокет, тільки тримаємо з'єднання
         if (usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterGolego().equals(port)
