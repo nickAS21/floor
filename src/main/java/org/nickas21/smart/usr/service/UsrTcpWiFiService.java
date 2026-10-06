@@ -90,11 +90,12 @@ public class UsrTcpWiFiService {
             if (ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortInverterGolego()) ||
                     usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsInverterDacha().contains(ports[i])){
                 usrTcpWiFiBatteryRegistry.initInverter(ports[i]);
+                portStatusMap.put(ports[i], PortStatus.STANDBY);
             } else if (ports[i].equals(usrTcpWiFiParseData.usrTcpWiFiProperties.getPortBatMasterGolego()) ||
                     usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsBatDacha().contains(ports[i])) {
                 usrTcpWiFiBatteryRegistry.initBattery(ports[i]);
+                portStatusMap.put(ports[i], PortStatus.STANDBY);
             }
-            portStatusMap.put(ports[i], PortStatus.STANDBY);
         }
         log.info("USR TCP WiFi ports initialized: start={}, ports={}", portStart, Arrays.toString(ports));
         try {
