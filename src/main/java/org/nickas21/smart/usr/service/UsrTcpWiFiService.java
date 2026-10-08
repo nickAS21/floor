@@ -498,80 +498,122 @@ public class UsrTcpWiFiService {
     // --------------------------
     private void handleConnection(Socket conn, int port) {
         activeConnections.put(port, conn);
-        lastSeenMap.put(port, System.currentTimeMillis());
-        portStatusMap.put(port, PortStatus.ACTIVE);
         log.info("Порт {}: Новий сокет підключено.", port);
 
-        // Battery ports: не читаємо сокет, тільки тримаємо з'єднання
+        try {
+            // Базовий Keep-Alive для виявлення розривів на рівні ОС
+            conn.setKeepAlive(true);
+        } catch (SocketException se) {
+            log.warn("Port [{}]: Failed to set KeepAlive: {}", port, se.getMessage());
+        }
+
+        // =========================================================================
+        // ГІЛКА 1: БАТАРЕЙНІ ПОРТИ (RS485 ОПИТУВАНИЙ РЕЖИМ)
+        // =========================================================================
         if (usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterGolego().equals(port)
                 || usrTcpWiFiParseData.getUsrTcpWiFiProperties().getAllPortsBatDacha().contains(port)) {
-            // TODO - only debug
-            log.debug("Port [{}]: Socket registered, starting initial RS485 poll", port);
 
+            log.debug("Port [{}]: Battery socket registered, starting initial RS485 poll", port);
+
+            // Стартове опитування при підключенні
             CompletableFuture.runAsync(() -> {
-                // TODO - only debug
-                log.debug("Port [{}]: Initial RS485 poll START", port);
-
                 try {
                     pollRs485Devices(port);
-                    // TODO - only debug
-                    log.debug("Port [{}]: Initial RS485 poll END", port);
                 } catch (Throwable t) {
                     log.error("Port [{}]: Initial RS485 poll FAILED", port, t);
                 }
             });
 
             try {
+                // Встановлюємо Read Timeout (15 сек) для виявлення розриву, якщо пристрій закриє сокет
+                conn.setSoTimeout(15000);
+                InputStream in = conn.getInputStream();
+
+                // Замість вічного sleep() чекаємо на фактичний стан з'єднання
                 while (!conn.isClosed()) {
-                    Thread.sleep(1000);
+                    try {
+                        int b = in.read();
+                        if (b == -1) {
+                            log.warn("Port [{}]: Battery connection closed by remote side (-1)", port);
+                            break;
+                        }
+                    } catch (SocketTimeoutException ignored) {
+                        // Таймаут потрібен лише для періодичної перевірки conn.isClosed()
+                    }
                 }
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
+            } catch (IOException e) {
+                log.warn("Port [{}]: Battery socket IO exception: {}", port, e.getMessage());
             } finally {
                 activeConnections.remove(port);
-                log.info("Port [{}]: Socket removed from activeConnections", port);
+                log.info("Port [{}]: Battery socket removed from activeConnections", port);
             }
             return;
+        }
+
+        // =========================================================================
+        // ГІЛКА 2: ІНВЕРТОРНІ ПОРТИ (ПОСТІЙНИЙ СТРІМ ДАНИХ ВІД ІНВЕРТОРА)
+        // =========================================================================
+        try {
+            // Встановлюємо 15-секундний SoTimeout, щоб in.read() не блокував потік вічно
+            conn.setSoTimeout(15000);
+        } catch (SocketException se) {
+            log.warn("Port [{}]: Failed to set SoTimeout for inverter: {}", port, se.getMessage());
         }
 
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
         try (InputStream in = conn.getInputStream()) {
             byte[] readBuf = new byte[4096];
-            int read;
 
-            while ((read = in.read(readBuf)) != -1) {
+            while (true) {
+                int read;
+                try {
+                    read = in.read(readBuf);
+                    if (read == -1) {
+                        log.warn("Port [{}]: Connection closed by remote side (-1)", port);
+                        break;
+                    }
+                } catch (SocketTimeoutException e) {
+                    // Таймаут читання: даних немає 15 сек.
+                    // НЕ закриваємо сокет і НЕ оновлюємо lastSeenMap!
+                    if (conn.isClosed()) {
+                        break;
+                    }
+                    continue;
+                }
+
                 if (read > 0) {
-                    // TODO only debug
                     log.debug("Port [{}]: RECEIVED {} bytes from inverter, HEX [{}]",
                             port,
                             read,
                             bytesToHexDump(readBuf, read));
-                    // ПРАВИЛО 1: Оновлюємо час АКТИВНОСТІ завжди, коли прийшли байти
-                    lastSeenMap.put(port, System.currentTimeMillis());
-                    portStatusMap.put(port, PortStatus.ACTIVE);
 
                     buffer.write(readBuf, 0, read);
 
                     try {
                         byte[] remaining = usrTcpWiFiParseData.parseAndProcessData(buffer.toByteArray(), port);
+
+                        // ✅ ТІЛЬКИ ПІСЛЯ УСПІШНОГО РОЗПАРСУВАННЯ ОНОВЛЮЄМО ЧАС ТА СТАТУС!
+                        lastSeenMap.put(port, System.currentTimeMillis());
+                        portStatusMap.put(port, PortStatus.ACTIVE);
+
                         buffer.reset();
                         if (remaining != null && remaining.length > 0) {
                             buffer.write(remaining);
                         }
                     } catch (Exception e) {
-                        // ПРАВИЛО 2: Якщо дані не розпарсились - логуємо помилку декодера,
-                        // але НЕ скидаємо ACTIVE статус, бо фізично пристрій щось шле.
+                        // ❌ Якщо дані "сміття" або декодер впав — НЕ оновлюємо lastSeenMap!
                         log.error("Port {}: Decoder error - invalid data format: {}", port, e.getMessage());
-                        buffer.reset(); // Очищуємо "сміття", щоб не забити пам'ять
+                        buffer.reset();
                     }
                 }
             }
             flushRemaining(buffer, port);
         } catch (IOException e) {
-            log.warn("Connection lost on port {}", port);
+            log.warn("Port [{}]: Connection lost / IO Exception: {}", port, e.getMessage());
         } finally {
             activeConnections.remove(port);
+            log.info("Port [{}]: Inverter socket removed from activeConnections", port);
         }
     }
     // --------------------------
@@ -648,70 +690,60 @@ public class UsrTcpWiFiService {
             return;
         }
 
-        // Беремо існуючу телеметрію або створюємо нову, якщо це перший запуск
         UsrTcpWifiRS485_Data_GOOTO_Telemetry telemetry = battery.getRs485_Data_GOOTO_Telemetry();
         if (telemetry == null) {
             telemetry = new UsrTcpWifiRS485_Data_GOOTO_Telemetry();
         }
 
         // =========================================================================
-        // 1. КРОК 1: Запит кадру 0x42 (до 3 спроб у разі помилки)
+        // КРОК 1: Запит кадру 0x42 (до 5 спроб у разі помилки)
         // =========================================================================
         boolean parse42Success = false;
 
-        for (int attempt = 1; attempt <= 3; attempt++) {
+        for (int attempt = 1; attempt <= 5; attempt++) {
             String responseAsciiCid42 = sendAndReceiveRaw(batPort, CMD_CID2_42);
             if (responseAsciiCid42 != null) {
                 parse42Success = telemetry.parse42(responseAsciiCid42);
                 if (parse42Success) {
-                    // TODO only debug
                     log.debug("Port [{}]: CID2 0x42 parsed successfully on attempt {}", batPort, attempt);
-                    break; // Успішно! Виходимо з циклу повторів
+                    break; // Успішно!
                 }
             }
-            // TODO only debug
-            log.debug("Port [{}]: Failed to read/parse CID2 0x42 (attempt {}/3)", batPort, attempt);
+            log.debug("Port [{}]: Failed to read/parse CID2 0x42 (attempt {}/5)", batPort, attempt);
             try {
-                Thread.sleep(100); // Невелика затримка перед повторною спробою
+                Thread.sleep(100);
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             }
         }
 
-        // Якщо за 3 спроби 0x42 так і не розпарсився — перериваємо опитування
+        // Якщо за 5 спроб 0x42 не розпарсився — зупиняємо оновлення телеметрії ТА часу!
         if (!parse42Success) {
-            log.error("Port [{}]: CID2 0x42 failed after 3 attempts. Aborting telemetry update.", batPort);
+            log.error("Port [{}]: CID2 0x42 failed after 5 attempts. Skipping time update.", batPort);
+            // ❌ time NOT updated, lastSeenMap NOT updated!
+            // Сокет залишається відкритим для відновлення, але monitorInactivity() через timeout відправить його в OFFLINE
             return;
         }
 
         // =========================================================================
-        // 2. КРОК 2: Запит кадру 0x44 (одна спроба)
+        // КРОК 2: Запит кадру 0x44 (одна спроба)
         // =========================================================================
         String responseAsciiCid44 = sendAndReceiveRaw(batPort, CMD_CID2_44);
         if (responseAsciiCid44 != null) {
-            boolean parse44Success = telemetry.parse44(responseAsciiCid44);
-            if (parse44Success) {
-                // TODO only debug
-                log.debug("Port [{}]: CID2 0x44 parsed successfully", batPort);
-            } else {
-                // TODO only debug
-                log.debug("Port [{}]: CID2 0x44 parse failed. Keeping previous 0x44 alarm state.", batPort);
-            }
-        } else {
-            // TODO only debug
-            log.debug("Port [{}]: CID2 0x44 response is null. Keeping previous 0x44 alarm state.", batPort);
+            telemetry.parse44(responseAsciiCid44);
         }
 
         // =========================================================================
-        // 3. КРОК 3: Фінальне збереження та оновлення часу
+        // КРОК 3: Фінальне збереження та оновлення часу (ТІЛЬКИ ПРИ УСПІХУ КРОКУ 1)
         // =========================================================================
         Instant currentInstant = Instant.now();
         lastSeenMap.put(batPort, currentInstant.toEpochMilli());
         portStatusMap.put(batPort, PortStatus.ACTIVE);
+
         telemetry.setTimestamp(currentInstant);
         battery.setRs485_Data_GOOTO_Telemetry(telemetry);
         battery.setLastTime(telemetry.getTimestamp());
-        // TODO only debug
+
         log.debug("Port [{}]: Telemetry updated successfully at {}", batPort, telemetry.getTimestamp());
     }
 
