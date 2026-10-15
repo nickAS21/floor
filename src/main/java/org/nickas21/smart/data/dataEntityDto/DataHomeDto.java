@@ -179,8 +179,9 @@ public class DataHomeDto {
         if (gridRelayCodeDachaStateSwitch!= null) this.gridStatusRealTimeSwitch = gridRelayCodeDachaStateSwitch;
         Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryDacha =  tuyaDeviceService.getLastUpdateTimeGridStatusInfoDacha();
         this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryDacha != null ? formatTimestamp(lastUpdateTimeGridStatusEntryDacha.getKey(), datePatternGridStatus) : "null";
-        if (solarmanTuyaService.getPowerValueRealTimeData() != null) {
-            String connectionBatteryStatus = usrTcpWiFiService.calculateStatus(solarmanTuyaService.getPowerValueRealTimeData().getCollectionTime() * 1000, solarmanTuyaService.getTimeoutSecUpdate());
+        PowerValueRealTimeData realTimeData = solarmanTuyaService.getPowerValueRealTimeData();
+        if (realTimeData != null && realTimeData.getCollectionTime() != null) {
+            String connectionBatteryStatus = usrTcpWiFiService.calculateStatus(realTimeData.getCollectionTime() * 1000, solarmanTuyaService.getTimeoutSecUpdate());
             log.warn("Dacha inverter and battery: is -> [{}]", connectionBatteryStatus);
         }
         log.warn("DataHomeDacha  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
