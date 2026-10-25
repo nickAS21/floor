@@ -35,7 +35,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.time.ZoneOffset.UTC;
+import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.datePatternGridStatus;
 import static org.nickas21.smart.data.dataEntityDto.DataHomeDto.updateTimeStampToUtc;
+import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 
 @Slf4j
 @Service
@@ -147,6 +149,10 @@ public class AnalyticService {
         Path path = getPathFile(location, monthSuffix);
 
         if (this.analyticCache.containsKey(mapDateKey)) {
+            List<DataAnalyticDto> lastAnalyticDtoCashS = this.analyticCache.get(mapDateKey);
+            DataAnalyticDto lastAnalyticDtoCash = lastAnalyticDtoCashS.getLast();
+            log.warn("Last from analyticCache DataAnalyticDto - [{}], timestampLong: [{}], timestampStr: [{}], soc: [{}]% ",
+                    location.getNameForFile(), lastAnalyticDtoCash.getTimestamp(), formatTimestamp(lastAnalyticDtoCash.getTimestamp(), datePatternGridStatus, UTC), lastAnalyticDtoCash.getBmsSoc());
             return this.analyticCache.get(mapDateKey);
         }
 
@@ -157,6 +163,9 @@ public class AnalyticService {
                 if (monthlyMap != null && monthlyMap.containsKey(mapDateKey)) {
                     List<DataAnalyticDto> dayPoints = monthlyMap.get(mapDateKey);
                     this.analyticCache.put(mapDateKey, dayPoints);
+                    DataAnalyticDto lastAnalyticDtoFile = dayPoints.getLast();
+                    log.warn("Last from file DataAnalyticDto - [{}], timestampLong: [{}], timestampStr: [{}], soc: [{}]% ",
+                            location.getNameForFile(), lastAnalyticDtoFile.getTimestamp(), formatTimestamp(lastAnalyticDtoFile.getTimestamp(), datePatternGridStatus, UTC), lastAnalyticDtoFile.getBmsSoc());
                     return dayPoints;
                 }
             } catch (IOException e) {
@@ -329,13 +338,15 @@ public class AnalyticService {
 
         long finalTs = dataHomeDto.getTimestamp();
         if (finalTs < 1000000000000L) return;
-        long offsetMs = updateTimeStampToUtc(Instant.now().toEpochMilli()/1000L, locationType.getZoneId());
-        long systemTsWithOffset = Instant.now().toEpochMilli() + offsetMs;
 
-        // ПЕРЕВІРКА НА "ЗАЛИПАННЯ" (Timeout 10 хвилин)
-        if (Math.abs(systemTsWithOffset - finalTs) > 10 * 60 * 1000) {
+        // Порівнюємо напряму: поточний час системи проти finalTs (з допуском 70 хвилин на перехід DST)
+        long now = Instant.now().toEpochMilli();
+        long offsetMs = updateTimeStampToUtc(now, locationType.getZoneId());
+        long systemTsWithOffset = now + offsetMs;
+
+        // ПЕРЕВІРКА НА "ЗАЛИПАННЯ" (ставимо 70 хв, щоб перехід літо/зима не блокував роботу)
+        if (Math.abs(systemTsWithOffset - finalTs) > 70 * 60 * 1000) {
             log.error("ANALYTIC CRITICAL: Data for {} is STALE! Force closing socket...", locationType);
-
             // Викликаємо твій метод через сервіс
             if (locationType == LocationType.DACHA) {
                 usrTcpWiFiService.usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsInverterDacha()

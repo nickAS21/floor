@@ -119,7 +119,9 @@ public class DataHomeDto {
             if (allPortsActive)
                 inverterMasterData = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(props.getPortInverterDacha(), InverterDataDacha.class);
             if (inverterMasterData != null && inverterMasterData.getLastTime().toEpochMilli() != inverterMasterData.getStartTime().toEpochMilli()) {
-                this.timestamp = inverterMasterData.getLastTime().toEpochMilli();
+                long rawTs = inverterMasterData.getLastTime().toEpochMilli();
+                long offsetMs = updateTimeStampToUtc(rawTs / 1000L, LocationType.DACHA.getZoneId());
+                this.timestamp = rawTs + offsetMs;
                 // 1. Блок Акумулятора (BMS) — строго з Мастера (8900)
                 InverterDataDachaAcBatteryBlock106 batteryBlock106 = inverterMasterData.getInverterDataDachaAcBatteryBlock106();
                 if (batteryBlock106 != null) {
@@ -328,6 +330,7 @@ public class DataHomeDto {
             long offsetMs = updateTimeStampToUtc(this.timestamp/1000L, LocationType.GOLEGO.getZoneId());
             this.timestamp += offsetMs;
         }
+        log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
      }
 
     /**
@@ -376,7 +379,9 @@ public class DataHomeDto {
     }
 
     public static synchronized long updateTimeStampToUtc(long timestamp, ZoneId zoneId) {
-        Instant instant = Instant.ofEpochMilli(timestamp);
+        // Якщо помилково передали секунди (число менше 10^11), множимо на 1000
+        long tsMillis = (timestamp < 100_000_000_000L) ? timestamp * 1000L : timestamp;
+        Instant instant = Instant.ofEpochMilli(tsMillis);
         ZonedDateTime zdt = instant.atZone(zoneId);
         return zdt.getOffset().getTotalSeconds() * 1000L;
     }
