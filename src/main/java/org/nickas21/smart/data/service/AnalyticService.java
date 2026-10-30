@@ -604,15 +604,8 @@ public class AnalyticService {
 
     private void applyGridTariffLogic(DataAnalyticDto current, DataAnalyticDto last, double deltaGrid, int hour) {
         // Якщо перехід UTC доби (last == null), скидаємо лічильники в 0, щоб не було стрибка
-        if (last == null) {
-            current.setGridDailyDayPower(0.0);
-            current.setGridDailyNightPower(0.0);
-            return;
-        }
-
-        double prevDay = last.getGridDailyDayPower();
-        double prevNight = last.getGridDailyNightPower();
-
+        double prevDay = (last != null) ? last.getGridDailyDayPower() : 0.0;
+        double prevNight = (last != null) ? last.getGridDailyNightPower() : 0.0;
         // Тарифікація строго по UTC годині
         if (hour < dayStart || hour >= nightStart) {
             current.setGridDailyNightPower(prevNight + deltaGrid);

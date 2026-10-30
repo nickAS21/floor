@@ -104,8 +104,7 @@ public class DataHomeDto {
 
             this.gridPower = powerValueRealTimeData.getTotalGridPower();
             this.dailyGridPower = powerValueRealTimeData.getDailyEnergyBuy();
-            double dailyCommonConsumptionPower = this.gridPower + this.dailyProductionSolarPower;
-            this.dailyConsumptionPower = dailyCommonConsumptionPower - this.dailyBatteryCharge;
+            this.dailyConsumptionPower = this.dailyProductionSolarPower + this.dailyGridPower - this.dailyBatteryCharge + this.dailyBatteryDischarge;
             this.gridVoltageLs.put(1, powerValueRealTimeData.getGridVoltageL1());
             this.gridVoltageLs.put(2, powerValueRealTimeData.getGridVoltageL2());
             this.gridVoltageLs.put(3, powerValueRealTimeData.getGridVoltageL3());
@@ -379,9 +378,7 @@ public class DataHomeDto {
     }
 
     public static synchronized long updateTimeStampToUtc(long timestamp, ZoneId zoneId) {
-        // Якщо помилково передали секунди (число менше 10^11), множимо на 1000
-        long tsMillis = (timestamp < 100_000_000_000L) ? timestamp * 1000L : timestamp;
-        Instant instant = Instant.ofEpochMilli(tsMillis);
+        Instant instant = Instant.ofEpochMilli(timestamp);
         ZonedDateTime zdt = instant.atZone(zoneId);
         return zdt.getOffset().getTotalSeconds() * 1000L;
     }
