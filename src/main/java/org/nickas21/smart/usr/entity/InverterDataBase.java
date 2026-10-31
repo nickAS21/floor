@@ -22,7 +22,7 @@ public abstract class InverterDataBase {
         this.port = port;
         this.zoneId = zoneId;
         Instant now = Instant.now();
-        long offsetMs = updateTimeStampToUtc(now.toEpochMilli()/1000L, zoneId);
+        long offsetMs = updateTimeStampToUtc(now.toEpochMilli(), zoneId);
         this.startTime = now.plusMillis(offsetMs);;
         this.lastTime = this.startTime;
     }
@@ -30,7 +30,7 @@ public abstract class InverterDataBase {
     protected void updateTime() {
         Instant now = Instant.now();
         // РАХУЄМО ОФСЕТ ТУТ ТАК САМО, ЯК У КОНСТРУКТОРІ
-        long offsetMs = updateTimeStampToUtc(now.toEpochMilli()/1000L, this.zoneId);
+        long offsetMs = updateTimeStampToUtc(now.toEpochMilli(), this.zoneId);
         this.lastTime = now.plusMillis(offsetMs); // Тепер тут теж БУДЕ 12:00, а не 09:00
     }
 }

@@ -119,7 +119,7 @@ public class DataHomeDto {
                 inverterMasterData = usrTcpWiFiParseData.usrTcpWiFiBatteryRegistry.getInverter(props.getPortInverterDacha(), InverterDataDacha.class);
             if (inverterMasterData != null && inverterMasterData.getLastTime().toEpochMilli() != inverterMasterData.getStartTime().toEpochMilli()) {
                 long rawTs = inverterMasterData.getLastTime().toEpochMilli();
-                long offsetMs = updateTimeStampToUtc(rawTs / 1000L, LocationType.DACHA.getZoneId());
+                long offsetMs = updateTimeStampToUtc(rawTs, LocationType.DACHA.getZoneId());
                 this.timestamp = rawTs + offsetMs;
                 // 1. Блок Акумулятора (BMS) — строго з Мастера (8900)
                 InverterDataDachaAcBatteryBlock106 batteryBlock106 = inverterMasterData.getInverterDataDachaAcBatteryBlock106();
@@ -214,7 +214,7 @@ public class DataHomeDto {
                     } else if (this.batteryVol == 0) {
                         this.batteryVol = c0Data.getVoltageCurV();
                     }
-                    long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli() / 1000L, LocationType.GOLEGO.getZoneId());
+                    long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli(), LocationType.GOLEGO.getZoneId());
                     this.timestamp = c0Data.getTimestamp().toEpochMilli() + offsetMs;
                     this.batteryStatus = c0Data.getBmsStatusStr();
                     batteriesActive.add(port);
@@ -226,7 +226,7 @@ public class DataHomeDto {
                     } else if (this.batteryVol == 0) {
                         this.batteryVol = dataGOOTOTelemetry.getVoltageCurV();
                     }
-                    long offsetDataGOOTOTelemetry = updateTimeStampToUtc(dataGOOTOTelemetry.getTimestamp().toEpochMilli() / 1000L, LocationType.GOLEGO.getZoneId());
+                    long offsetDataGOOTOTelemetry = updateTimeStampToUtc(dataGOOTOTelemetry.getTimestamp().toEpochMilli(), LocationType.GOLEGO.getZoneId());
                     this.timestamp = dataGOOTOTelemetry.getTimestamp().toEpochMilli() + offsetDataGOOTOTelemetry;
                     this.batteryStatus = dataGOOTOTelemetry.getBmsStatusStr();
                     batteriesActive.add(port);
@@ -326,7 +326,7 @@ public class DataHomeDto {
 
         if (this.timestamp == 0) {
             this.timestamp = System.currentTimeMillis();
-            long offsetMs = updateTimeStampToUtc(this.timestamp/1000L, LocationType.GOLEGO.getZoneId());
+            long offsetMs = updateTimeStampToUtc(this.timestamp, LocationType.GOLEGO.getZoneId());
             this.timestamp += offsetMs;
         }
         log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
