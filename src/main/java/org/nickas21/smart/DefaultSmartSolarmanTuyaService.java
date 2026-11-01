@@ -55,13 +55,15 @@ import static org.nickas21.smart.util.HttpUtil.invMAINKey;
 import static org.nickas21.smart.util.HttpUtil.invParallelInformationKey;
 import static org.nickas21.smart.util.HttpUtil.invProtocolVerKey;
 import static org.nickas21.smart.util.HttpUtil.invTempKey;
+import static org.nickas21.smart.util.HttpUtil.loadPowerL1Key;
+import static org.nickas21.smart.util.HttpUtil.loadPowerL2Key;
+import static org.nickas21.smart.util.HttpUtil.loadPowerL3Key;
 import static org.nickas21.smart.util.HttpUtil.productionDailySolarPowerKey;
 import static org.nickas21.smart.util.HttpUtil.toLocaleDateString;
 import static org.nickas21.smart.util.HttpUtil.toLocaleTimeString;
 import static org.nickas21.smart.util.HttpUtil.totalEnergyBuyKey;
 import static org.nickas21.smart.util.HttpUtil.totalEnergySellKey;
 import static org.nickas21.smart.util.HttpUtil.totalGridPowerKey;
-import static org.nickas21.smart.util.HttpUtil.totalHomeConsumptionPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalProductionSolarPowerKey;
 import static org.nickas21.smart.util.HttpUtil.totalSolarPowerKey;
 import static org.nickas21.smart.util.StringUtils.printMsgProgressBar;
@@ -316,7 +318,10 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
 
             // 1. Сумуємо показники
             totalSolarSum += getDouble(list, totalSolarPowerKey);
-            totalHomeSum += getDouble(list, totalHomeConsumptionPowerKey);
+//            totalHomeSum += getDouble(list, totalHomeConsumptionPowerKey); //
+            totalHomeSum += getDouble(list, loadPowerL1Key);
+            totalHomeSum += getDouble(list, loadPowerL2Key);
+            totalHomeSum += getDouble(list, loadPowerL3Key);
             totalGridSum += getDouble(list, totalGridPowerKey);
             bmsCurrentSum += getDouble(list, bmsCurrentKey);
             batteryCurrentFactSum += getDouble(list, batteryCurrentKey);

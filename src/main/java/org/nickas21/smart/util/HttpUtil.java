@@ -54,6 +54,9 @@ public class HttpUtil {
     public static final String totalEnergyBuyKey = "E_B_TO";
     public static final String dailyEnergyBuyKey = "E_B_D";
     public static final String totalHomeConsumptionPowerKey = "E_Puse_t1";
+    public static final String loadPowerL1Key = "C_P_L1";
+    public static final String loadPowerL2Key = "C_P_L2";
+    public static final String loadPowerL3Key = "C_P_L3";
     public static final String totalGridPowerKey = "PG_Pt1";
     public static final String gridRelayStatusKey = "GRID_RELAY_ST1";
     public static final String gridStatusKey = "ST_PG1";
