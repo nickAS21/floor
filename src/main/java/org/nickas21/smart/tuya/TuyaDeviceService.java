@@ -166,11 +166,9 @@ public class TuyaDeviceService {
     @Getter
     private Devices devices;
 
-    @Getter
     private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoDacha;
 
-    @Getter
-    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoHome;
+    private Entry<Long, Boolean> lastUpdateTimeGridStatusInfoGolego;
 
     @Getter
     private final TuyaConnectionProperties connectionConfiguration;
@@ -851,7 +849,7 @@ public class TuyaDeviceService {
                         lastUpdateTimeGridStatusInfo = this.lastUpdateTimeGridStatusInfoDacha;
                     } else {
                         bot = telegramService.getTelegramBotHome();
-                        lastUpdateTimeGridStatusInfo = this.lastUpdateTimeGridStatusInfoHome;
+                        lastUpdateTimeGridStatusInfo = this.lastUpdateTimeGridStatusInfoGolego;
                     }
                     if (lastUpdateTimeGridStatusInfo == null) {
                         // first message
@@ -868,7 +866,7 @@ public class TuyaDeviceService {
                         if (gridRelayCodeId.equals(this.getGridRelayCodeIdDacha())) {
                             this.lastUpdateTimeGridStatusInfoDacha = gridStateOnLine;
                         } else {
-                            this.lastUpdateTimeGridStatusInfoHome = gridStateOnLine;
+                            this.lastUpdateTimeGridStatusInfoGolego = gridStateOnLine;
                         }
                         log.info("\nTelegram[{}] send msg: \n{}", bot.getHouseName(), msg);
                     }
@@ -1460,6 +1458,28 @@ public class TuyaDeviceService {
 
         queue.put(device, update);
         return true;
+    }
+
+    public Map.Entry<Long, Boolean> getLastUpdateTimeGridStatusInfoDacha() {
+        if (this.lastUpdateTimeGridStatusInfoDacha == null) {
+            Boolean switchState = getGridRelayCodeDachaStateSwitch();
+            this.lastUpdateTimeGridStatusInfoDacha = Map.entry(
+                    System.currentTimeMillis(),
+                    Boolean.TRUE.equals(switchState)
+            );
+        }
+        return this.lastUpdateTimeGridStatusInfoDacha;
+    }
+
+    public Map.Entry<Long, Boolean> getLastUpdateTimeGridStatusInfoGolego() {
+        if (this.lastUpdateTimeGridStatusInfoGolego == null) {
+            Boolean switchState = getGridRelayCodeGolegoStateSwitch();
+            this.lastUpdateTimeGridStatusInfoGolego = Map.entry(
+                    System.currentTimeMillis(),
+                    Boolean.TRUE.equals(switchState)
+            );
+        }
+        return this.lastUpdateTimeGridStatusInfoGolego;
     }
 }
 
