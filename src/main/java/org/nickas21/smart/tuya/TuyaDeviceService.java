@@ -176,8 +176,8 @@ public class TuyaDeviceService {
     private final TuyaDeviceProperties deviceProperties;
 
     private String gridRelayCodeIdDacha;
-    private String gridRelayCodeIdHome;
-    private String boilerRelayCodeIdHome;
+    private String gridRelayCodeIdGolego;
+    private String boilerRelayCodeIdGolego;
     private Entry<Long, Double> lastUpdateTimeAlarmSocDacha;
     private Entry<Long, Double> lastUpdateTimeAlarmSocGolego;
     private final Lock queueLock = new ReentrantLock();
@@ -1034,18 +1034,18 @@ public class TuyaDeviceService {
     }
 
     public String getGridRelayCodeIdGolego() {
-        if (this.gridRelayCodeIdHome == null) {
-            this.gridRelayCodeIdHome = this.getGridRelayCode(this.gridRelayDopPrefixGolego);
+        if (this.gridRelayCodeIdGolego == null) {
+            this.gridRelayCodeIdGolego = this.getGridRelayCode(this.gridRelayDopPrefixGolego);
         }
-        return this.gridRelayCodeIdHome;
+        return this.gridRelayCodeIdGolego;
     }
 
 
     public String getBoilerRelayCodeIdGolego() {
-        if (this.boilerRelayCodeIdHome == null) {
-            this.boilerRelayCodeIdHome = this.getGridRelayCode(this.boilerRelayDopPrefixGolego);
+        if (this.boilerRelayCodeIdGolego == null) {
+            this.boilerRelayCodeIdGolego = this.getGridRelayCode(this.boilerRelayDopPrefixGolego);
         }
-        return this.boilerRelayCodeIdHome;
+        return this.boilerRelayCodeIdGolego;
     }
 
     public Boolean getGridRelayCodeDachaStateOnLine() {

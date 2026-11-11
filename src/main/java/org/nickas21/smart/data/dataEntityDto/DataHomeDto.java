@@ -177,17 +177,12 @@ public class DataHomeDto {
 
         Boolean gridRelayCodeDachaStateOnLine = tuyaDeviceService.getGridRelayCodeDachaStateOnLine();
         if (gridRelayCodeDachaStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeDachaStateOnLine;
-
-        Boolean gridRelayCodeDachaStateSwitch = tuyaDeviceService.getGridRelayCodeDachaStateSwitch();
-        if (gridRelayCodeDachaStateSwitch != null) this.gridStatusRealTimeSwitch = gridRelayCodeDachaStateSwitch;
-
-        Map.Entry<Long, Boolean> lastUpdateTimeGridStatusEntryDacha = tuyaDeviceService.getLastUpdateTimeGridStatusInfoDacha();
-        if (lastUpdateTimeGridStatusEntryDacha != null && lastUpdateTimeGridStatusEntryDacha.getKey() != null) {
-            this.timestampLastUpdateGridStatus = formatTimestamp(lastUpdateTimeGridStatusEntryDacha.getKey(), datePatternGridStatus);
-            this.gridStatusRealTimeSwitch = Boolean.TRUE.equals(lastUpdateTimeGridStatusEntryDacha.getValue());
-        } else {
-            this.timestampLastUpdateGridStatus = formatTimestamp(System.currentTimeMillis(), datePatternGridStatus);
-        }
+        Boolean gridRelayCodeDachaStateSwitch =  tuyaDeviceService.getGridRelayCodeDachaStateSwitch();
+        if (gridRelayCodeDachaStateSwitch!= null) this.gridStatusRealTimeSwitch = gridRelayCodeDachaStateSwitch;
+        Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryDacha =  tuyaDeviceService.getLastUpdateTimeGridStatusInfoDacha();
+        this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryDacha != null ? formatTimestamp(lastUpdateTimeGridStatusEntryDacha.getKey(), datePatternGridStatus) : 
+                formatTimestamp(APP_START_TIME, datePatternGridStatus) ;
+        
         PowerValueRealTimeData realTimeData = solarmanTuyaService.getPowerValueRealTimeData();
         if (realTimeData != null && realTimeData.getCollectionTime() != null) {
             String connectionBatteryStatus = usrTcpWiFiService.calculateStatus(realTimeData.getCollectionTime() * 1000, solarmanTuyaService.getTimeoutSecUpdate());
@@ -197,7 +192,7 @@ public class DataHomeDto {
     }
 
     // Golego Constructor
-    public DataHomeDto(TuyaDeviceService deviceService, UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
+    public DataHomeDto(UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
         Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
         Integer portBatMasterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterGolego();
@@ -253,31 +248,13 @@ public class DataHomeDto {
         log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
 
         // 1. Спочатку зчитуємо стан реле мережі Golego
-        Boolean gridRelayCodeGolegoStateOnLine = deviceService.getGridRelayCodeGolegoStateOnLine();
+        Boolean gridRelayCodeGolegoStateOnLine = tuyaDeviceService.getGridRelayCodeGolegoStateOnLine();
         if (gridRelayCodeGolegoStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeGolegoStateOnLine;
-
-        Boolean gridRelayCodeGolegoStateSwitch = deviceService.getGridRelayCodeGolegoStateSwitch();
-        if (gridRelayCodeGolegoStateSwitch != null) this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
-
-        Map.Entry<Long, Boolean> lastUpdateTimeGridStatusEntryHome = deviceService.getLastUpdateTimeGridStatusInfoGolego();
-
-        long statusTs;
-        if (lastUpdateTimeGridStatusEntryHome != null && lastUpdateTimeGridStatusEntryHome.getKey() != null) {
-            statusTs = lastUpdateTimeGridStatusEntryHome.getKey();
-            this.gridStatusRealTimeSwitch = Boolean.TRUE.equals(lastUpdateTimeGridStatusEntryHome.getValue());
-        } else {
-            statusTs = System.currentTimeMillis();
-            // Якщо подій ще не було — вважаємо реле увімкненим за поточним станом switch
-            if (gridRelayCodeGolegoStateSwitch != null) {
-                this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
-            }
-        }
-
-        // Формуємо статус: якщо тумблер увімкнений — строго "On", інакше "Off"
-        String currentStatusStr = this.gridStatusRealTimeSwitch ? "On" : "Off";
-
-        // Записуємо дату та статус через \n, щоб UI відмалював слово "On" під часом
-        this.timestampLastUpdateGridStatus = formatTimestamp(statusTs, datePatternGridStatus) + "\n" + currentStatusStr;
+        Boolean gridRelayCodeGolegoStateSwitch =  tuyaDeviceService.getGridRelayCodeGolegoStateSwitch();
+        if (gridRelayCodeGolegoStateSwitch!= null) this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
+        Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryGolego =  tuyaDeviceService.getLastUpdateTimeGridStatusInfoGolego();
+        this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryGolego != null ? formatTimestamp(lastUpdateTimeGridStatusEntryGolego.getKey(), datePatternGridStatus) :
+                formatTimestamp(APP_START_TIME, datePatternGridStatus);
 
         boolean isGridRelayActive = this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch;
 

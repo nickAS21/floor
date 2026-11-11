@@ -117,7 +117,7 @@ public class HistoryService {
 
         try {
             // Тепер Golego пишеться з тим самим ритмом, що і Dacha
-            DataHomeDto golegoData = new DataHomeDto(tuyaDeviceService, usrTcpWiFiParseData, tuyaDeviceService, usrTcpWiFiService);
+            DataHomeDto golegoData = new DataHomeDto(usrTcpWiFiParseData, tuyaDeviceService, usrTcpWiFiService);
             List<BatteryInfoDto> batteries = this.unitService.getBatteries(GOLEGO);
             SolarPanelInfoDtos panelInfoDtos = this.unitService.getPanelInfoDtos(GOLEGO);
             Integer portInverterGolego = usrTcpWiFiService.getTcpProps().getPortInverterGolego();
