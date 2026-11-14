@@ -9,6 +9,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.TimeZone;
 
+import static org.nickas21.smart.util.LocationType.DACHA;
+
 @Slf4j
 @SpringBootApplication
 @ConfigurationPropertiesScan("org.nickas21.smart")
@@ -16,7 +18,7 @@ import java.util.TimeZone;
 public class SmartSolarmanTuyaApplication {
 
     public static void main(String[] args) {
-        TimeZone.setDefault(TimeZone.getTimeZone("Europe/Kyiv"));
+        TimeZone.setDefault(TimeZone.getTimeZone(DACHA.getZoneId()));
         ConfigurableApplicationContext context = SpringApplication.run(SmartSolarmanTuyaApplication.class);
 
         // Add shutdown hook to the JVM

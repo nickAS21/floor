@@ -12,9 +12,16 @@ public class LogsService {
     private final TuyaDeviceService deviceService;
     private final RuntimeLogBuffer buffer;
 
-
     public String getLogsApp() {
         int limit = this.deviceService.getLogsAppLimit();
         return buffer.get(limit);
+    }
+
+    public String getLogsAppCurrent() {
+        return buffer.getCurrentLogs();
+    }
+
+    public String getLogsAppPrevious() {
+        return buffer.getPreviousLogs();
     }
 }

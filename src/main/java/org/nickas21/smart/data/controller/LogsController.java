@@ -11,12 +11,22 @@ import java.io.IOException;
 @RestController
 @RequestMapping(value = "/api/logs")
 @RequiredArgsConstructor
-public class LogsController extends BaseController{
+public class LogsController extends BaseController {
 
     private final LogsService logsService;
 
     @GetMapping("/app")
     public String getLogsFromAppTerminal() throws IOException {
         return logsService.getLogsApp();
+    }
+
+    @GetMapping("/app/current")
+    public String getLogsFromAppCurrent() {
+        return logsService.getLogsAppCurrent();
+    }
+
+    @GetMapping("/app/previous")
+    public String getLogsFromAppPrevious() {
+        return logsService.getLogsAppPrevious();
     }
 }
