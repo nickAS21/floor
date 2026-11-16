@@ -34,14 +34,14 @@ public class StringUtils {
                 threadCur.sleep(timeInterval);
                 System.out.print(message + "[" + "=".repeat(i) + ">" + " ".repeat(size-i) + "]\r");
             } catch (InterruptedException e) {
-                System.out.print("|" + "=".repeat(size) + "|\r");
+                System.out.println("|" + "=".repeat(size) + "|");
                 log.info("Update after Interrupted progressBar... ver: {}", version);
                 Thread.currentThread().interrupt();
                 return;
             }
         }
         if (!stopProgressBar) {
-            System.out.print("|" + "=".repeat(size) + "|\r");
+            System.out.println("|" + "=".repeat(size) + "|");
             log.info("Update after progressBar... ver: {}", version);
         }
     }
@@ -49,8 +49,9 @@ public class StringUtils {
     public static void stopProgressBar() {
         stopProgressBar = true;
     }
+
     public static void stopThread(Thread thread) {
-        System.out.print("|" + "=".repeat(size) + "|\r");
+        System.out.println("|" + "=".repeat(size) + "|");
         thread.interrupt();
     }
 

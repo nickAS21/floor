@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.nickas21.smart.data.service.DataUnitService;
+import org.nickas21.smart.data.service.systemOut.RuntimeLogBuffer;
 import org.nickas21.smart.solarman.BatteryStatus;
 import org.nickas21.smart.solarman.Seasons;
 import org.nickas21.smart.solarman.SolarmanDevice;
@@ -109,6 +110,9 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
     @Autowired
     @Lazy
     DataUnitService dataUnitService;
+
+    @Autowired
+    private RuntimeLogBuffer runtimeLogBuffer;
 
     public DefaultSmartSolarmanTuyaService(SolarmanStationsService solarmanStationsService, TuyaDeviceService tuyaDeviceService) {
         this.solarmanStationsService = solarmanStationsService;
@@ -579,6 +583,8 @@ public class DefaultSmartSolarmanTuyaService implements SmartSolarmanTuyaService
         log.info("Start destroy DefaultSmartSolarmanTuyaService");
         if (this.progressBarThread != null) {
             stopProgressBar();
+            this.progressBarThread.interrupt(); // миттєво будить потік зі sleep(), щоб не чекати
+            runtimeLogBuffer.finishProgress();
             log.info("Stopped executor ProgressBar");
         }
         if (this.scheduler != null) {

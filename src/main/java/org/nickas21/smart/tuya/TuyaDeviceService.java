@@ -992,22 +992,27 @@ public class TuyaDeviceService {
         // 1. Швидка перевірка кешу
         if (this.devices != null && this.devices.getDevIds() != null) {
             Device device = this.devices.getDevIds().get(deviceIdTemperature);
-            if (device != null) {
+            if (device != null && device.getStatus() != null) {
                 return new DataTemperatureDto(device.getStatus());
             }
         }
 
-        // 2. Якщо даних немає, замість циклу while/sleep використовуємо
-        // асинхронне очікування через CompletableFuture
-        log.info("Device {} not in cache. Waiting for data without blocking threads...", deviceIdTemperature);
-
-        try {
-            return waitForDeviceData(deviceIdTemperature, 0)
-                    .get(4, TimeUnit.MINUTES);
-        } catch (Exception e) {
-            log.error("Failed to get data for device {} after timeout: {}", deviceIdTemperature, e.getMessage());
-            return null;
+        // 2. Якщо пристрою немає в кеші — пробуємо отримати напряму з Tuya API без 4-хвилинного зависання UI
+        if (this.devices != null && hasValidAccessToken()) {
+            try {
+                log.info("Device {} not in cache. Fetching status from Tuya API...", deviceIdTemperature);
+                Device device = initDeviceTuya(deviceIdTemperature);
+                if (device != null && device.getStatus() != null) {
+                    return new DataTemperatureDto(device.getStatus());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch device {} on demand: {}", deviceIdTemperature, e.getMessage());
+            }
+        } else {
+            log.debug("Device {} not in cache yet (Tuya service is still initializing).", deviceIdTemperature);
         }
+
+        return null;
     }
 
     /**
