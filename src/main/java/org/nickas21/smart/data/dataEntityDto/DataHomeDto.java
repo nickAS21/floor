@@ -455,7 +455,7 @@ public class DataHomeDto {
         if (!hasBatteryData) {
             if (inverterGolegoData90 != null) {
                 this.batteryVol = inverterGolegoData90.getBatteryVoltage() != null ? inverterGolegoData90.getBatteryVoltage() : 0.0;
-                this.batterySoc = inverterGolegoData90.getSoc() > 0 ? inverterGolegoData90.getSoc() : 0.0;
+                this.batterySoc = inverterGolegoData90.getSoc() > 0 ? Math.round(calculateSocByVoltage(this.batteryVol) * 100.0) / 100.0 : 0.0;
                 this.batteryCurrent = inverterGolegoData90.getBatteryCurrent();
                 this.batteryStatus = inverterGolegoData90.getStatus();
                 if (inverterLastMsWithTz != null) {
