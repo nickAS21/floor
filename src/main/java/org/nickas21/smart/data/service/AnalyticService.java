@@ -345,8 +345,13 @@ public class AnalyticService {
         long systemTsWithOffset = now + offsetMs;
 
         // ПЕРЕВІРКА НА "ЗАЛИПАННЯ" (ставимо 70 хв, щоб перехід літо/зима не блокував роботу)
-        if (Math.abs(systemTsWithOffset - finalTs) > 70 * 60 * 1000) {
-            log.error("ANALYTIC CRITICAL: Data for {} is STALE! Force closing socket...", locationType);
+        long diffMs = systemTsWithOffset - finalTs;
+        if (Math.abs(diffMs) > 70 * 60 * 1000) {
+            log.error("ANALYTIC CRITICAL: Data for {} is STALE! System: [{}], Data: [{}], Diff: [{} min]. Force closing socket...",
+                    locationType,
+                    formatTimestamp(systemTsWithOffset, datePatternGridStatus, UTC),
+                    formatTimestamp(finalTs, datePatternGridStatus, UTC),
+                    diffMs / 60000);
             // Викликаємо твій метод через сервіс
             if (locationType == LocationType.DACHA) {
                 usrTcpWiFiService.usrTcpWiFiParseData.usrTcpWiFiProperties.getAllPortsInverterDacha()

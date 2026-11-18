@@ -14,6 +14,12 @@ public class StringUtils {
     private static volatile boolean stopProgressBar = false;
     private static final int size = 60;
     public static final String datePattern = "yyyy-MM-dd HH:mm:ss.SSS";
+    private static final String PROGRESS_START = "[";
+    private static final String PROGRESS_END = "]";
+    private static final String PROGRESS_FILL = "=";
+    private static final String PROGRESS_NEXT = ">";
+    private static final String PROGRESS_EMPTY = " ";
+    private static final String PROGRESS_BORDER = "|";
 
     public static boolean isBlank(String source) {
         return source == null || source.isEmpty() || source.trim().isEmpty();
@@ -32,16 +38,16 @@ public class StringUtils {
             }
             try {
                 threadCur.sleep(timeInterval);
-                System.out.print(message + "[" + "=".repeat(i) + ">" + " ".repeat(size-i) + "]\r");
+                System.out.print(message + PROGRESS_START + PROGRESS_FILL.repeat(i) + PROGRESS_NEXT + PROGRESS_EMPTY.repeat(size - i) + PROGRESS_END + "\r");
             } catch (InterruptedException e) {
-                System.out.println("|" + "=".repeat(size) + "|");
+                System.out.println(getProgressFinishLine());
                 log.info("Update after Interrupted progressBar... ver: {}", version);
                 Thread.currentThread().interrupt();
                 return;
             }
         }
         if (!stopProgressBar) {
-            System.out.println("|" + "=".repeat(size) + "|");
+            System.out.println(getProgressFinishLine());
             log.info("Update after progressBar... ver: {}", version);
         }
     }
@@ -51,7 +57,7 @@ public class StringUtils {
     }
 
     public static void stopThread(Thread thread) {
-        System.out.println("|" + "=".repeat(size) + "|");
+        System.out.println(getProgressFinishLine());
         thread.interrupt();
     }
 
@@ -178,6 +184,14 @@ public class StringUtils {
             sb.append(String.format("%02X ", bytes[i]));
         }
         return sb.toString().trim();
+    }
+
+    public static String getProgressFinishLine(){
+        return PROGRESS_BORDER + PROGRESS_FILL.repeat(size) + PROGRESS_BORDER;
+    }
+
+    public static String getProgressPrefix(){
+        return PROGRESS_START + PROGRESS_FILL;
     }
 }
 

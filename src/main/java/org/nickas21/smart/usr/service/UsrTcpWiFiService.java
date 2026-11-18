@@ -61,8 +61,11 @@ public class UsrTcpWiFiService {
     private String logsDir;
     @Getter
     private final UsrTcpWiFiProperties tcpProps;
+
     public final UsrTcpWiFiParseData usrTcpWiFiParseData;
+
     private final UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry;
+    @Getter
     private final DefaultSmartSolarmanTuyaService defaultSmartSolarmanTuyaService;
 
     @Autowired
@@ -420,8 +423,7 @@ public class UsrTcpWiFiService {
 
     public void initUpdateTimeoutSchedulerRs485() {
         // 2. Отримуємо значення періоду з дефолтом 140 секунд
-        Long timeoutSec = this.defaultSmartSolarmanTuyaService.getTimeoutSecUpdate();
-        long period = (timeoutSec != null && timeoutSec > 0) ? timeoutSec : 140L;
+        long period = getRs485PollingPeriodSec();
 
         // 3. Створюємо SingleThreadScheduledExecutor
         this.schedulerRs485 = Executors.newSingleThreadScheduledExecutor();
@@ -843,5 +845,10 @@ public class UsrTcpWiFiService {
                 fullCommand.trim());
 
         return fullCommand;
+    }
+
+    public long getRs485PollingPeriodSec() {
+        Long timeoutSec = this.defaultSmartSolarmanTuyaService.getTimeoutSecUpdate();
+        return (timeoutSec != null && timeoutSec > 0) ? timeoutSec : 140L;
     }
 }

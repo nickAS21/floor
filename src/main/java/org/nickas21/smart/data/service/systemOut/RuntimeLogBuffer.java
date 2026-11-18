@@ -7,7 +7,11 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -17,6 +21,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.nickas21.smart.util.LocationType.DACHA;
+import static org.nickas21.smart.util.StringUtils.getProgressFinishLine;
+import static org.nickas21.smart.util.StringUtils.getProgressPrefix;
 
 @Component
 public class RuntimeLogBuffer {
@@ -75,7 +81,7 @@ public class RuntimeLogBuffer {
                             lines.add(entries.get(i) + "\n");
                         }
                         addLineToMemory(startBanner);
-                        syncBufferToFile();
+                        appendLineToFile(startBanner);
                     }
                 } else {
                     createNewCurrentFile(currentDate, startBanner);
@@ -118,14 +124,16 @@ public class RuntimeLogBuffer {
 
             if (activeProgressLine != null) {
                 lines.removeLastOccurrence(activeProgressLine);
+                addLineToMemory(cleanLine);
+            } else {
+                addLineToMemory(cleanLine);
+                appendLineToFile(cleanLine);
             }
-            addLineToMemory(cleanLine);
             activeProgressLine = cleanLine;
-            syncBufferToFile();
             return;
         }
 
-        if (cleanText.startsWith("|===")) {
+        if (cleanText.trim().equals(getProgressFinishLine())) {
             finishProgress("Finish");
             return;
         }
@@ -133,7 +141,7 @@ public class RuntimeLogBuffer {
         String normalized = cleanText.endsWith("\n") ? cleanText : cleanText + "\n";
         checkDateRotation(normalized);
         addLineToMemory(normalized);
-        syncBufferToFile();
+        appendLineToFile(normalized);
     }
 
     public synchronized void finishProgress() {
@@ -145,23 +153,7 @@ public class RuntimeLogBuffer {
             closedProgressPrefix = extractProgressPrefix(activeProgressLine);
             String timeStr = LocalTime.now(DACHA.getZoneId()).format(TIME_FMT);
             String finalLine = "[" + reason + " " + timeStr + "] " + activeProgressLine;
-            lines.removeLastOccurrence(activeProgressLine);
-            addLineToMemory(finalLine);
             activeProgressLine = null;
-            syncBufferToFile();
-        }
-    }
-
-    private void syncBufferToFile() {
-        if (currentFile == null) {
-            return;
-        }
-        try {
-            String content = currentDate + "\n" + String.join("", lines);
-            Files.writeString(currentFile, content, StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        } catch (IOException e) {
-            lines.add("RuntimeLogBuffer file write error: " + e.getMessage() + "\n");
         }
     }
 
@@ -172,8 +164,7 @@ public class RuntimeLogBuffer {
                 if (Files.exists(currentFile)) {
                     Files.move(currentFile, previousFile, StandardCopyOption.REPLACE_EXISTING);
                 }
-                currentDate = logDate;
-                lines.clear();
+                createNewCurrentFile(logDate, null);
             } catch (IOException ignored) {
             }
         }
@@ -182,14 +173,35 @@ public class RuntimeLogBuffer {
     private void createNewCurrentFile(LocalDate date, String firstEntry) throws IOException {
         currentDate = date;
         lines.clear();
+        StringBuilder header = new StringBuilder();
+        header.append(currentDate).append("\n");
         if (firstEntry != null) {
+            header.append(firstEntry);
             addLineToMemory(firstEntry);
         }
-        syncBufferToFile();
+        Files.writeString(currentFile, header.toString(), StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    private void appendLineToFile(String line) {
+        if (currentFile == null) {
+            return;
+        }
+        try {
+            if (!Files.exists(currentFile)) {
+                Files.writeString(currentFile, currentDate + "\n" + line, StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            } else {
+                Files.writeString(currentFile, line, StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            }
+        } catch (IOException e) {
+            addLineToMemory("RuntimeLogBuffer file write error: " + e.getMessage() + "\n");
+        }
     }
 
     private String extractProgressPrefix(String line) {
-        int idx = line.indexOf("[=");
+        int idx = line.indexOf(getProgressPrefix());
         return idx > 0 ? line.substring(0, idx) : line;
     }
 

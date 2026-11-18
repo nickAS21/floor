@@ -11,6 +11,8 @@ import org.nickas21.smart.solarman.BatteryStatus;
 import org.nickas21.smart.tuya.TuyaDeviceService;
 import org.nickas21.smart.usr.config.PortStatus;
 import org.nickas21.smart.usr.config.UsrTcpWiFiProperties;
+import org.nickas21.smart.usr.data.UsrWifiBmsInverterStatus;
+import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDacha;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDachaAcBatteryBlock106;
 import org.nickas21.smart.usr.entity.dacha.InverterDataDachaDailyTotalBlock118;
@@ -19,7 +21,6 @@ import org.nickas21.smart.usr.entity.golego.BatteryDataUsrTcpWiFi;
 import org.nickas21.smart.usr.entity.golego.InverterDataGolego;
 import org.nickas21.smart.usr.entity.golego.InverterGolegoData90;
 import org.nickas21.smart.usr.entity.golego.UsrTcpWifiC0Data;
-import org.nickas21.smart.usr.entity.UsrTcpWifiRS485_Data_GOOTO_Telemetry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiBatteryRegistry;
 import org.nickas21.smart.usr.service.UsrTcpWiFiParseData;
 import org.nickas21.smart.usr.service.UsrTcpWiFiService;
@@ -34,6 +35,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static java.time.ZoneOffset.UTC;
+import static org.nickas21.smart.solarman.BatteryStatus.getStatusByCurrent;
+import static org.nickas21.smart.solarman.BatteryStatus.resolveCurrentByGrid;
 import static org.nickas21.smart.util.StringUtils.formatTimestamp;
 
 @Slf4j
@@ -192,13 +195,194 @@ public class DataHomeDto {
     }
 
     // Golego Constructor
-    public DataHomeDto(UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
+//    public DataHomeDto(UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
+//        UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
+//        Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
+//        Integer portBatMasterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterGolego();
+//        UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
+//
+//        // розрахунок SOC / Current / Voltage from battery
+//        List<Integer> batteriesActive = new ArrayList<>();
+//        double batteryCurrentAll = 0;
+//        double batterySocAll = 0;
+//        for (Integer port : tcpProps.getAllPortsBatGolego()) {
+//            BatteryDataUsrTcpWiFi batteryData = usrTcpWiFiParseData.getBattery(port);
+//            if (batteryData == null) continue;
+//            UsrTcpWifiC0Data c0Data = batteryData.getC0Data();
+//            UsrTcpWifiRS485_Data_GOOTO_Telemetry dataGOOTOTelemetry = batteryData.getRs485_Data_GOOTO_Telemetry();
+//            // Збір telemetry && Active
+//            if (PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
+//                if (c0Data != null && c0Data.getTimestamp() != null && c0Data.getSocPercent() > 0) {
+//                    batterySocAll += c0Data.getSocPercent();
+//                    batteryCurrentAll += c0Data.getCurrentCurA();
+//                    if (portBatMasterGolego.equals(port)) {
+//                        this.batteryVol = c0Data.getVoltageCurV();
+//                    } else if (this.batteryVol == 0) {
+//                        this.batteryVol = c0Data.getVoltageCurV();
+//                    }
+//                    long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli(), LocationType.GOLEGO.getZoneId());
+//                    this.timestamp = c0Data.getTimestamp().toEpochMilli() + offsetMs;
+//                    this.batteryStatus = c0Data.getBmsStatusStr();
+//                    batteriesActive.add(port);
+//                } else if (dataGOOTOTelemetry != null && dataGOOTOTelemetry.getTimestamp() != null && dataGOOTOTelemetry.getSocPercent() > 0) {
+//                    batterySocAll += dataGOOTOTelemetry.getSocPercent();
+//                    batteryCurrentAll += dataGOOTOTelemetry.getCurrentCurA();
+//                    if (portBatMasterGolego.equals(port)) {
+//                        this.batteryVol = dataGOOTOTelemetry.getVoltageCurV();
+//                    } else if (this.batteryVol == 0) {
+//                        this.batteryVol = dataGOOTOTelemetry.getVoltageCurV();
+//                    }
+//                    long offsetDataGOOTOTelemetry = updateTimeStampToUtc(dataGOOTOTelemetry.getTimestamp().toEpochMilli(), LocationType.GOLEGO.getZoneId());
+//                    this.timestamp = dataGOOTOTelemetry.getTimestamp().toEpochMilli() + offsetDataGOOTOTelemetry;
+//                    this.batteryStatus = dataGOOTOTelemetry.getBmsStatusStr();
+//                    batteriesActive.add(port);
+//                }
+//            }
+//        }
+//        int batteriesActiveCnt = batteriesActive.size();
+//        this.batterySoc = batteriesActiveCnt == 0 ? 0 : batterySocAll / batteriesActiveCnt;
+//        this.batteryCurrent = Math.round(batteryCurrentAll * 100.0) / 100.0;
+//        this.batteryStatus = resolveBatteryStatus(this.batteryCurrent);
+//
+//        // Логуємо стан портів батарей Golego
+//        List<Integer> batteriesNoActive = tcpProps.getAllPortsBatGolego().stream()
+//                .filter(port -> !batteriesActive.contains(port))
+//                .toList();
+//        log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
+//
+//        // 1. Спочатку зчитуємо стан реле мережі Golego
+//        Boolean gridRelayCodeGolegoStateOnLine = tuyaDeviceService.getGridRelayCodeGolegoStateOnLine();
+//        if (gridRelayCodeGolegoStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeGolegoStateOnLine;
+//        Boolean gridRelayCodeGolegoStateSwitch =  tuyaDeviceService.getGridRelayCodeGolegoStateSwitch();
+//        if (gridRelayCodeGolegoStateSwitch!= null) this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
+//        Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryGolego =  tuyaDeviceService.getLastUpdateTimeGridStatusInfoGolego();
+//        this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryGolego != null ? formatTimestamp(lastUpdateTimeGridStatusEntryGolego.getKey(), datePatternGridStatus) :
+//                formatTimestamp(APP_START_TIME, datePatternGridStatus);
+//
+//        boolean isGridRelayActive = this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch;
+//
+//        // 2. from inverter
+//        boolean hasBatteryData = batteriesActiveCnt > 0 && this.batteryVol > 0;
+//
+//        InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego, InverterDataGolego.class);
+//        if (inverterDataGolego != null) {
+//            InverterGolegoData90 inverterGolegoData90 = inverterDataGolego.getInverterGolegoData90();
+//            log.debug("Golego Inverter: entity90 {}; : entity32 {}; ", inverterGolegoData90, inverterDataGolego.getInverterGolegoData32());
+//
+//            if (inverterGolegoData90 != null) {
+//                // Потужність навантаження з інвертора або фолбек
+//                if (inverterGolegoData90.getLoadOutputActivePower() != null) {
+//                    this.homePower = inverterGolegoData90.getLoadOutputActivePower();
+//                } else {
+//                    applyHomePowerGolego();
+//                }
+//
+//                // Вхідна напруга та потужність мережі залежно від реле
+//                Double acVoltage = inverterGolegoData90.getAcInputVoltage();
+//                if (isGridRelayActive && acVoltage != null && acVoltage > 0) {
+//                    this.gridVoltageLs.put(1, acVoltage);
+//
+//                    double chargePower = (inverterGolegoData90.getBatteryChargingCurrent() != null && inverterGolegoData90.getBatteryVoltage() != null)
+//                            ? inverterGolegoData90.getBatteryChargingCurrent() * inverterGolegoData90.getBatteryVoltage()
+//                            : 0.0;
+//
+//                    this.gridPower = this.homePower + chargePower + golegoInverterPowerDefault;
+//                } else {
+//                    this.gridVoltageLs.put(1, 0.0);
+//                    this.gridPower = 0.0;
+//                }
+//
+//                // Якщо BMS НЕ ДАЛА даних — беремо все з інвертора як фолбек
+//                if (!hasBatteryData) {
+//                    this.batteryStatus = inverterGolegoData90.getStatus();
+//                    this.batteryVol = inverterGolegoData90.getBatteryVoltage();
+//                    this.batteryCurrent = inverterGolegoData90.getBatteryCurrent();
+//                    if (this.batterySoc == 0 && inverterGolegoData90.getSoc() > 0) {
+//                        this.batterySoc = inverterGolegoData90.getSoc();
+//                    }
+//                }
+//            } else {
+//                applyHomePowerGolego();
+//                this.gridVoltageLs.put(1, 0.0);
+//                this.gridPower = 0.0;
+//            }
+//        } else {
+//            applyHomePowerGolego();
+//            this.gridVoltageLs.put(1, 0.0);
+//            this.gridPower = 0.0;
+//        }
+//
+//        if (this.batteryStatus != null && this.batterySoc == 0 && this.batteryVol > 0) {
+//            this.batterySoc = calculateSocByVoltage(this.batteryVol);
+//        }
+//
+//        DataTemperatureDto temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutGolego);
+//        if (temperatureDto != null) {
+//            this.temperatureOut = temperatureDto.getTemperature();
+//            this.humidityOut = temperatureDto.getHumidity();
+//            this.luminanceOut = temperatureDto.getLuminance();
+//        }
+//        temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureInGolego);
+//        if (temperatureDto != null) {
+//            this.temperatureIn = temperatureDto.getTemperature();
+//            this.humidityIn = temperatureDto.getHumidity();
+//            this.luminanceIn = temperatureDto.getLuminance();
+//        }
+//
+//        this.solarPower = 0;
+//        this.dailyConsumptionPower = 0;
+//        this.dailyGridPower = 0;
+//        this.dailyBatteryCharge = 0;
+//        this.dailyBatteryDischarge = 0;
+//        this.dailyProductionSolarPower = 0;
+//
+//        if (this.timestamp == 0) {
+//            this.timestamp = System.currentTimeMillis();
+//            long offsetMs = updateTimeStampToUtc(this.timestamp, LocationType.GOLEGO.getZoneId());
+//            this.timestamp += offsetMs;
+//        }
+//        log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
+//    }
+
+    // Golego Constructor (New architecture: Grid -> Battery -> Home(Load) -> Inverter fallback)
+    public DataHomeDto (UsrTcpWiFiParseData usrTcpWiFiParseData, TuyaDeviceService tuyaDeviceService, UsrTcpWiFiService usrTcpWiFiService) {
         UsrTcpWiFiProperties tcpProps = usrTcpWiFiParseData.getUsrTcpWiFiProperties();
-        Integer portInverterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortInverterGolego();
-        Integer portBatMasterGolego = usrTcpWiFiParseData.getUsrTcpWiFiProperties().getPortBatMasterGolego();
+        Integer portInverterGolego = tcpProps.getPortInverterGolego();
+        Integer portBatMasterGolego = tcpProps.getPortBatMasterGolego();
         UsrTcpWiFiBatteryRegistry usrTcpWiFiBatteryRegistry = usrTcpWiFiParseData.getUsrTcpWiFiBatteryRegistry();
 
-        // розрахунок SOC / Current / Voltage from battery
+        InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego, InverterDataGolego.class);
+        InverterGolegoData90 inverterGolegoData90 = null;
+        Long inverterLastMsWithTz = null;
+        if (inverterDataGolego != null) {
+            inverterGolegoData90 = inverterDataGolego.getInverterGolegoData90();
+            inverterLastMsWithTz = inverterDataGolego.getLastTime() != null ? inverterDataGolego.getLastTime().toEpochMilli() : null; // Вже з TZ getLastTime()
+            log.debug("GolegoFine Inverter: entity90 {}; : entity32 {}; ", inverterGolegoData90, inverterDataGolego.getInverterGolegoData32());
+        }
+
+        // =========================================================================
+        // 1. GRID (Статус реле мережі та вхідна напруга)
+        // =========================================================================
+        Boolean gridRelayCodeGolegoStateOnLine = tuyaDeviceService.getGridRelayCodeGolegoStateOnLine();
+        if (gridRelayCodeGolegoStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeGolegoStateOnLine;
+        Boolean gridRelayCodeGolegoStateSwitch = tuyaDeviceService.getGridRelayCodeGolegoStateSwitch();
+        if (gridRelayCodeGolegoStateSwitch != null) this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
+        Map.Entry<Long, Boolean> lastUpdateTimeGridStatusEntryGolego = tuyaDeviceService.getLastUpdateTimeGridStatusInfoGolego();
+        this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryGolego != null
+                ? formatTimestamp(lastUpdateTimeGridStatusEntryGolego.getKey(), datePatternGridStatus)
+                : formatTimestamp(APP_START_TIME, datePatternGridStatus);
+
+        boolean isGridRelayActive = this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch;
+        if (isGridRelayActive) {
+            Double acVoltage = (inverterGolegoData90 != null) ? inverterGolegoData90.getAcInputVoltage() : null;
+            this.gridVoltageLs.put(1, (acVoltage != null && acVoltage > 0) ? acVoltage : 220.0);
+        } else {
+            this.gridVoltageLs.put(1, 0.0);
+        }
+
+        // =========================================================================
+        // 2. BATTERY (Збір даних з активних BMS та перевірка свіжості)
+        // =========================================================================
         List<Integer> batteriesActive = new ArrayList<>();
         double batteryCurrentAll = 0;
         double batterySocAll = 0;
@@ -207,112 +391,126 @@ public class DataHomeDto {
             if (batteryData == null) continue;
             UsrTcpWifiC0Data c0Data = batteryData.getC0Data();
             UsrTcpWifiRS485_Data_GOOTO_Telemetry dataGOOTOTelemetry = batteryData.getRs485_Data_GOOTO_Telemetry();
-            // Збір telemetry && Active
+
             if (PortStatus.ACTIVE.name().equals(usrTcpWiFiService.getStatusByPort(port))) {
                 if (c0Data != null && c0Data.getTimestamp() != null && c0Data.getSocPercent() > 0) {
                     batterySocAll += c0Data.getSocPercent();
                     batteryCurrentAll += c0Data.getCurrentCurA();
                     if (portBatMasterGolego.equals(port)) {
                         this.batteryVol = c0Data.getVoltageCurV();
+                        this.batteryStatus = c0Data.getBmsStatusStr();
                     } else if (this.batteryVol == 0) {
                         this.batteryVol = c0Data.getVoltageCurV();
                     }
+                    this.batteryStatus = this.batteryStatus == null ? c0Data.getBmsStatusStr() : this.batteryStatus;
                     long offsetMs = updateTimeStampToUtc(c0Data.getTimestamp().toEpochMilli(), LocationType.GOLEGO.getZoneId());
                     this.timestamp = c0Data.getTimestamp().toEpochMilli() + offsetMs;
-                    this.batteryStatus = c0Data.getBmsStatusStr();
                     batteriesActive.add(port);
                 } else if (dataGOOTOTelemetry != null && dataGOOTOTelemetry.getTimestamp() != null && dataGOOTOTelemetry.getSocPercent() > 0) {
                     batterySocAll += dataGOOTOTelemetry.getSocPercent();
                     batteryCurrentAll += dataGOOTOTelemetry.getCurrentCurA();
                     if (portBatMasterGolego.equals(port)) {
                         this.batteryVol = dataGOOTOTelemetry.getVoltageCurV();
+                        this.batteryStatus = dataGOOTOTelemetry.getBmsStatusStr();
                     } else if (this.batteryVol == 0) {
                         this.batteryVol = dataGOOTOTelemetry.getVoltageCurV();
                     }
-                    long offsetDataGOOTOTelemetry = updateTimeStampToUtc(dataGOOTOTelemetry.getTimestamp().toEpochMilli(), LocationType.GOLEGO.getZoneId());
-                    this.timestamp = dataGOOTOTelemetry.getTimestamp().toEpochMilli() + offsetDataGOOTOTelemetry;
-                    this.batteryStatus = dataGOOTOTelemetry.getBmsStatusStr();
+                    this.batteryStatus = this.batteryStatus == null ? dataGOOTOTelemetry.getBmsStatusStr() : this.batteryStatus;
+
+                    long offsetMs = updateTimeStampToUtc(dataGOOTOTelemetry.getTimestamp().toEpochMilli(), LocationType.GOLEGO.getZoneId());
+                    this.timestamp = dataGOOTOTelemetry.getTimestamp().toEpochMilli() + offsetMs;
                     batteriesActive.add(port);
                 }
             }
         }
+
         int batteriesActiveCnt = batteriesActive.size();
         this.batterySoc = batteriesActiveCnt == 0 ? 0 : batterySocAll / batteriesActiveCnt;
         this.batteryCurrent = Math.round(batteryCurrentAll * 100.0) / 100.0;
-        this.batteryStatus = resolveBatteryStatus(this.batteryCurrent);
 
-        // Логуємо стан портів батарей Golego
         List<Integer> batteriesNoActive = tcpProps.getAllPortsBatGolego().stream()
                 .filter(port -> !batteriesActive.contains(port))
                 .toList();
-        log.warn("Golego battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
+        log.warn("GolegoFine battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
 
-        // 1. Спочатку зчитуємо стан реле мережі Golego
-        Boolean gridRelayCodeGolegoStateOnLine = tuyaDeviceService.getGridRelayCodeGolegoStateOnLine();
-        if (gridRelayCodeGolegoStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeGolegoStateOnLine;
-        Boolean gridRelayCodeGolegoStateSwitch =  tuyaDeviceService.getGridRelayCodeGolegoStateSwitch();
-        if (gridRelayCodeGolegoStateSwitch!= null) this.gridStatusRealTimeSwitch = gridRelayCodeGolegoStateSwitch;
-        Map.Entry<Long, Boolean>  lastUpdateTimeGridStatusEntryGolego =  tuyaDeviceService.getLastUpdateTimeGridStatusInfoGolego();
-        this.timestampLastUpdateGridStatus = lastUpdateTimeGridStatusEntryGolego != null ? formatTimestamp(lastUpdateTimeGridStatusEntryGolego.getKey(), datePatternGridStatus) :
-                formatTimestamp(APP_START_TIME, datePatternGridStatus);
+        long maxBatteryLagMs = usrTcpWiFiService.getRs485PollingPeriodSec() * 3 * 1000L;
+        boolean isBatteryStale = false;
+        if (inverterLastMsWithTz != null && this.timestamp > 0) {
+            if ((inverterLastMsWithTz - this.timestamp) > maxBatteryLagMs) {
+                isBatteryStale = true;
+            }
+        }
+        boolean hasBatteryData = batteriesActiveCnt > 0 && this.batteryVol > 0 && !isBatteryStale;
 
-        boolean isGridRelayActive = this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch;
+        // =========================================================================
+        // 3. HOME (LOAD) — напряму з інвертора (незалежно від hasBatteryData)
+        // =========================================================================
+        if ( inverterGolegoData90 != null && inverterGolegoData90.getLoadOutputActivePower() != null) {
+            this.homePower = inverterGolegoData90.getLoadOutputActivePower();
+        }
 
-        // 2. from inverter
-        boolean hasBatteryData = batteriesActiveCnt > 0 && this.batteryVol > 0;
-
-        InverterDataGolego inverterDataGolego = usrTcpWiFiBatteryRegistry.getInverter(portInverterGolego, InverterDataGolego.class);
-        if (inverterDataGolego != null) {
-            InverterGolegoData90 inverterGolegoData90 = inverterDataGolego.getInverterGolegoData90();
-            log.debug("Golego Inverter: entity90 {}; : entity32 {}; ", inverterGolegoData90, inverterDataGolego.getInverterGolegoData32());
-
+        // =========================================================================
+        // 4. INVERTER FALLBACK (залежить від hasBatteryData) & ФІНАЛЬНІ БАЛАНСИ
+        // =========================================================================
+        if (!hasBatteryData) {
             if (inverterGolegoData90 != null) {
-                // Потужність навантаження з інвертора або фолбек
-                if (inverterGolegoData90.getLoadOutputActivePower() != null) {
-                    this.homePower = inverterGolegoData90.getLoadOutputActivePower();
-                } else {
-                    applyHomePowerGolego();
-                }
-
-                // Вхідна напруга та потужність мережі залежно від реле
-                Double acVoltage = inverterGolegoData90.getAcInputVoltage();
-                if (isGridRelayActive && acVoltage != null && acVoltage > 0) {
-                    this.gridVoltageLs.put(1, acVoltage);
-
-                    double chargePower = (inverterGolegoData90.getBatteryChargingCurrent() != null && inverterGolegoData90.getBatteryVoltage() != null)
-                            ? inverterGolegoData90.getBatteryChargingCurrent() * inverterGolegoData90.getBatteryVoltage()
-                            : 0.0;
-
-                    this.gridPower = this.homePower + chargePower + golegoInverterPowerDefault;
-                } else {
-                    this.gridVoltageLs.put(1, 0.0);
-                    this.gridPower = 0.0;
-                }
-
-                // Якщо BMS НЕ ДАЛА даних — беремо все з інвертора як фолбек
-                if (!hasBatteryData) {
-                    this.batteryStatus = inverterGolegoData90.getStatus();
-                    this.batteryVol = inverterGolegoData90.getBatteryVoltage();
-                    this.batteryCurrent = inverterGolegoData90.getBatteryCurrent();
-                    if (this.batterySoc == 0 && inverterGolegoData90.getSoc() > 0) {
-                        this.batterySoc = inverterGolegoData90.getSoc();
-                    }
+                this.batteryVol = inverterGolegoData90.getBatteryVoltage() != null ? inverterGolegoData90.getBatteryVoltage() : 0.0;
+                this.batterySoc = inverterGolegoData90.getSoc() > 0 ? inverterGolegoData90.getSoc() : 0.0;
+                this.batteryCurrent = inverterGolegoData90.getBatteryCurrent();
+                this.batteryStatus = inverterGolegoData90.getStatus();
+                if (inverterLastMsWithTz != null) {
+                    this.timestamp = inverterLastMsWithTz;
+                    log.info("GolegoFine fallback to inverter timestamp: [{}], time_UTC: [{}]",
+                            this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC));
                 }
             } else {
-                applyHomePowerGolego();
-                this.gridVoltageLs.put(1, 0.0);
-                this.gridPower = 0.0;
+                log.warn("GolegoFine critical: no fresh data from inverter and battery BMS");
             }
-        } else {
-            applyHomePowerGolego();
-            this.gridVoltageLs.put(1, 0.0);
-            this.gridPower = 0.0;
         }
 
         if (this.batteryStatus != null && this.batterySoc == 0 && this.batteryVol > 0) {
             this.batterySoc = calculateSocByVoltage(this.batteryVol);
         }
 
+        // =========================================================================
+        // 4.1 Перевірка знак batteryCurrent, статусу BMS, gridPower
+        // =========================================================================
+        this.batteryCurrent = resolveCurrentByGrid(this.batteryCurrent, isGridRelayActive);
+        BatteryStatus statusByCurrent = getStatusByCurrent(this.batteryCurrent);
+        if (this.batteryStatus == null || this.batteryStatus.isBlank() || UsrWifiBmsInverterStatus.UNKNOWN.getStatus().equals(this.batteryStatus)) {
+            this.batteryStatus = statusByCurrent.getType();
+        }
+
+        if (this.homePower == 0) {
+            this.applyHomePowerGolego();
+        }
+
+        if (isGridRelayActive) {
+            double chargePower = 0.0;
+            if (inverterGolegoData90 != null
+                    && inverterGolegoData90.getBatteryChargingCurrent() != null
+                    && inverterGolegoData90.getBatteryVoltage() != null) {
+                chargePower = inverterGolegoData90.getBatteryChargingCurrent() * inverterGolegoData90.getBatteryVoltage();
+            } else if (this.batteryCurrent > 0 && this.batteryVol > 0) {
+                chargePower = this.batteryCurrent * this.batteryVol;
+            }
+            this.gridPower = this.homePower + chargePower + golegoInverterPowerDefault;
+        } else {
+            this.gridPower = 0.0;
+        }
+
+        // =========================================================================
+        // 4.2 Перевірка активності хоча б одного: inverter or BMS
+        // =========================================================================
+        long nowMs = System.currentTimeMillis();
+        long nowLocalMs = nowMs + updateTimeStampToUtc(nowMs, LocationType.GOLEGO.getZoneId());
+        if (this.timestamp > 0 && (nowLocalMs - this.timestamp) > maxBatteryLagMs) {
+            log.error("No data received from Inverter and BMS for more than [{}] min (last packet UTC: [{}])",
+                    maxBatteryLagMs / 60000, formatTimestamp(this.timestamp, datePatternGridStatus, UTC));
+        }
+        // =========================================================================
+        // 5. ТЕМПЕРАТУРА ТА ДЕФОЛТНІ ПОЛЯ
+        // =========================================================================
         DataTemperatureDto temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutGolego);
         if (temperatureDto != null) {
             this.temperatureOut = temperatureDto.getTemperature();
@@ -338,7 +536,7 @@ public class DataHomeDto {
             long offsetMs = updateTimeStampToUtc(this.timestamp, LocationType.GOLEGO.getZoneId());
             this.timestamp += offsetMs;
         }
-        log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
+        log.warn("DataHomeGolegoFine time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
     }
 
     /**

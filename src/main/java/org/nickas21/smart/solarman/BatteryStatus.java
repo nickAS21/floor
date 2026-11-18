@@ -10,6 +10,8 @@ public enum BatteryStatus {
     DISCHARGING("Discharging", 40.00),      //  if less is charging at night and winter
     ALARM("Alarm", 25.00);                  //  if less is charging all
 
+    public static final double CURRENT_DEADBAND = 0.1;
+
     @Getter
     private final String type;
     @Getter
@@ -28,4 +30,26 @@ public enum BatteryStatus {
         }
         return null;
     }
+
+    public static BatteryStatus getStatusByCurrent(double current) {
+        if (current >= CURRENT_DEADBAND) {
+            return CHARGING_60;
+        } else if (current <= -CURRENT_DEADBAND) {
+            return DISCHARGING;
+        } else {
+            return STATIC;
+        }
+    }
+    public static String getStatusTypeByCurrent(double current) {
+        return getStatusByCurrent(current).getType();
+    }
+
+    public static double resolveCurrentByGrid(double rawBatCurrent, boolean isGridRelayActive) {
+        double absCurrent = Math.abs(rawBatCurrent);
+        if (absCurrent < CURRENT_DEADBAND) {
+            return 0.0;
+        }
+        return isGridRelayActive ? absCurrent : -absCurrent;
+    }
+
 }
