@@ -191,7 +191,7 @@ public class DataHomeDto {
             String connectionBatteryStatus = usrTcpWiFiService.calculateStatus(realTimeData.getCollectionTime() * 1000, solarmanTuyaService.getTimeoutSecUpdate());
             log.warn("Dacha inverter and battery: is -> [{}]", connectionBatteryStatus);
         }
-        log.warn("DataHomeDacha  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
+        log.warn("DataHomeDacha  time long: [{}], time_TZ: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
     }
 
     // Golego Constructor
@@ -341,7 +341,7 @@ public class DataHomeDto {
 //            long offsetMs = updateTimeStampToUtc(this.timestamp, LocationType.GOLEGO.getZoneId());
 //            this.timestamp += offsetMs;
 //        }
-//        log.warn("DataHomeGolego  time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
+//        log.warn("DataHomeGolego  time long: [{}], time_TZ: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
 //    }
 
     // Golego Constructor (New architecture: Grid -> Battery -> Home(Load) -> Inverter fallback)
@@ -460,7 +460,7 @@ public class DataHomeDto {
                 this.batteryStatus = inverterGolegoData90.getStatus();
                 if (inverterLastMsWithTz != null) {
                     this.timestamp = inverterLastMsWithTz;
-                    log.info("GolegoFine fallback to inverter timestamp: [{}], time_UTC: [{}]",
+                    log.info("GolegoFine fallback to inverter timestamp: [{}], time_TZ: [{}]",
                             this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC));
                 }
             } else {
@@ -536,7 +536,7 @@ public class DataHomeDto {
             long offsetMs = updateTimeStampToUtc(this.timestamp, LocationType.GOLEGO.getZoneId());
             this.timestamp += offsetMs;
         }
-        log.warn("DataHomeGolegoFine time long: [{}], time_UTC: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
+        log.warn("DataHomeGolegoFine time long: [{}], time_TZ: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
     }
 
     /**
