@@ -118,7 +118,7 @@ public class AnalyticService {
         this.usrTcpWiFiService = usrTcpWiFiService;
     }
 
-    @Scheduled(fixedRateString = "${smart.analytic.update-rate:240000}")    // 4 min
+    @Scheduled(initialDelay = 30000, fixedRateString = "${smart.analytic.update-rate:240000}")    // 4 min
     public void updateAndSaveAnalytic() {
         for (LocationType locationType : LocationType.values()) {
 
@@ -339,6 +339,12 @@ public class AnalyticService {
         long finalTs = dataHomeDto.getTimestamp();
         if (finalTs < 1000000000000L) return;
 
+        // Не записуємо в аналітику стартові/пустишкові пакети без даних батареї
+        if (dataHomeDto.getBatterySoc() <= 0 && dataHomeDto.getBatteryVol() <= 0) {
+            log.warn("ANALYTIC SKIP: Data for {} has empty battery telemetry (SOC=0, Vol=0). Skipping cache/file save.", locationType);
+            return;
+        }
+
         // Порівнюємо напряму: поточний час системи проти finalTs (з допуском 70 хвилин на перехід DST)
         long now = Instant.now().toEpochMilli();
         long offsetMs = updateTimeStampToUtc(now, locationType.getZoneId());
@@ -425,7 +431,10 @@ public class AnalyticService {
             fillTemperatureData(analyticDto, tuyaDeviceService.deviceIdTemperatureInGolego, tuyaDeviceService.deviceIdTemperatureOutGolego);
         }
 
-        // 6. Збереження
+        // 6. Збереження (якщо попередня точка була нульовою "пустишкою", прибираємо її)
+        if (!dayList.isEmpty() && dayList.getLast().getBmsSoc() <= 0) {
+            dayList.removeLast();
+        }
         dayList.add(analyticDto);
         dayList.sort(Comparator.comparingLong(DataAnalyticDto::getTimestamp));
         saveToMonthlyFile(finalTs, locationType);
