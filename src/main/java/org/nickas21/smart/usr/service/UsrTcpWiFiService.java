@@ -231,7 +231,7 @@ public class UsrTcpWiFiService {
      * Executes metadata command and routes raw response to UsrTcpWifiRS485_Data_GOOTO_Attributes parser.
      */
     public void executeRs485AttributesCommand(int port, int cid2, UsrTcpWifiRS485_Data_GOOTO_Attributes metaData) {
-        String responseAscii = sendAndReceiveRaw(port, cid2);
+        String responseAscii = sendAndReceiveRaw(port, cid2, 1000L);
 
         if (responseAscii == null) {
             return;
@@ -258,7 +258,7 @@ public class UsrTcpWiFiService {
 
 
 
-    private String sendAndReceiveRaw(int port, int cid2) {
+    private String sendAndReceiveRaw(int port, int cid2, long maxWaitMs) {
         Socket socket = activeConnections.get(port);
 
         if (socket == null || socket.isClosed() || !socket.isConnected()) {
@@ -268,7 +268,6 @@ public class UsrTcpWiFiService {
         }
 
         String command = buildRs485AsciiCommand(cid2);
-        // TODO only debug
         log.debug("Port [{}]: SEND CID2 [0x{}] command [{}] HEX_SEND CID2 [{}]",
                 port,
                 Integer.toHexString(cid2).toUpperCase(),
@@ -280,9 +279,7 @@ public class UsrTcpWiFiService {
                 InputStream in = socket.getInputStream();
                 OutputStream out = socket.getOutputStream();
 
-                // =================================================================
-                // purge_buffer(sock) — МИТТЄВЕ ОЧИЩЕННЯ СМІТТЯ БЕЗ БЛОКУВАННЯ
-                // =================================================================
+                // Миттєве очищення старого буфера без блокування перед новим запитом
                 try {
                     int availableBytes = in.available();
                     if (availableBytes > 0) {
@@ -293,29 +290,14 @@ public class UsrTcpWiFiService {
                     log.warn("Port [{}]: Failed to purge stale socket buffer: {}", port, e.getMessage());
                 }
 
-                // =================================================================
-                // sendall(cmd_str.encode("ascii"))
-                // =================================================================
-
                 out.write(command.getBytes(StandardCharsets.US_ASCII));
                 out.flush();
-
-                // =================================================================
-                // Python:
-                //
-                // start_time = time.time()
-                // sock.settimeout(0.15)
-                // while (time.time() - start_time) < timeout:
-                //     chunk = sock.recv(256)
-                // =================================================================
 
                 socket.setSoTimeout(150);
 
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
                 long startTime = System.nanoTime();
-                long timeoutNanos = 1_000_000_000L; // 1 second
-
+                long timeoutNanos = Math.max(500L, maxWaitMs) * 1_000_000L;
                 byte[] chunk = new byte[256];
 
                 while ((System.nanoTime() - startTime) < timeoutNanos) {
@@ -324,25 +306,15 @@ public class UsrTcpWiFiService {
 
                         if (bytesRead == -1) {
                             log.warn("Port [{}]: Connection closed while waiting for CID2 0x{}",
-                                    port,
-                                    Integer.toHexString(cid2).toUpperCase());
+                                    port, Integer.toHexString(cid2).toUpperCase());
                             break;
                         }
 
                         if (bytesRead > 0) {
                             buffer.write(chunk, 0, bytesRead);
 
-                            /*
-                             * Python:
-                             *
-                             * if b"~" in buffer and (b"\r" in chunk or b"\n" in chunk):
-                             *     break
-                             */
                             boolean hasStart = false;
-                            boolean hasEnd = false;
-
                             byte[] currentBuffer = buffer.toByteArray();
-
                             for (byte b : currentBuffer) {
                                 if (b == '~') {
                                     hasStart = true;
@@ -351,30 +323,25 @@ public class UsrTcpWiFiService {
                             }
 
                             byte lastByte = chunk[bytesRead - 1];
-                            if (lastByte == '\r' || lastByte == '\n') {
-                                hasEnd = true;
-                            }
+                            boolean hasEnd = (lastByte == '\r' || lastByte == '\n');
 
                             if (hasStart && hasEnd && in.available() == 0) {
                                 break;
                             }
                         }
-
                     } catch (SocketTimeoutException ignored) {
-                        // Python recv() timeout -> continue loop.
+                        // Продовжуємо чекати відповідь до вичерпання maxWaitMs
                     }
                 }
 
                 if (buffer.size() == 0) {
-                    log.warn("Port [{}]: No response for CID2 0x{}",
-                            port,
-                            Integer.toHexString(cid2).toUpperCase());
+                    log.warn("Port [{}]: No response for CID2 0x{} within {} ms",
+                            port, Integer.toHexString(cid2).toUpperCase(), maxWaitMs);
                     return null;
                 }
 
                 byte[] rawBytes = buffer.toByteArray();
-                String responseAscii =  new String(rawBytes, StandardCharsets.US_ASCII);
-                // TODO only debug
+                String responseAscii = new String(rawBytes, StandardCharsets.US_ASCII);
                 log.debug("Port [{}]: RAW BMS response CID2 [0x{}], bytes [{}], HEX_response_CID2 [{}], ASCII [{}]",
                         port,
                         Integer.toHexString(cid2).toUpperCase(),
@@ -386,13 +353,14 @@ public class UsrTcpWiFiService {
 
             } catch (IOException e) {
                 log.error("Port [{}]: IO Error on RS485 exchange (CID2 0x{}): {}",
-                        port,
-                        Integer.toHexString(cid2).toUpperCase(),
-                        e.getMessage(),
-                        e);
-                if (e instanceof SocketException
+                        port, Integer.toHexString(cid2).toUpperCase(), e.getMessage());
+
+                // 0x42 ніколи не закриває і не скидає сокет
+                if (cid2 != CMD_CID2_42
+                        && e instanceof SocketException
                         && "Broken pipe".equalsIgnoreCase(e.getMessage())) {
-                    log.warn("Port [{}]: Broken pipe. Forcing socket reconnect.", port);
+                    log.warn("Port [{}]: Broken pipe on CID2 0x{}. Forcing socket reconnect.",
+                            port, Integer.toHexString(cid2).toUpperCase());
                     forceCloseSocket(port);
                 }
 
@@ -438,7 +406,7 @@ public class UsrTcpWiFiService {
                         log.error("Error occurred in RS485 GOOTO Telemetry scheduler tic", t);
                     }
                 },
-                10L, // 10 секунд паузи при старті сервісу
+                30L, // 10 секунд паузи при старті сервісу
                 period, // далі через кожні 'period' секунд
                 TimeUnit.SECONDS
         );
@@ -503,7 +471,6 @@ public class UsrTcpWiFiService {
         log.info("Порт {}: Новий сокет підключено.", port);
 
         try {
-            // Базовий Keep-Alive для виявлення розривів на рівні ОС
             conn.setKeepAlive(true);
         } catch (SocketException se) {
             log.warn("Port [{}]: Failed to set KeepAlive: {}", port, se.getMessage());
@@ -517,7 +484,6 @@ public class UsrTcpWiFiService {
 
             log.debug("Port [{}]: Battery socket registered, starting initial RS485 poll", port);
 
-            // Стартове опитування при підключенні
             CompletableFuture.runAsync(() -> {
                 try {
                     pollRs485Devices(port);
@@ -527,26 +493,15 @@ public class UsrTcpWiFiService {
             });
 
             try {
-                // Встановлюємо Read Timeout (15 сек) для виявлення розриву, якщо пристрій закриє сокет
-                conn.setSoTimeout(15000);
-                InputStream in = conn.getInputStream();
-
-                // Замість вічного sleep() чекаємо на фактичний стан з'єднання
-                while (!conn.isClosed()) {
-                    try {
-                        int b = in.read();
-                        if (b == -1) {
-                            log.warn("Port [{}]: Battery connection closed by remote side (-1)", port);
-                            break;
-                        }
-                    } catch (SocketTimeoutException ignored) {
-                        // Таймаут потрібен лише для періодичної перевірки conn.isClosed()
-                    }
+                // Потік listener лише утримує з'єднання відкритим і НЕ викликає in.read(),
+                // щоб не перехоплювати байти відповіді у sendAndReceiveRaw()
+                while (!conn.isClosed() && activeConnections.get(port) == conn) {
+                    Thread.sleep(1000L);
                 }
-            } catch (IOException e) {
-                log.warn("Port [{}]: Battery socket IO exception: {}", port, e.getMessage());
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
             } finally {
-                activeConnections.remove(port);
+                activeConnections.remove(port, conn);
                 log.info("Port [{}]: Battery socket removed from activeConnections", port);
             }
             return;
@@ -556,7 +511,6 @@ public class UsrTcpWiFiService {
         // ГІЛКА 2: ІНВЕРТОРНІ ПОРТИ (ПОСТІЙНИЙ СТРІМ ДАНИХ ВІД ІНВЕРТОРА)
         // =========================================================================
         try {
-            // Встановлюємо 15-секундний SoTimeout, щоб in.read() не блокував потік вічно
             conn.setSoTimeout(15000);
         } catch (SocketException se) {
             log.warn("Port [{}]: Failed to set SoTimeout for inverter: {}", port, se.getMessage());
@@ -576,8 +530,6 @@ public class UsrTcpWiFiService {
                         break;
                     }
                 } catch (SocketTimeoutException e) {
-                    // Таймаут читання: даних немає 15 сек.
-                    // НЕ закриваємо сокет і НЕ оновлюємо lastSeenMap!
                     if (conn.isClosed()) {
                         break;
                     }
@@ -595,7 +547,6 @@ public class UsrTcpWiFiService {
                     try {
                         byte[] remaining = usrTcpWiFiParseData.parseAndProcessData(buffer.toByteArray(), port);
 
-                        // ✅ ТІЛЬКИ ПІСЛЯ УСПІШНОГО РОЗПАРСУВАННЯ ОНОВЛЮЄМО ЧАС ТА СТАТУС!
                         lastSeenMap.put(port, System.currentTimeMillis());
                         portStatusMap.put(port, PortStatus.ACTIVE);
 
@@ -604,7 +555,6 @@ public class UsrTcpWiFiService {
                             buffer.write(remaining);
                         }
                     } catch (Exception e) {
-                        // ❌ Якщо дані "сміття" або декодер впав — НЕ оновлюємо lastSeenMap!
                         log.error("Port {}: Decoder error - invalid data format: {}", port, e.getMessage());
                         buffer.reset();
                     }
@@ -614,10 +564,11 @@ public class UsrTcpWiFiService {
         } catch (IOException e) {
             log.warn("Port [{}]: Connection lost / IO Exception: {}", port, e.getMessage());
         } finally {
-            activeConnections.remove(port);
+            activeConnections.remove(port, conn);
             log.info("Port [{}]: Inverter socket removed from activeConnections", port);
         }
     }
+
     // --------------------------
     // CLEANUP / SHUTDOWN
     // --------------------------
@@ -697,56 +648,33 @@ public class UsrTcpWiFiService {
             telemetry = new UsrTcpWifiRS485_Data_GOOTO_Telemetry();
         }
 
-        // =========================================================================
-        // КРОК 1: Запит кадру 0x42 (до 5 спроб у разі помилки)
-        // =========================================================================
-        boolean parse42Success = false;
+        // 1. ПРІОРИТЕТ 0x44: чекаємо відповідь або половину періоду опитування
+        long halfPeriodMs = (getRs485PollingPeriodSec() * 1000L) / 2;
+        String responseAsciiCid44 = sendAndReceiveRaw(batPort, CMD_CID2_44, halfPeriodMs);
 
-        for (int attempt = 1; attempt <= 5; attempt++) {
-            String responseAsciiCid42 = sendAndReceiveRaw(batPort, CMD_CID2_42);
-            if (responseAsciiCid42 != null) {
-                parse42Success = telemetry.parse42(responseAsciiCid42);
-                if (parse42Success) {
-                    log.debug("Port [{}]: CID2 0x42 parsed successfully on attempt {}", batPort, attempt);
-                    break; // Успішно!
-                }
+        if (responseAsciiCid44 != null && telemetry.parse44(responseAsciiCid44)) {
+            Instant currentInstant = Instant.now();
+            lastSeenMap.put(batPort, currentInstant.toEpochMilli());
+            portStatusMap.put(batPort, PortStatus.ACTIVE);
+
+            telemetry.setTimestamp(currentInstant);
+            battery.setRs485_Data_GOOTO_Telemetry(telemetry);
+            battery.setLastTime(currentInstant);
+            log.debug("Port [{}]: CID2 0x44 updated successfully at {}", batPort, currentInstant);
+        } else {
+            log.warn("Port [{}]: CID2 0x44 failed or timed out ({} ms). Proceeding to 0x42.", batPort, halfPeriodMs);
+        }
+
+        // 2. ДРУГОРЯДНИЙ 0x42: не блокує і при помилках не зачіпає сокет
+        try {
+            String responseAsciiCid42 = sendAndReceiveRaw(batPort, CMD_CID2_42, 1000L);
+            if (responseAsciiCid42 != null && telemetry.parse42(responseAsciiCid42)) {
+                battery.setRs485_Data_GOOTO_Telemetry(telemetry);
+                log.debug("Port [{}]: CID2 0x42 parsed successfully", batPort);
             }
-            log.debug("Port [{}]: Failed to read/parse CID2 0x42 (attempt {}/5)", batPort, attempt);
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (Throwable t) {
+            log.debug("Port [{}]: CID2 0x42 error ignored (socket untouched): {}", batPort, t.getMessage());
         }
-
-        // Якщо за 5 спроб 0x42 не розпарсився — зупиняємо оновлення телеметрії ТА часу!
-        if (!parse42Success) {
-            log.error("Port [{}]: CID2 0x42 failed after 5 attempts. Skipping time update.", batPort);
-            // ❌ time NOT updated, lastSeenMap NOT updated!
-            // Сокет залишається відкритим для відновлення, але monitorInactivity() через timeout відправить його в OFFLINE
-            return;
-        }
-
-        // =========================================================================
-        // КРОК 2: Запит кадру 0x44 (одна спроба)
-        // =========================================================================
-        String responseAsciiCid44 = sendAndReceiveRaw(batPort, CMD_CID2_44);
-        if (responseAsciiCid44 != null) {
-            telemetry.parse44(responseAsciiCid44);
-        }
-
-        // =========================================================================
-        // КРОК 3: Фінальне збереження та оновлення часу (ТІЛЬКИ ПРИ УСПІХУ КРОКУ 1)
-        // =========================================================================
-        Instant currentInstant = Instant.now();
-        lastSeenMap.put(batPort, currentInstant.toEpochMilli());
-        portStatusMap.put(batPort, PortStatus.ACTIVE);
-
-        telemetry.setTimestamp(currentInstant);
-        battery.setRs485_Data_GOOTO_Telemetry(telemetry);
-        battery.setLastTime(telemetry.getTimestamp());
-
-        log.debug("Port [{}]: Telemetry updated successfully at {}", batPort, telemetry.getTimestamp());
     }
 
     public boolean sendRs485Command(int port, String asciiCommand) {

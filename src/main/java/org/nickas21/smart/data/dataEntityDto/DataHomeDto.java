@@ -357,7 +357,7 @@ public class DataHomeDto {
         if (inverterDataGolego != null) {
             inverterGolegoData90 = inverterDataGolego.getInverterGolegoData90();
             inverterLastMsWithTz = inverterDataGolego.getLastTime() != null ? inverterDataGolego.getLastTime().toEpochMilli() : 0; // Вже з TZ getLastTime()
-            log.debug("GolegoFine Inverter: entity90 {}; : entity32 {}; ", inverterGolegoData90, inverterDataGolego.getInverterGolegoData32());
+            log.debug("GolegoNewTCP Inverter: entity90 {}; : entity32 {}; ", inverterGolegoData90, inverterDataGolego.getInverterGolegoData32());
         }
 
         // =========================================================================
@@ -416,10 +416,10 @@ public class DataHomeDto {
         List<Integer> batteriesNoActive = tcpProps.getAllPortsBatGolego().stream()
                 .filter(port -> !batteriesActive.contains(port))
                 .toList();
-        log.warn("GolegoFine battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
+        log.warn("GolegoNewTCP battery: BatteriesActivCnt [{}] BatteriesNoActive {}", batteriesActiveCnt, !batteriesNoActive.isEmpty() ? batteriesNoActive : 0);
 
         // =========================================================================
-        // 4. INVERTER FALLBACK (залежить від hasBatteryData) & ФІНАЛЬНІ БАЛАНСИ
+        // 3. INVERTER FALLBACK
         // =========================================================================
         double batterySocInv = 0;
         String batteryStatusInv = "";
@@ -439,17 +439,15 @@ public class DataHomeDto {
             if (inverterGolegoData90.getLoadOutputActivePower() != null) {
                 homePowerInv = inverterGolegoData90.getLoadOutputActivePower();
             }
-            log.info("GolegoFine fallback to inverter timestamp: [{}], time_TZ:[{}], soc: [{}]%, vol: [{}], cur: [{}], status: [{}], homePower: [{}]",
+            log.info("GolegoNewTCP fallback to inverter timestamp: [{}], time_TZ:[{}], soc: [{}]%, vol: [{}], cur: [{}], status: [{}], homePower: [{}]",
                     inverterLastMsWithTz, formatTimestamp(inverterLastMsWithTz, datePatternGridStatus, UTC), batterySocInv, batteryVolInv, batteryCurrentInv, batteryStatusInv, homePowerInv);
-        } else {
-            log.warn("GolegoFine critical: no fresh data from inverter and battery BMS");
         }
 
         // =========================================================================
-        // 4.1 Вивід данних в залежності від актуальності по timestamp. Перевірка знак batteryCurrent, статусу BMS, gridPower
+        // 4. Баланс, Вивід данних в залежності від актуальності по timestamp. Перевірка знак batteryCurrent, статусу BMS, gridPower
         // =========================================================================
 
-        // 1. Спочатку зчитуємо стан реле мережі Golego
+        // 4.1. Спочатку зчитуємо стан реле мережі Golego
         Boolean gridRelayCodeGolegoStateOnLine = tuyaDeviceService.getGridRelayCodeGolegoStateOnLine();
         if (gridRelayCodeGolegoStateOnLine != null) this.gridStatusRealTimeOnLine = gridRelayCodeGolegoStateOnLine;
         Boolean gridRelayCodeGolegoStateSwitch =  tuyaDeviceService.getGridRelayCodeGolegoStateSwitch();
@@ -459,7 +457,8 @@ public class DataHomeDto {
                 formatTimestamp(APP_START_TIME, datePatternGridStatus);
         boolean isGridRelayActive = this.gridStatusRealTimeOnLine && this.gridStatusRealTimeSwitch;
 
-        if (inverterLastMsWithTz > timestampBat) {
+        // 4.2.Баланс
+        if (inverterLastMsWithTz > timestampBat && (inverterLastMsWithTz - timestampBat) > usrTcpWiFiService.getRs485PollingPeriodSec() * 1000L) {
             this.timestamp = inverterLastMsWithTz;
             this.batteryCurrent = batteryCurrentInv;
             this.batteryVol = batteryVolInv;
@@ -471,6 +470,8 @@ public class DataHomeDto {
             this.batteryVol = batteryVolBat;
             this.batteryStatus = batteryStatusBat;
         }
+
+        // 4.2. Калібровка
         this.homePower = homePowerInv;
         this.batterySoc = batterySocBat > 0 ? batterySocBat : 0;
 
@@ -503,6 +504,21 @@ public class DataHomeDto {
         }
 
         // =========================================================================
+        // 4.3. critical connect BMS and Inverter
+        // =========================================================================
+        long nowTime = System.currentTimeMillis();
+        long inactivityTimeout = usrTcpWiFiService.getTcpProps().getMonitorInactivityTimeOut(); // 1200000L (20 хв)
+
+        boolean isAppWarmedUp = (nowTime - APP_START_TIME) > inactivityTimeout;
+
+        boolean isBatStale = (timestampBat <= 0) || ((nowTime - timestampBat) > inactivityTimeout);
+        boolean isInvStale = (inverterLastMsWithTz <= 0) || ((nowTime - inverterLastMsWithTz) > inactivityTimeout);
+
+        if (isAppWarmedUp && isBatStale && isInvStale) {
+            log.error("GolegoNewTCP critical: no fresh data from inverter and battery BMS");
+        }
+
+        // =========================================================================
         // 5. ТЕМПЕРАТУРА ТА ДЕФОЛТНІ ПОЛЯ
         // =========================================================================
         DataTemperatureDto temperatureDto = tuyaDeviceService.getTemperatureValueById(tuyaDeviceService.deviceIdTemperatureOutGolego);
@@ -530,7 +546,7 @@ public class DataHomeDto {
             long offsetMs = updateTimeStampToUtc(this.timestamp, LocationType.GOLEGO.getZoneId());
             this.timestamp += offsetMs;
         }
-        log.warn("DataHomeGolegoFine time long: [{}], time_TZ: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
+        log.warn("DataHome GolegoNewTCP time long: [{}], time_TZ: [{}] \n - from dto: [{}]", this.timestamp, formatTimestamp(this.timestamp, datePatternGridStatus, UTC), this);
     }
 
 
